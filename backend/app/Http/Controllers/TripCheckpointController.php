@@ -44,17 +44,22 @@ class TripCheckpointController extends Controller
             .'Bagian 18) to the expected target point, only accepted within ARRIVAL_RADIUS_METERS, a '
             .'location_validation_failed notification fires otherwise (PRD Bagian 19) and nothing is recorded. '
             .'truck_returned sets truck_returned_at only (not status/actual_arrival_at, those are the ship\'s). '
-            .'Which arrival event_type is valid depends on the trip\'s current status and whether it\'s '
-            .'cross-border, sending the wrong one for the current state is rejected.',
+            .'ship_departed (at_origin_port -> on_ship) and ship_arrived (on_ship -> at_destination_port) are the '
+            .'Simulate Vessel feature\'s equivalent of the never-built real VesselAPI departure/arrival poller — '
+            .'ship_departed optionally accepts destination_port_id to overwrite ship_destination_port_id with a '
+            .'randomly-chosen other-island port for the simulated crossing. Which arrival event_type is valid '
+            .'depends on the trip\'s current status and whether it\'s cross-border, sending the wrong one for the '
+            .'current state is rejected.',
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
                 required: ['event_type', 'latitude', 'longitude'],
                 properties: [
-                    new OA\Property(property: 'event_type', type: 'string', enum: [EventType::DEPARTED, EventType::GPS_PING, EventType::ARRIVED_AT_DESTINATION, EventType::ARRIVED_AT_PORT, EventType::ARRIVED_FINAL, EventType::TRUCK_RETURNED]),
+                    new OA\Property(property: 'event_type', type: 'string', enum: [EventType::DEPARTED, EventType::GPS_PING, EventType::ARRIVED_AT_DESTINATION, EventType::ARRIVED_AT_PORT, EventType::ARRIVED_FINAL, EventType::TRUCK_RETURNED, EventType::SHIP_DEPARTED, EventType::SHIP_ARRIVED]),
                     new OA\Property(property: 'latitude', type: 'number', format: 'float'),
                     new OA\Property(property: 'longitude', type: 'number', format: 'float'),
+                    new OA\Property(property: 'destination_port_id', type: 'integer', nullable: true, description: 'ship_departed only: randomly-chosen other-island port ID, overwrites ship_destination_port_id.'),
                 ]
             )
         ),
@@ -95,6 +100,7 @@ class TripCheckpointController extends Controller
         return match ($request->input('event_type')) {
             EventType::GPS_PING => $this->recordGpsPing($trip, $latitude, $longitude),
             EventType::DEPARTED => $this->recordDeparture($trip, $latitude, $longitude),
+            EventType::SHIP_DEPARTED => $this->recordShipDeparture($trip, $latitude, $longitude, $request->input('destination_port_id')),
             default => $this->recordArrival($trip, $request->input('event_type'), $latitude, $longitude),
         };
     }
@@ -145,7 +151,11 @@ class TripCheckpointController extends Controller
      */
     protected function recordGpsPing(Trip $trip, float $latitude, float $longitude)
     {
-        if (! in_array($trip->status, [StatusTrips::IN_TRANSIT_ORIGIN, StatusTrips::IN_TRANSIT_DESTINATION], true)) {
+        // on_ship included so Simulate Vessel's periodic pings during the crossing land
+        // here too — GET /trips/{id}/position already falls back to the latest GPS
+        // checkpoint when it has no live VesselAPI data, so these pings get picked up
+        // by the exact same live-map polling the truck legs use.
+        if (! in_array($trip->status, [StatusTrips::IN_TRANSIT_ORIGIN, StatusTrips::IN_TRANSIT_DESTINATION, StatusTrips::ON_SHIP], true)) {
             return $this->error('Trip is not currently in transit.', 422);
         }
 
@@ -196,9 +206,51 @@ class TripCheckpointController extends Controller
         ], 'Departure recorded');
     }
 
+    /**
+     * Simulate Vessel's departure step. Real VesselAPI-driven departure detection
+     * (mirroring markShipArrived()'s arrival detection) was never built (PRD Bagian 8.2
+     * integration note), so this is the only thing that ever moves a trip out of
+     * at_origin_port — either a real future poller or this simulated client trigger.
+     * Optionally overwrites ship_destination_port_id with a randomly-chosen other-island
+     * port for the duration of the simulated crossing (Simulate Vessel picks one from
+     * GET /api/ports client-side), so the later ship_arrived Haversine check in
+     * recordArrival() validates against wherever the simulated ship actually "sailed to"
+     * rather than whatever was configured back when the trip was first created.
+     */
+    protected function recordShipDeparture(Trip $trip, float $latitude, float $longitude, ?int $destinationPortId)
+    {
+        if ($trip->status !== StatusTrips::AT_ORIGIN_PORT) {
+            return $this->error('Trip is not currently waiting for the ship to depart.', 422);
+        }
+
+        if (! $trip->ship_ref_id) {
+            return $this->error('Vessel reference ID has not been set for this trip.', 422);
+        }
+
+        $updates = ['status' => StatusTrips::ON_SHIP];
+        if ($destinationPortId !== null) {
+            $updates['ship_destination_port_id'] = $destinationPortId;
+        }
+        $trip->update($updates);
+
+        $checkpoint = TripCheckpoint::create([
+            'trip_id' => $trip->id,
+            'event_type' => EventType::SHIP_DEPARTED,
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'source' => Source::GPS,
+            'recorded_at' => now(),
+        ]);
+
+        return $this->success([
+            'checkpoint' => new TripCheckpointResource($checkpoint),
+            'trip_status' => $trip->status,
+        ], 'Ship departure recorded');
+    }
+
     protected function recordArrival(Trip $trip, string $eventType, float $latitude, float $longitude)
     {
-        $trip->loadMissing(['originCompany', 'originPort', 'destinationCompany', 'destinationPort']);
+        $trip->loadMissing(['originCompany', 'originPort', 'destinationCompany', 'destinationPort', 'shipDestinationPort']);
 
         // Which arrival event_type is valid, what point it must be near, and what happens
         // on success, all depend on the trip's current status (PRD Bagian 16 state chains)
@@ -228,6 +280,19 @@ class TripCheckpointController extends Controller
                 EventType::TRUCK_RETURNED,
                 $this->resolvePoint($trip, 'origin'),
                 fn () => ['truck_returned_at' => now()],
+            ],
+            // Mirrors TripController::markShipArrived() (the real VesselAPI-poll-driven
+            // path) — target is ship_destination_port, which recordShipDeparture() may
+            // have just overwritten with Simulate Vessel's randomly-picked destination.
+            // Goes straight to completed: cross-border trips have no leg beyond the ship
+            // reaching the destination port (no destination-side company in the combo).
+            $trip->status === StatusTrips::ON_SHIP => [
+                EventType::SHIP_ARRIVED,
+                [
+                    'lat' => (float) $trip->shipDestinationPort?->latitude,
+                    'lng' => (float) $trip->shipDestinationPort?->longitude,
+                ],
+                fn () => ['status' => StatusTrips::COMPLETED, 'actual_arrival_at' => now()],
             ],
             default => [null, null, null],
         };

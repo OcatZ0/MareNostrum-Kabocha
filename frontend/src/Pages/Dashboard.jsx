@@ -24,7 +24,11 @@ import LiveTrackingPanel from '../Componnent/dashboard/LiveTrackingPanel';
 import EmissionOverview from '../Componnent/dashboard/EmissionOverview';
 import FleetStatus from '../Componnent/dashboard/FleetStatus';
 import { COLORS, STATUS_STYLES } from '../Componnent/dashboard/dashboardTheme';
-import { getDashboardData } from '../api/dashboardApi';
+import {
+  getDashboardPrimaryData,
+  getDashboardSecondaryData,
+  getDashboardData,
+} from '../api/dashboardApi';
 import { getCheckpoints } from '../api/tripsApi';
 import TripDetailModal from '../Componnent/trips/TripDetailModal';
 import CreateTripModal from '../Componnent/trips/CreateTripModal';
@@ -54,7 +58,10 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [period, setPeriod] = useState('all');
-  const [loading, setLoading] = useState(true);
+
+  // Progressive Tiered Loading States
+  const [primaryLoading, setPrimaryLoading] = useState(true);
+  const [secondaryLoading, setSecondaryLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
@@ -68,50 +75,73 @@ const Dashboard = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   /* ============================================================
-     FETCH UNIFIED DASHBOARD DATA
+     FETCH PROGRESSIVE DASHBOARD DATA (TIER 1 -> TIER 2)
   ============================================================ */
   const fetchDashboardData = useCallback(async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
-    else setRefreshing(true);
+    if (!isSilent) {
+      setPrimaryLoading(true);
+      setSecondaryLoading(true);
+    } else {
+      setRefreshing(true);
+    }
 
-    try {
-      // 1 single lightning-fast request for the entire dashboard
-      const res = await getDashboardData({ period });
-      const data = res.data?.data || null;
+    // ── Tier 1: Load essential priority data first (instant response) ──────
+    const primaryPromise = getDashboardPrimaryData({ period })
+      .then((res) => {
+        const data = res.data?.data || null;
+        if (data) {
+          setDashboardData((prev) => ({ ...prev, ...data }));
 
-      if (data) {
-        setDashboardData(data);
+          // Set primary active trip for live tracking
+          const liveOps = data.live_operations || {};
+          const primary =
+            liveOps.primary_trip ||
+            (liveOps.active_trips && liveOps.active_trips[0]) ||
+            (data.recent_trips && data.recent_trips[0]) ||
+            null;
 
-        // Set primary active trip for live tracking
-        const liveOps = data.live_operations || {};
-        const primary = liveOps.primary_trip || (liveOps.active_trips && liveOps.active_trips[0]) || (data.recent_trips && data.recent_trips[0]) || null;
-        
-        setActiveTrip((prev) => {
-          if (prev && liveOps.active_trips?.some((t) => t.id === prev.id)) {
-            return liveOps.active_trips.find((t) => t.id === prev.id);
-          }
-          return primary;
-        });
+          setActiveTrip((prev) => {
+            if (prev && liveOps.active_trips?.some((t) => t.id === prev.id)) {
+              return liveOps.active_trips.find((t) => t.id === prev.id);
+            }
+            return primary;
+          });
 
-        if (liveOps.checkpoints && liveOps.checkpoints.length > 0) {
-          setCheckpoints(liveOps.checkpoints);
-        } else if (primary?.id) {
-          try {
-            const cpRes = await getCheckpoints(primary.id);
-            setCheckpoints(cpRes.data?.data || []);
-          } catch {
+          if (liveOps.checkpoints && liveOps.checkpoints.length > 0) {
+            setCheckpoints(liveOps.checkpoints);
+          } else if (primary?.id) {
+            getCheckpoints(primary.id)
+              .then((cpRes) => setCheckpoints(cpRes.data?.data || []))
+              .catch(() => setCheckpoints([]));
+          } else {
             setCheckpoints([]);
           }
-        } else {
-          setCheckpoints([]);
         }
-      }
-    } catch (err) {
-      console.error('Failed to load unified dashboard data:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+      })
+      .catch((err) => {
+        console.error('Failed to load primary dashboard data:', err);
+      })
+      .finally(() => {
+        setPrimaryLoading(false);
+      });
+
+    // ── Tier 2: Load heavy analytics in background (with loading buffer) ───
+    const secondaryPromise = getDashboardSecondaryData({ period })
+      .then((res) => {
+        const secData = res.data?.data || null;
+        if (secData) {
+          setDashboardData((prev) => ({ ...prev, ...secData }));
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load secondary analytics data:', err);
+      })
+      .finally(() => {
+        setSecondaryLoading(false);
+      });
+
+    await Promise.allSettled([primaryPromise, secondaryPromise]);
+    setRefreshing(false);
   }, [period]);
 
   /* ============================================================
@@ -186,12 +216,6 @@ const Dashboard = () => {
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
                   Logistics & Operations
                 </h1>
-                {inTransitTrips > 0 && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    {inTransitTrips} Live
-                  </span>
-                )}
               </div>
               <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                 Real-time multi-modal logistics, vessel integration & carbon intelligence
@@ -199,23 +223,6 @@ const Dashboard = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
-              {/* Period Selector Tabs */}
-              <div className="flex items-center bg-white border-2 border-slate-200 rounded-lg p-0.5 shadow-2xs text-xs">
-                {PERIOD_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setPeriod(opt.value)}
-                    className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-                      period === opt.value
-                        ? 'bg-slate-800 text-white shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-
               {/* Refresh Button */}
               <button
                 onClick={() => fetchDashboardData(true)}
@@ -225,16 +232,21 @@ const Dashboard = () => {
               >
                 <RefreshCw size={15} className={refreshing ? 'animate-spin text-teal-600' : ''} />
               </button>
-
-              {/* Create Trip Action */}
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold text-white shadow-xs transition hover:opacity-95"
-                style={{ backgroundColor: COLORS.navy }}
-              >
-                <Plus size={15} />
-                New Trip
-              </button>
+              {/* Period Selector Tabs */}
+              <div className="flex items-center bg-white border-2 border-slate-200 rounded-lg p-0.5 shadow-2xs text-xs">
+                {PERIOD_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setPeriod(opt.value)}
+                    className={`px-3 py-1.5 rounded-md font-medium transition-all ${period === opt.value
+                        ? 'bg-slate-800 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -244,36 +256,32 @@ const Dashboard = () => {
               icon={Route}
               value={String(totalTrips)}
               label="Total Dispatches"
-              delta={`${completedTrips} completed · ${assignedTrips} queued`}
-              deltaGood={completedTrips > 0}
+              loading={primaryLoading}
             />
             <StatCard
               icon={Truck}
               value={String(inTransitTrips)}
               label="Active In Transit"
-              delta={inTransitTrips > 0 ? `${inTransitTrips} active on route` : 'No active dispatches'}
-              deltaGood={inTransitTrips > 0}
+              loading={primaryLoading}
             />
             <StatCard
               icon={Leaf}
               value={`${totalCo2} kg`}
               label="Est. Fleet Carbon"
-              delta="-5.2% eco score"
-              deltaGood
+              loading={primaryLoading}
             />
             <StatCard
               icon={Navigation}
               value={totalDistance}
               label="Total Distance"
-              delta={`${accuracyPct} AI slot accuracy`}
-              deltaGood
+              loading={primaryLoading}
             />
           </div>
 
           {/* Middle Row: Trip Volume Chart & Live Operations Panel */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2">
-              <TripVolumeChart data={monthlyVolume} />
+              <TripVolumeChart data={monthlyVolume} loading={secondaryLoading} />
             </div>
             <div className="xl:col-span-1">
               <LiveTrackingPanel
@@ -296,10 +304,11 @@ const Dashboard = () => {
               trend={emissions.monthly_trend}
               categoryEmissions={emissions.category_breakdown}
               topTrucks={emissions.top_emitting_trucks || []}
+              loading={secondaryLoading}
             />
             <FleetStatus
               trucks={fleet.trucks || []}
-              loading={loading}
+              loading={secondaryLoading}
             />
           </div>
 
@@ -341,7 +350,33 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {recentOperations.length === 0 ? (
+                  {primaryLoading ? (
+                    [1, 2, 3, 4, 5].map((k) => (
+                      <tr key={k} className="animate-pulse">
+                        <td className="py-3.5 px-4 sm:px-6">
+                          <div className="h-4 bg-slate-200 rounded w-16" />
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="h-4 bg-slate-100 rounded w-32" />
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="h-3.5 bg-slate-200 rounded w-24 mb-1" />
+                          <div className="h-3 bg-slate-100 rounded w-16" />
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="h-4 bg-slate-100 rounded-full w-20 mb-1" />
+                          <div className="h-3 bg-slate-50 rounded w-16" />
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="h-3.5 bg-slate-200 rounded w-16 mb-1" />
+                          <div className="h-3 bg-slate-100 rounded w-12" />
+                        </td>
+                        <td className="py-3.5 px-4 sm:px-6 text-right">
+                          <div className="h-6 bg-slate-100 rounded-lg w-16 ml-auto" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : recentOperations.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-8 text-center text-slate-400 text-xs">
                         No trips found for this time period.

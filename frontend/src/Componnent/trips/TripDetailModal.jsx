@@ -52,6 +52,17 @@ const fmt = (iso) => {
   });
 };
 
+// datetime-local's min/value are compared in the browser's LOCAL wall-clock
+// time, not UTC — toISOString() would give a UTC string that gets
+// misinterpreted as local, making "now" appear hours earlier than it really
+// is for any UTC+ timezone (Batam/Singapore included), silently letting the
+// picker accept a time that's already in the past by the time it reaches
+// the backend's `after:now` check.
+const toLocalDatetimeValue = (date) => {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 const fmtDur = (min) => {
   if (!min) return '—';
   const h = Math.floor(min / 60);
@@ -78,6 +89,37 @@ const Row = ({ label, value, mono }) => (
     </span>
   </div>
 );
+
+// Shows where a recommend/simulate score actually comes from — base 100
+// minus whichever penalties applied (TripController::scoreSlot) — instead
+// of just the final number, which on its own doesn't explain e.g. why a
+// slot with more traffic still scored higher than one with a night penalty.
+const ScoreBreakdown = ({ breakdown }) => {
+  if (!breakdown) return null;
+  const penalties = [
+    { label: 'Traffic', value: breakdown.traffic_penalty },
+    { label: 'Delay',   value: breakdown.delay_penalty },
+    { label: 'Night',   value: breakdown.night_penalty },
+  ].filter(({ value }) => value > 0);
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full" style={{ backgroundColor: '#ECFDF5', color: '#059669' }}>
+        +{breakdown.base} Base
+      </span>
+      {penalties.map(({ label, value }) => (
+        <span key={label} className="text-[10px] font-mono px-1.5 py-0.5 rounded-full" style={{ backgroundColor: '#FEF2F2', color: '#DC2626' }}>
+          −{value} {label}
+        </span>
+      ))}
+      {breakdown.historical_sample_size > 0 && (
+        <span className="text-[10px] text-slate-400">
+          · based on {breakdown.historical_sample_size} past trip{breakdown.historical_sample_size !== 1 ? 's' : ''}
+        </span>
+      )}
+    </div>
+  );
+};
 
 const ApiError = ({ msg }) =>
   msg ? (
@@ -404,20 +446,23 @@ const InfoTab = ({ trip }) => {
               {trip.recommended_slots.map((slot, i) => (
                 <div
                   key={i}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-3 rounded-lg border text-xs"
+                  className="px-3 py-3 rounded-lg border text-xs"
                   style={{
                     borderColor:       slot.is_recommended ? COLORS.aqua : '#E2E8F0',
                     backgroundColor:   slot.is_recommended ? `${COLORS.aqua}0D` : 'white',
                   }}
                 >
-                  <div className="flex items-center gap-2">
-                    {slot.is_recommended && <CheckCircle2 size={12} color={COLORS.green} />}
-                    <span className="font-medium text-slate-700">{slot.reason}</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      {slot.is_recommended && <CheckCircle2 size={12} color={COLORS.green} />}
+                      <span className="font-medium text-slate-700">{slot.reason}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-slate-400 shrink-0">
+                      <span>Score: <strong className="text-slate-700">{slot.score}</strong></span>
+                      {slot.distance_km && <span>{slot.distance_km} km</span>}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 text-slate-400 shrink-0">
-                    <span>Score: <strong className="text-slate-700">{slot.score}</strong></span>
-                    {slot.distance_km && <span>{slot.distance_km} km</span>}
-                  </div>
+                  <ScoreBreakdown breakdown={slot.breakdown} />
                 </div>
               ))}
             </div>
@@ -658,7 +703,13 @@ const SimulateTab = ({ trip }) => {
       const res = await simulateTrip(trip.id, { departure_at: new Date(departureAt).toISOString() });
       setResult(res.data?.data);
     } catch (err) {
-      setApiError(err?.response?.data?.message ?? 'Simulation failed.');
+      const d = err?.response?.data;
+      // Every validation failure across the API shares the same generic
+      // top-level message ("Validation error", bootstrap/app.php) — the
+      // actual reason only lives in `errors`, so that has to be read first
+      // or the real cause never surfaces.
+      const fieldError = d?.errors?.departure_at?.[0];
+      setApiError(fieldError ?? d?.message ?? 'Simulation failed.');
     } finally { setSubmitting(false); }
   };
 
@@ -675,7 +726,12 @@ const SimulateTab = ({ trip }) => {
           <label className="block text-xs font-medium text-slate-600 mb-1">Departure Time</label>
           <input
             type="datetime-local" value={departureAt} onChange={(e) => setDepartureAt(e.target.value)}
-            min={new Date().toISOString().slice(0, 16)}
+            // +2min buffer: datetime-local only has minute precision, and the
+            // backend's after:now check runs whenever the user actually
+            // submits — without slack, picking the earliest allowed (current)
+            // minute can tick past "now" during normal deliberation/network
+            // time and get rejected despite looking valid when selected.
+            min={toLocalDatetimeValue(new Date(Date.now() + 2 * 60000))}
             className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none"
             onFocus={(e) => (e.target.style.boxShadow = `0 0 0 2px ${COLORS.aqua}40`)}
             onBlur={(e)  => (e.target.style.boxShadow = 'none')}
@@ -701,6 +757,7 @@ const SimulateTab = ({ trip }) => {
             <Row label="Distance"       value={result.simulated?.distance_km ? `${result.simulated.distance_km} km` : null} />
             <Row label="Est. arrival"   value={fmt(result.simulated?.estimated_arrival_at)} />
             <Row label="Reason"         value={result.simulated?.reason} />
+            <ScoreBreakdown breakdown={result.simulated?.breakdown} />
           </div>
 
           {/* nearest recommended */}
@@ -711,6 +768,7 @@ const SimulateTab = ({ trip }) => {
             <p className="font-semibold text-slate-500 uppercase tracking-wide mb-2">Nearest Recommended Slot</p>
             <Row label="Time"  value={fmt(result.nearest_recommended?.departure_at)} />
             <Row label="Score" value={result.nearest_recommended?.score} />
+            <ScoreBreakdown breakdown={result.nearest_recommended?.breakdown} />
           </div>
 
           {/* diff */}

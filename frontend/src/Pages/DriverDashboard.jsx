@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Navigation, Truck, Clock, LogOut, Menu, X, AlertCircle, Loader2, Zap } from 'lucide-react';
-import { getTrips, getTrip, storeCheckpoint } from '../api/tripsApi';
+import { MapPin, Navigation, Truck, Clock, LogOut, Menu, X, AlertCircle, Loader2, Zap, CheckCircle2, Ship } from 'lucide-react';
+import { getTrips, getTrip, storeCheckpoint, getCheckpoints } from '../api/tripsApi';
+import { getPorts } from '../api/portsApi';
 import { COLORS, STATUS_STYLES } from '../Componnent/dashboard/dashboardTheme';
 
 const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY || '';
@@ -32,6 +33,9 @@ const fmtDur = (min) => {
 /* ── trip simulation (demo speed: always 10s regardless of real distance) ── */
 const SIMULATE_DURATION_MS = 10000;
 const SIMULATE_PING_INTERVAL_MS = 1000;
+// Vessel crossing gets its own, longer demo duration — a sea crossing "feels"
+// like it should take longer than a truck leg even in fast-forward.
+const SIMULATE_VESSEL_DURATION_MS = 20000;
 
 // Which leg is "in motion" depends on trip.status — mirrors the backend's own
 // state machine (TripCheckpointController::recordArrival/recordGpsPing), so
@@ -44,19 +48,22 @@ const getSimulateConfig = (trip) => {
   if (trip.status === 'in_transit_origin') {
     return {
       from: trip.origin, to: trip.destination,
-      eventType: trip.ship_destination_port_id ? 'arrived_at_port' : 'arrived_at_destination',
+      // TripResource exposes this as a nested `ship_destination_port` object
+      // ({id, name, latitude, longitude}), not a flat _id field.
+      eventType: trip.ship_destination_port ? 'arrived_at_port' : 'arrived_at_destination',
       reversed: false,
       // gps_ping is only accepted while status is in_transit_origin/destination
       allowGpsPing: true,
+      label: 'Simulate Arrival',
     };
   }
   if (trip.status === 'in_transit_destination') {
-    return { from: trip.destination, to: trip.origin, eventType: 'arrived_final', reversed: true, allowGpsPing: true };
+    return { from: trip.destination, to: trip.origin, eventType: 'arrived_final', reversed: true, allowGpsPing: true, label: 'Simulate Arrival' };
   }
   if (trip.status === 'at_origin_port') {
     // Cross-border truck's return leg — status stays at_origin_port (that
     // field tracks the ship, not the truck), so gps_ping would 422 here.
-    return { from: trip.destination, to: trip.origin, eventType: 'truck_returned', reversed: true, allowGpsPing: false };
+    return { from: trip.destination, to: trip.origin, eventType: 'truck_returned', reversed: true, allowGpsPing: false, label: 'Send Truck Back to Company' };
   }
   return null;
 };
@@ -128,6 +135,34 @@ const MapView = ({ trip, onStartTrip, starting, onSimulateComplete }) => {
   const simulatePingTimerRef = useRef(null);
   const [simulating, setSimulating] = useState(false);
   const [simulateError, setSimulateError] = useState(null);
+
+  // Simulate Vessel — separate ref set from the truck's, since the ship
+  // crossing and the truck's return leg are independent and could plausibly
+  // run at the same time (truck driving home while the ship is at sea).
+  const vesselMarkerRef = useRef(null);
+  const vesselRafRef = useRef(null);
+  const vesselPingTimerRef = useRef(null);
+  const [simulatingVessel, setSimulatingVessel] = useState(false);
+  const [vesselError, setVesselError] = useState(null);
+
+  // Cross-border return leg: status stays at_origin_port the whole time
+  // (that field tracks the ship, not the truck), so the only way to tell
+  // "has the truck left the port yet" is a second 'departed' checkpoint —
+  // there's no status value or column for it.
+  const [returnDeparted, setReturnDeparted] = useState(false);
+
+  useEffect(() => {
+    if (!trip?.id || trip.status !== 'at_origin_port' || trip.truck_returned_at) {
+      setReturnDeparted(false);
+      return;
+    }
+    getCheckpoints(trip.id)
+      .then((res) => {
+        const departedCount = (res.data?.data ?? []).filter((cp) => cp.event_type === 'departed').length;
+        setReturnDeparted(departedCount >= 2);
+      })
+      .catch(() => setReturnDeparted(false));
+  }, [trip]);
 
   // Load SDK once
   useEffect(() => {
@@ -218,6 +253,12 @@ const MapView = ({ trip, onStartTrip, starting, onSimulateComplete }) => {
     routeCoordsRef.current = null;
     setSimulating(false);
     setSimulateError(null);
+
+    cancelAnimationFrame(vesselRafRef.current);
+    clearInterval(vesselPingTimerRef.current);
+    vesselMarkerRef.current = null;
+    setSimulatingVessel(false);
+    setVesselError(null);
 
     const from = trip.origin?.name || 'Origin';
     const to = trip.destination?.name || 'Destination';
@@ -382,6 +423,116 @@ const MapView = ({ trip, onStartTrip, starting, onSimulateComplete }) => {
     }
   };
 
+  // Simulate Vessel: departure -> a randomly-chosen other-island port ->
+  // arrival, all as one continuous action, mirroring how Simulate Arrival
+  // handles a whole truck leg in one click. Fully independent of the truck's
+  // own return-leg simulation (separate refs/state above) since in reality
+  // the ship sails while the truck may already be driving home.
+  const handleSimulateVessel = async () => {
+    if (!trip || simulatingVessel || !mapRef.current || trip.status !== 'at_origin_port') return;
+    if (!trip.ship_ref_id) {
+      setVesselError('Set a vessel reference ID first (admin > Vessel tab).');
+      return;
+    }
+
+    const from = trip.destination; // the truck's arrival port — where the ship departs from
+    if (!from?.latitude || !from?.longitude) {
+      setVesselError('Trip missing port coordinates.');
+      return;
+    }
+
+    setSimulatingVessel(true);
+    setVesselError(null);
+
+    let toPort;
+    try {
+      const res = await getPorts({ per_page: 100 });
+      const ports = res.data?.data ?? [];
+      const originPort = ports.find((p) => p.id === from.id);
+      const otherIslandPorts = originPort
+        ? ports.filter((p) => p.country !== originPort.country)
+        : ports.filter((p) => p.id !== from.id);
+      if (otherIslandPorts.length === 0) throw new Error('No ports registered on the other island.');
+      toPort = otherIslandPorts[Math.floor(Math.random() * otherIslandPorts.length)];
+    } catch (err) {
+      setVesselError(err?.response?.data?.message || err.message || 'Failed to pick a destination port.');
+      setSimulatingVessel(false);
+      return;
+    }
+
+    // Flips status to on_ship and overwrites ship_destination_port_id with
+    // the port just picked, for the duration of this simulated crossing.
+    try {
+      await storeCheckpoint(trip.id, {
+        event_type: 'ship_departed',
+        latitude: from.latitude,
+        longitude: from.longitude,
+        destination_port_id: toPort.id,
+      });
+    } catch (err) {
+      setVesselError(err?.response?.data?.message || 'Failed to start the vessel crossing.');
+      setSimulatingVessel(false);
+      return;
+    }
+
+    // Straight-line path, not a fetched route — TomTom's road routing has no
+    // concept of a sea crossing (confirmed empirically: it 400s with
+    // MAP_MATCHING_FAILURE/NO_ROUTE_FOUND over the Batam<->Singapore gap).
+    const path = [
+      [from.longitude, from.latitude],
+      [toPort.longitude, toPort.latitude],
+    ];
+
+    const el = document.createElement('div');
+    el.style.cssText = `width:22px;height:22px;border-radius:50%;background:${COLORS.navy};border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);`;
+    const marker = new window.tt.Marker({ element: el }).setLngLat(path[0]).addTo(mapRef.current);
+    vesselMarkerRef.current = marker;
+
+    const startTime = performance.now();
+
+    const finishVessel = async () => {
+      clearInterval(vesselPingTimerRef.current);
+      try {
+        await storeCheckpoint(trip.id, {
+          event_type: 'ship_arrived',
+          latitude: toPort.latitude,
+          longitude: toPort.longitude,
+        });
+        const res = await getTrip(trip.id);
+        onSimulateComplete?.(res.data?.data);
+      } catch (err) {
+        setVesselError(err?.response?.data?.message || 'Vessel simulation failed.');
+      } finally {
+        setSimulatingVessel(false);
+      }
+    };
+
+    const step = (now) => {
+      const t = Math.min((now - startTime) / SIMULATE_VESSEL_DURATION_MS, 1);
+      const pos = interpolateAlongPath(path, t);
+      if (pos) marker.setLngLat(pos);
+
+      if (t < 1) {
+        vesselRafRef.current = requestAnimationFrame(step);
+      } else {
+        finishVessel();
+      }
+    };
+    vesselRafRef.current = requestAnimationFrame(step);
+
+    // gps_ping is valid for on_ship now (backend change alongside this
+    // feature) so GET /trips/:id/position picks up the crossing live, same
+    // as the truck legs.
+    vesselPingTimerRef.current = setInterval(() => {
+      const t = (performance.now() - startTime) / SIMULATE_VESSEL_DURATION_MS;
+      if (t >= 1) return;
+      const pos = interpolateAlongPath(path, t);
+      if (pos) {
+        storeCheckpoint(trip.id, { event_type: 'gps_ping', latitude: pos[1], longitude: pos[0] }).catch(() => {});
+      }
+    }, SIMULATE_PING_INTERVAL_MS);
+  };
+
   return (
     <div className="w-full h-full relative">
       {/* container is always mounted so mapElRef is available the instant the
@@ -430,6 +581,14 @@ const MapView = ({ trip, onStartTrip, starting, onSimulateComplete }) => {
           ? Math.round((new Date(trip.actual_arrival_at) - new Date(trip.actual_departure_at)) / 60000)
           : null;
         const simulateConfig = getSimulateConfig(trip);
+        const isAtPort = trip.status === 'at_origin_port';
+        const truckReturned = isAtPort && !!trip.truck_returned_at;
+        // At port, reuse the exact same Start Trip action for the return
+        // leg's departure — recordDeparture() already handles AT_ORIGIN_PORT
+        // status generically (records the checkpoint, doesn't touch status),
+        // it's the same call as leg 1, just fired a second time.
+        const showStartTrip = trip.status === 'assigned' || (isAtPort && !truckReturned && !returnDeparted);
+        const showSimulate = simulateConfig && !showStartTrip && !truckReturned;
 
         return (
           <div className="absolute top-4 left-4 z-30 bg-white rounded-xl shadow-lg px-4 py-3 min-w-[210px]"
@@ -467,7 +626,7 @@ const MapView = ({ trip, onStartTrip, starting, onSimulateComplete }) => {
               </div>
             </div>
 
-            {trip.status === 'assigned' && (
+            {showStartTrip && (
               <button onClick={onStartTrip} disabled={starting}
                 className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
                 style={{ background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})` }}>
@@ -477,18 +636,46 @@ const MapView = ({ trip, onStartTrip, starting, onSimulateComplete }) => {
               </button>
             )}
 
-            {simulateConfig && (
+            {showSimulate && (
               <button onClick={handleSimulate} disabled={simulating}
                 className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
                 style={{ background: 'linear-gradient(135deg, #F97316, #FB923C)' }}>
                 {simulating
                   ? <><Loader2 size={14} className="animate-spin" /> Simulating…</>
-                  : <><Zap size={14} /> Simulate Arrival</>}
+                  : <><Zap size={14} /> {simulateConfig.label}</>}
               </button>
+            )}
+
+            {truckReturned && (
+              <div className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-emerald-700 bg-emerald-50">
+                <CheckCircle2 size={14} /> Truck Returned · {fmt(trip.truck_returned_at)}
+              </div>
+            )}
+
+            {/* Vessel crossing is independent of the truck's return leg above —
+                the ship sails on its own once cargo's at the port, whether or
+                not the truck has started driving home yet. */}
+            {isAtPort && trip.ship_destination_port && (
+              trip.ship_ref_id ? (
+                <button onClick={handleSimulateVessel} disabled={simulatingVessel}
+                  className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
+                  style={{ background: `linear-gradient(135deg, ${COLORS.navy}, ${COLORS.teal})` }}>
+                  {simulatingVessel
+                    ? <><Loader2 size={14} className="animate-spin" /> Sailing…</>
+                    : <><Ship size={14} /> Simulate Vessel</>}
+                </button>
+              ) : (
+                <p className="mt-3 text-[11px] text-slate-400 text-center">
+                  Set a vessel reference (admin) to simulate the crossing.
+                </p>
+              )
             )}
 
             {simulateError && (
               <p className="mt-2 text-xs text-red-500">{simulateError}</p>
+            )}
+            {vesselError && (
+              <p className="mt-2 text-xs text-red-500">{vesselError}</p>
             )}
           </div>
         );
