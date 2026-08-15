@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Ship, Anchor, ArrowLeft, ArrowRight, ShieldCheck, Compass } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Ship, Anchor, ArrowLeft, ArrowRight, ShieldCheck, Compass, AlertCircle } from 'lucide-react';
 import gsap from 'gsap';
 import logo from '../Assets/logo.png';
+import axiosClient from '../axios';
+import { useStateContext } from '../Contexts/Context';
 
 const COLORS = {
   navy: '#1A365D',
@@ -15,11 +17,13 @@ const COLORS = {
 const Login = () => {
   const containerRef = useRef(null);
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const { setToken, setCurrentUser } = useStateContext();
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -105,11 +109,25 @@ const Login = () => {
     return () => ctx.revert();
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    // TODO: wire up to POST /api/login once Backend 1 is available
-    setTimeout(() => setSubmitting(false), 900);
+    setLoginError(null);
+
+    try {
+      const res = await axiosClient.post('/api/login', { username, password });
+      const { token, user } = res.data.data;
+
+      setToken(token);
+      setCurrentUser(user);
+      localStorage.setItem('user_name', user.name);
+
+      navigate(user.role === 'driver' ? '/driver' : '/app', { replace: true });
+    } catch (err) {
+      setLoginError(err?.response?.data?.message || 'Login failed. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -266,8 +284,15 @@ const Login = () => {
           </p>
 
           <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+            {loginError && (
+              <div className="login-form-item flex items-center gap-2 px-3.5 py-2.5 rounded-lg border border-red-200 bg-red-50 text-xs text-red-700">
+                <AlertCircle size={14} className="shrink-0" />
+                {loginError}
+              </div>
+            )}
+
             <div className="login-form-item">
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-1.5">
                 Username / Email
               </label>
               <div className="relative">
@@ -276,11 +301,11 @@ const Login = () => {
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                 />
                 <input
-                  id="email"
+                  id="username"
                   type="text"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   placeholder="admin atau driver@marenostrum.id"
                   className="w-full pl-11 pr-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:ring-2 focus:border-transparent shadow-sm"
                   style={{ '--tw-ring-color': COLORS.aqua }}

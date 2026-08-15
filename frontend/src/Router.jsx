@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import DefaultLayout       from "./Layout/DefaultLayout";
 import GuestLayout         from "./Layout/GuestLayout";
+import RequireRole         from "./Layout/RequireRole";
 import Login               from "./Pages/Login";
 import LandingPage         from "./Pages/LandingPage";
 import Dashboard           from "./Pages/Dashboard";
@@ -24,7 +25,7 @@ const router = createBrowserRouter([
   },
   {
     path: "/app",
-    element: <DefaultLayout />,
+    element: <RequireRole role="admin"><DefaultLayout /></RequireRole>,
     children: [
       { index: true,                  element: <Dashboard /> },
       { path: "dashboard",            element: <Dashboard /> },
@@ -38,7 +39,7 @@ const router = createBrowserRouter([
   },
   {
     path: "/driver",
-    element: <DriverDashboard />,
+    element: <RequireRole role="driver"><DriverDashboard /></RequireRole>,
   },
   { path: "*", element: <Navigate to="/" replace /> },
 ]);
