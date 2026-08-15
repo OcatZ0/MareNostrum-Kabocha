@@ -121,20 +121,22 @@
                 }
             }
         },
-        "/companies/{company}": {
+        "/companies/{id}": {
             "get": {
                 "tags": [
                     "Companies"
                 ],
                 "summary": "Get single company details",
-                "operationId": "698a900dfd479af004615dda8237f2d1",
+                "operationId": "662432d4be675d549b84ca1bf7e56b8d",
                 "parameters": [
                     {
-                        "name": "company",
+                        "name": "id",
                         "in": "path",
+                        "description": "Company ID",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "integer",
+                            "example": 1
                         }
                     }
                 ],
@@ -152,14 +154,16 @@
                     "Companies"
                 ],
                 "summary": "Update existing company details",
-                "operationId": "5c7281a657faa268f7179916363cd7c8",
+                "operationId": "00dbc7963c0f6ac45bd2b2595fb1f88e",
                 "parameters": [
                     {
-                        "name": "company",
+                        "name": "id",
                         "in": "path",
+                        "description": "Company ID",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "integer",
+                            "example": 1
                         }
                     }
                 ],
@@ -214,14 +218,16 @@
                     "Companies"
                 ],
                 "summary": "Delete a company",
-                "operationId": "1cf2d2ee9aab00344b6a01ad6febfcea",
+                "operationId": "00a9e816ead34effffa2a6378e1cde4b",
                 "parameters": [
                     {
-                        "name": "company",
+                        "name": "id",
                         "in": "path",
+                        "description": "Company ID",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "integer",
+                            "example": 1
                         }
                     }
                 ],
