@@ -95,11 +95,11 @@ class TruckController extends Controller
     }
 
     #[OA\Get(
-        path: '/trucks/{truck}',
+        path: '/trucks/{id}',
         summary: 'Get single truck details',
         tags: ['Trucks'],
         parameters: [
-            new OA\Parameter(name: 'truck', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Truck details retrieved successfully.'),
@@ -115,11 +115,11 @@ class TruckController extends Controller
     }
 
     #[OA\Put(
-        path: '/trucks/{truck}',
+        path: '/trucks/{id}',
         summary: 'Update existing truck details',
         tags: ['Trucks'],
         parameters: [
-            new OA\Parameter(name: 'truck', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Truck updated successfully.'),
@@ -137,11 +137,11 @@ class TruckController extends Controller
     }
 
     #[OA\Delete(
-        path: '/trucks/{truck}',
+        path: '/trucks/{id}',
         summary: 'Delete a truck',
         tags: ['Trucks'],
         parameters: [
-            new OA\Parameter(name: 'truck', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Truck deleted successfully.'),

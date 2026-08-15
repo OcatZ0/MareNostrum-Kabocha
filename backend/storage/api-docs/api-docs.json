@@ -1667,16 +1667,16 @@
                 }
             }
         },
-        "/trucks/{truck}": {
+        "/trucks/{id}": {
             "get": {
                 "tags": [
                     "Trucks"
                 ],
                 "summary": "Get single truck details",
-                "operationId": "a417dc3d5cb65c38674e5e5dde6014e1",
+                "operationId": "4296d9b5363f7cc6884649025e584390",
                 "parameters": [
                     {
-                        "name": "truck",
+                        "name": "id",
                         "in": "path",
                         "required": true,
                         "schema": {
@@ -1698,10 +1698,10 @@
                     "Trucks"
                 ],
                 "summary": "Update existing truck details",
-                "operationId": "b05000979790160de5ad7179c787eadb",
+                "operationId": "cc2114c9cd3ff3e9ac7c26b70cf59344",
                 "parameters": [
                     {
-                        "name": "truck",
+                        "name": "id",
                         "in": "path",
                         "required": true,
                         "schema": {
@@ -1723,10 +1723,10 @@
                     "Trucks"
                 ],
                 "summary": "Delete a truck",
-                "operationId": "2f7ab7295ef9b9e6ded2fad0b13cdb84",
+                "operationId": "8eed7a0c122de6f36b5a5666f718e54a",
                 "parameters": [
                     {
-                        "name": "truck",
+                        "name": "id",
                         "in": "path",
                         "required": true,
                         "schema": {
