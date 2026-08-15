@@ -23,6 +23,7 @@ use OpenApi\Attributes as OA;
 #[OA\Tag(name: 'Emission Factors', description: 'CO2 emission factors reference data')]
 #[OA\Tag(name: 'Trips', description: 'Trip planning, assignment and tracking')]
 #[OA\Tag(name: 'Analytics', description: 'Dashboard overview and trip performance analytics')]
+#[OA\Tag(name: 'Notifications', description: 'In-app notification system')]
 abstract class Controller
 
 {

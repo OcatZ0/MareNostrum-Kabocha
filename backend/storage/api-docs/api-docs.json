@@ -373,6 +373,99 @@
                 }
             }
         },
+        "/notifications": {
+            "get": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get paginated list of notifications",
+                "description": "Supports unread=true query parameter to fetch only unread notifications (polled by frontend React every 15-30 seconds).",
+                "operationId": "0f031f66cd8c52bf73e89fb2d050ad83",
+                "parameters": [
+                    {
+                        "name": "unread",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of notifications retrieved successfully."
+                    }
+                }
+            }
+        },
+        "/notifications/{id}/read": {
+            "post": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark a single notification as read",
+                "operationId": "e8ec77e64be528452b6b9ee62d832d70",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notification marked as read successfully."
+                    },
+                    "404": {
+                        "description": "Notification not found."
+                    }
+                }
+            }
+        },
+        "/notifications/read-all": {
+            "post": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark all unread notifications as read",
+                "operationId": "e873443612632a319ae0f88db368dd7a",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "All notifications marked as read successfully."
+                    }
+                }
+            }
+        },
         "/ports": {
             "get": {
                 "tags": [
@@ -2214,6 +2307,10 @@
         {
             "name": "Analytics",
             "description": "Dashboard overview and trip performance analytics"
+        },
+        {
+            "name": "Notifications",
+            "description": "In-app notification system"
         }
     ]
 }

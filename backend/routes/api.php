@@ -3,6 +3,7 @@
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\EmissionFactorController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PortController;
 use App\Http\Controllers\TripCheckpointController;
 use App\Http\Controllers\TripController;
@@ -32,6 +33,11 @@ Route::middleware(BypassAuthForTesting::class)->group(function () {
 
     // Emission Factors
     Route::apiResource('emission-factors', EmissionFactorController::class)->only(['index', 'show']);
+
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 
     // Analytics
     Route::get('/analytics/dashboard', [AnalyticsController::class, 'dashboard']);
