@@ -3,6 +3,8 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use App\Context\EventType;
+use App\Context\Source;
 
 return new class extends Migration
 {
@@ -16,19 +18,19 @@ return new class extends Migration
             $table->foreignId('trip_id')->constrained('trips');
 
             $table->enum('event_type', [
-                'departed',
-                'gps_ping',
-                'arrived_at_destination',
-                'arrived_at_port',
-                'ship_departed',
-                'ship_arrived',
-                'arrived_final',
-                'truck_returned',
+                EventType::DEPARTED,
+                EventType::GPS_PING,
+                EventType::ARRIVED_AT_DESTINATION,
+                EventType::ARRIVED_AT_PORT,
+                EventType::SHIP_DEPARTED,
+                EventType::SHIP_ARRIVED,
+                EventType::ARRIVED_FINAL,
+                EventType::TRUCK_RETURNED,
             ]);
 
             $table->decimal('latitude', 10, 7)->nullable();
             $table->decimal('longitude', 10, 7)->nullable();
-            $table->enum('source', ['gps', 'manual', 'api']);
+            $table->enum('source', [Source::GPS, Source::MANUAL, Source::API]);
             $table->timestamp('recorded_at');
 
             $table->timestamp('created_at')->useCurrent();

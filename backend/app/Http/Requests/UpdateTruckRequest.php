@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Context\FuelType;
+use App\Context\Role;
+use App\Context\Status;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -9,7 +12,7 @@ class UpdateTruckRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->role === Role::ADMIN;
     }
 
     public function rules(): array
@@ -21,8 +24,8 @@ class UpdateTruckRequest extends FormRequest
             'brand' => ['sometimes', 'required', 'string', 'max:100'],
             'model' => ['nullable', 'string', 'max:100'],
             'year' => ['sometimes', 'required', 'integer', 'min:1990', 'max:' . (date('Y') + 1)],
-            'fuel_type' => ['sometimes', 'required', 'in:diesel,petrol,electric'],
-            'status' => ['sometimes', 'required', 'in:active,maintenance'],
+            'fuel_type' => ['sometimes', 'required', 'string', Rule::in([FuelType::DIESEL, FuelType::PETROL, FuelType::GASOLINE, FuelType::ELECTRIC])],
+            'status' => ['sometimes', 'required', 'string', Rule::in([Status::ACTIVE, Status::MAINTENANCE])],
         ];
     }
 }

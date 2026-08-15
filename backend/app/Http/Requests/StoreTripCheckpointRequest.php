@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Context\EventType;
+use App\Context\Role;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -17,7 +19,7 @@ class StoreTripCheckpointRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->role === 'driver';
+        return $this->user()?->role === Role::DRIVER;
     }
 
     /**
@@ -28,7 +30,14 @@ class StoreTripCheckpointRequest extends FormRequest
         return [
             // ship_departed/ship_arrived are system-generated from VesselAPI polling, not
             // something a driver's browser ever posts, so they're deliberately excluded here.
-            'event_type' => ['required', Rule::in(['departed', 'gps_ping', 'arrived_at_destination', 'arrived_at_port', 'arrived_final', 'truck_returned'])],
+            'event_type' => ['required', Rule::in([
+                EventType::DEPARTED,
+                EventType::GPS_PING,
+                EventType::ARRIVED_AT_DESTINATION,
+                EventType::ARRIVED_AT_PORT,
+                EventType::ARRIVED_FINAL,
+                EventType::TRUCK_RETURNED,
+            ])],
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
         ];

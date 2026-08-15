@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Context\CompanyType;
 use App\Models\Company;
 use Illuminate\Database\Seeder;
 
@@ -12,7 +13,7 @@ class CompanySeeder extends Seeder
         Company::updateOrCreate(
             ['name' => 'Batamindo Industrial Park'],
             [
-                'type' => 'internal',
+                'type' => CompanyType::INTERNAL,
                 'city' => 'Batam',
                 'address' => 'Batamindo Industrial Park, Mukakuning, Batam',
                 'latitude' => 1.065171,
@@ -23,7 +24,7 @@ class CompanySeeder extends Seeder
         Company::updateOrCreate(
             ['name' => 'Kawasan Bintang Industri 2'],
             [
-                'type' => 'partner',
+                'type' => CompanyType::PARTNER,
                 'city' => 'Batam',
                 'address' => 'Kawasan Bintang Industri 2, Batam',
                 'latitude' => 1.058993,
@@ -34,7 +35,7 @@ class CompanySeeder extends Seeder
         Company::updateOrCreate(
             ['name' => 'Panbil Industrial Park'],
             [
-                'type' => 'partner',
+                'type' => CompanyType::PARTNER,
                 'city' => 'Batam',
                 'address' => 'Panbil Industrial Park, Batam',
                 'latitude' => 1.070307,
@@ -45,7 +46,7 @@ class CompanySeeder extends Seeder
         Company::updateOrCreate(
             ['name' => 'Executive Industrial Park'],
             [
-                'type' => 'partner',
+                'type' => CompanyType::PARTNER,
                 'city' => 'Batam',
                 'address' => 'Executive Industrial Park, Batam',
                 'latitude' => 1.113038,
@@ -59,7 +60,7 @@ class CompanySeeder extends Seeder
         Company::updateOrCreate(
             ['name' => 'Tuas Industrial Estate'],
             [
-                'type' => 'partner',
+                'type' => CompanyType::PARTNER,
                 'city' => 'Singapura',
                 'address' => 'Tuas Industrial Estate, Singapore',
                 'latitude' => 1.294947,
@@ -70,7 +71,7 @@ class CompanySeeder extends Seeder
         Company::updateOrCreate(
             ['name' => 'Jurong Industrial Estate'],
             [
-                'type' => 'partner',
+                'type' => CompanyType::PARTNER,
                 'city' => 'Singapura',
                 'address' => 'Jurong Industrial Estate, Singapore',
                 'latitude' => 1.3175,
@@ -81,7 +82,7 @@ class CompanySeeder extends Seeder
         Company::updateOrCreate(
             ['name' => 'Tampines Industrial Park'],
             [
-                'type' => 'partner',
+                'type' => CompanyType::PARTNER,
                 'city' => 'Singapura',
                 'address' => 'Tampines Industrial Park, Singapore',
                 'latitude' => 1.3547,

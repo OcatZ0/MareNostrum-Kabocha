@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Context\Country;
+use App\Context\Role;
+use App\Context\StatusTrips;
 use App\Models\Port;
 use App\Models\Trip;
 use App\Models\User;
@@ -21,7 +24,7 @@ class PortApiTest extends TestCase
             'name' => 'Admin User',
             'username' => 'admin',
             'password' => bcrypt('password'),
-            'role' => 'admin',
+            'role' => Role::ADMIN,
         ]);
     }
 
@@ -29,7 +32,7 @@ class PortApiTest extends TestCase
     {
         Port::create([
             'name' => 'Batam Centre Ferry Terminal',
-            'country' => 'indonesia',
+            'country' => Country::INDONESIA,
             'unlocode' => 'IDBTH',
             'latitude' => 1.1312345,
             'longitude' => 104.0532145,
@@ -52,7 +55,7 @@ class PortApiTest extends TestCase
     {
         Port::create([
             'name' => 'Batam Centre Ferry Terminal',
-            'country' => 'indonesia',
+            'country' => Country::INDONESIA,
             'unlocode' => 'IDBTH',
             'latitude' => 1.131,
             'longitude' => 104.053,
@@ -60,17 +63,17 @@ class PortApiTest extends TestCase
 
         Port::create([
             'name' => 'HarbourFront Centre',
-            'country' => 'singapore',
+            'country' => Country::SINGAPORE,
             'unlocode' => 'SGSIN',
             'latitude' => 1.265,
             'longitude' => 103.821,
         ]);
 
         // Filter by country
-        $responseCountry = $this->getJson('/api/ports?country=indonesia');
+        $responseCountry = $this->getJson('/api/ports?country='.Country::INDONESIA);
         $responseCountry->assertStatus(200);
         $this->assertCount(1, $responseCountry->json('data'));
-        $this->assertEquals('indonesia', $responseCountry->json('data.0.country'));
+        $this->assertEquals(Country::INDONESIA, $responseCountry->json('data.0.country'));
 
         // Search by unlocode
         $responseSearch = $this->getJson('/api/ports?search=IDBTH');
@@ -83,7 +86,7 @@ class PortApiTest extends TestCase
     {
         $payload = [
             'name' => 'Sekupang International Ferry Terminal',
-            'country' => 'indonesia',
+            'country' => Country::INDONESIA,
             'unlocode' => 'idskp', // lowercase should be normalized to uppercase IDSKP
             'latitude' => 1.1270000,
             'longitude' => 103.9210000,
@@ -97,7 +100,7 @@ class PortApiTest extends TestCase
                 'message' => 'Pelabuhan berhasil ditambahkan.',
                 'data' => [
                     'name' => 'Sekupang International Ferry Terminal',
-                    'country' => 'indonesia',
+                    'country' => Country::INDONESIA,
                     'unlocode' => 'IDSKP',
                 ],
             ]);
@@ -131,7 +134,7 @@ class PortApiTest extends TestCase
     {
         $port = Port::create([
             'name' => 'Target Port',
-            'country' => 'indonesia',
+            'country' => Country::INDONESIA,
             'unlocode' => 'IDTGT',
             'latitude' => 1.100,
             'longitude' => 104.000,
@@ -154,7 +157,7 @@ class PortApiTest extends TestCase
     {
         $port = Port::create([
             'name' => 'Old Port Name',
-            'country' => 'indonesia',
+            'country' => Country::INDONESIA,
             'unlocode' => 'IDOLD',
             'latitude' => 1.100,
             'longitude' => 104.000,
@@ -188,7 +191,7 @@ class PortApiTest extends TestCase
     {
         $port = Port::create([
             'name' => 'Port To Delete',
-            'country' => 'indonesia',
+            'country' => Country::INDONESIA,
             'unlocode' => 'IDDEL',
             'latitude' => 1.100,
             'longitude' => 104.000,
@@ -211,7 +214,7 @@ class PortApiTest extends TestCase
     {
         $port = Port::create([
             'name' => 'Active Cross-Border Port',
-            'country' => 'indonesia',
+            'country' => Country::INDONESIA,
             'unlocode' => 'IDACT',
             'latitude' => 1.100,
             'longitude' => 104.000,
@@ -225,7 +228,7 @@ class PortApiTest extends TestCase
             'origin_port_id' => null,
             'destination_company_id' => null,
             'destination_port_id' => $port->id,
-            'status' => 'draft',
+            'status' => StatusTrips::DRAFT,
             'created_by' => $admin->id,
         ]);
 

@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Context\Country;
+use App\Context\Role;
 use App\Models\Company;
 use App\Models\Port;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -21,8 +23,8 @@ abstract class TripComboRequest extends FormRequest
      * never hardcoded to Batam.
      */
     private const CITY_TO_COUNTRY = [
-        'Batam' => 'indonesia',
-        'Singapura' => 'singapore',
+        'Batam' => Country::INDONESIA,
+        'Singapura' => Country::SINGAPORE,
     ];
 
     /**
@@ -30,7 +32,7 @@ abstract class TripComboRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->role === 'admin';
+        return $this->user()?->role === Role::ADMIN;
     }
 
     /**

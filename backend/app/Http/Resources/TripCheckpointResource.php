@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Context\EventType;
+use App\Context\Source;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Attributes as OA;
@@ -14,11 +16,20 @@ use OpenApi\Attributes as OA;
         new OA\Property(
             property: 'event_type',
             type: 'string',
-            enum: ['departed', 'gps_ping', 'arrived_at_destination', 'arrived_at_port', 'arrived_final', 'ship_departed', 'ship_arrived', 'truck_returned'],
+            enum: [
+                EventType::DEPARTED,
+                EventType::GPS_PING,
+                EventType::ARRIVED_AT_DESTINATION,
+                EventType::ARRIVED_AT_PORT,
+                EventType::ARRIVED_FINAL,
+                EventType::SHIP_DEPARTED,
+                EventType::SHIP_ARRIVED,
+                EventType::TRUCK_RETURNED,
+            ],
         ),
         new OA\Property(property: 'latitude', type: 'number', format: 'float', nullable: true),
         new OA\Property(property: 'longitude', type: 'number', format: 'float', nullable: true),
-        new OA\Property(property: 'source', type: 'string', enum: ['gps', 'manual', 'api']),
+        new OA\Property(property: 'source', type: 'string', enum: [Source::GPS, Source::MANUAL, Source::API]),
         new OA\Property(property: 'recorded_at', type: 'string', format: 'date-time'),
     ],
     type: 'object'

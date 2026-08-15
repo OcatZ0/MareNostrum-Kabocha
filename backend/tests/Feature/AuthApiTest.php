@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Context\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -21,7 +22,7 @@ class AuthApiTest extends TestCase
             'name' => 'Demo Admin',
             'username' => 'admin_demo',
             'password' => Hash::make('secret12345'),
-            'role' => 'admin',
+            'role' => Role::ADMIN,
         ]);
     }
 
@@ -49,7 +50,7 @@ class AuthApiTest extends TestCase
                 'data' => [
                     'user' => [
                         'username' => 'admin_demo',
-                        'role' => 'admin',
+                        'role' => Role::ADMIN,
                     ],
                 ],
             ]);

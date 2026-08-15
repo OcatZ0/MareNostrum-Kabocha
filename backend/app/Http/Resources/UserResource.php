@@ -2,18 +2,19 @@
 
 namespace App\Http\Resources;
 
+use App\Context\Role;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Attributes as OA;
 
 #[OA\Schema(
     schema: 'User',
-    description: 'User and driver account details.',
+    description: 'User details representation',
     properties: [
         new OA\Property(property: 'id', type: 'integer', example: 1),
-        new OA\Property(property: 'name', type: 'string', example: 'Budi Santoso'),
+        new OA\Property(property: 'name', type: 'string', example: 'Driver Budi'),
         new OA\Property(property: 'username', type: 'string', example: 'driver_budi'),
-        new OA\Property(property: 'role', type: 'string', enum: ['admin', 'driver'], example: 'driver'),
+        new OA\Property(property: 'role', type: 'string', enum: [Role::ADMIN, Role::DRIVER], example: Role::DRIVER),
         new OA\Property(property: 'phone', type: 'string', nullable: true, example: '+6281234567890'),
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),

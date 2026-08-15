@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Context\CompanyType;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Attributes as OA;
@@ -12,7 +13,7 @@ use OpenApi\Attributes as OA;
     properties: [
         new OA\Property(property: 'id', type: 'integer', example: 1),
         new OA\Property(property: 'name', type: 'string', example: 'Company A Logistics'),
-        new OA\Property(property: 'type', type: 'string', enum: ['internal', 'partner'], example: 'internal'),
+        new OA\Property(property: 'type', type: 'string', enum: [CompanyType::INTERNAL, CompanyType::PARTNER], example: CompanyType::INTERNAL),
         new OA\Property(property: 'city', type: 'string', example: 'Batam'),
         new OA\Property(property: 'address', type: 'string', nullable: true, example: 'Kawasan Industri Batam Center'),
         new OA\Property(property: 'latitude', type: 'number', format: 'float', example: 1.1234567),
