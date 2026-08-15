@@ -66,6 +66,7 @@ Route::middleware(BypassAuthForTesting::class)->group(function () {
     Route::get('/trips/{trip}', [TripController::class, 'show']);
     Route::put('/trips/{trip}', [TripController::class, 'update']);
     Route::post('/trips/{trip}/recommend', [TripController::class, 'recommend']);
+    Route::post('/trips/{trip}/recommend-crossborder', [TripController::class, 'recommendCrossBorder']);
     Route::post('/trips/{trip}/assign', [TripController::class, 'assign']);
     Route::post('/trips/{trip}/simulate', [TripController::class, 'simulate']);
     Route::post('/trips/{trip}/ship', [TripController::class, 'ship']);

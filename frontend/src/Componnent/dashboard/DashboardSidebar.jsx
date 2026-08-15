@@ -34,7 +34,7 @@ const NAV_ITEMS = [
     to: '/app/trucks',
   },
   {
-    label: 'Jadwal Kapal',
+    label: 'Vessel Schedules',
     icon: Ship,
     to: '/app/vessel-schedules',
   },

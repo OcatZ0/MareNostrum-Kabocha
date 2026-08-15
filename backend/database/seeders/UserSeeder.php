@@ -29,5 +29,26 @@ class UserSeeder extends Seeder
                 'phone' => null,
             ]
         );
+
+        // A handful more drivers so assign/dropdown flows have real variety to pick
+        // from instead of always resolving to the same one demo driver.
+        $moreDrivers = [
+            ['username' => 'driver2', 'name' => 'Budi Santoso', 'phone' => '+6281234500002'],
+            ['username' => 'driver3', 'name' => 'Slamet Riyadi', 'phone' => '+6281234500003'],
+            ['username' => 'driver4', 'name' => 'Ahmad Fauzi', 'phone' => '+6281234500004'],
+            ['username' => 'driver5', 'name' => 'Joko Prasetyo', 'phone' => '+6281234500005'],
+        ];
+
+        foreach ($moreDrivers as $driver) {
+            User::updateOrCreate(
+                ['username' => $driver['username']],
+                [
+                    'name' => $driver['name'],
+                    'password' => $driver['username'],
+                    'role' => Role::DRIVER,
+                    'phone' => $driver['phone'],
+                ]
+            );
+        }
     }
 }

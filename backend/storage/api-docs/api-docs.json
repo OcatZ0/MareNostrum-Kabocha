@@ -406,6 +406,52 @@
                 }
             }
         },
+        "/dashboard": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get unified consolidated data payload for the entire operational dashboard",
+                "description": "Returns operational metrics, live operations, recent dispatches, monthly volume chart data, emissions analytics, and fleet status. Supports progressive tiered loading via section parameter (primary | secondary | all).",
+                "operationId": "a92dff3ea055c0a594f425e852840a68",
+                "parameters": [
+                    {
+                        "name": "period",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "all",
+                            "enum": [
+                                "today",
+                                "this_week",
+                                "this_month",
+                                "all"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "section",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "all",
+                            "enum": [
+                                "primary",
+                                "secondary",
+                                "all"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dashboard data retrieved successfully."
+                    }
+                }
+            }
+        },
         "/emission-factors": {
             "get": {
                 "tags": [
@@ -1420,6 +1466,89 @@
                 ]
             }
         },
+        "/trips/{id}/recommend-crossborder": {
+            "post": {
+                "tags": [
+                    "Trips"
+                ],
+                "summary": "Generate 3 departure time recommendations for a cross-border trip (vessel-aware)",
+                "description": "Admin only, draft trips only, cross-border trips only (ship_destination_port_id must be set) — use POST /trips/{id}/recommend instead for domestic or port-to-company trips. Same coarse-to-fine TomTom scoring as /recommend, plus: the searchable date window is constrained to today through the linked vessel schedule's departure day (if one is linked via ship_ref_id/vessel_schedule_id), and each candidate is scored against a 1-hour port cut-off — the truck must be estimated to arrive at least 1 hour before the vessel's scheduled departure, or that candidate is penalized out of the primary recommendation (still returned as a disqualified alternative, not silently dropped).",
+                "operationId": "a555013b66d67471b875d4e4ef311adb",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "date": {
+                                        "description": "Defaults to today, or 1 day before the linked vessel's departure, whichever is later.",
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Trip recommendations generated"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Trip"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden — admin only"
+                    },
+                    "404": {
+                        "description": "Trip not found"
+                    },
+                    "422": {
+                        "description": "Trip is not draft, not cross-border, or the requested date is outside the valid window"
+                    },
+                    "502": {
+                        "description": "TomTom API request failed"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/trips/{id}/assign": {
             "post": {
                 "tags": [
@@ -2343,6 +2472,461 @@
                     }
                 ]
             }
+        },
+        "/vessel-schedules": {
+            "get": {
+                "tags": [
+                    "Vessel Schedules"
+                ],
+                "summary": "Get paginated list of vessel shipping schedules",
+                "operationId": "8103d35feea20ce8599b4abf579bcab0",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search vessel name, MMSI, or voyage number",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "origin_port_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "destination_port_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "scheduled",
+                                "departed",
+                                "on_time",
+                                "delayed",
+                                "early",
+                                "berthing",
+                                "arrived",
+                                "cancelled"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "description": "Filter by specific scheduled date (YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of vessel schedules retrieved successfully."
+                    },
+                    "401": {
+                        "description": "Unauthenticated."
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Vessel Schedules"
+                ],
+                "summary": "Create a new vessel schedule record",
+                "operationId": "9a4f0301ffb83abf110685ed80ea23af",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "vessel_name",
+                                    "ship_ref_id",
+                                    "origin_port_id",
+                                    "destination_port_id",
+                                    "scheduled_departure_at",
+                                    "scheduled_arrival_at"
+                                ],
+                                "properties": {
+                                    "vessel_name": {
+                                        "type": "string",
+                                        "example": "Batam Fast 18"
+                                    },
+                                    "ship_ref_id": {
+                                        "type": "string",
+                                        "example": "563123456"
+                                    },
+                                    "voyage_number": {
+                                        "type": "string",
+                                        "example": "BF-2026-081",
+                                        "nullable": true
+                                    },
+                                    "origin_port_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "destination_port_id": {
+                                        "type": "integer",
+                                        "example": 4
+                                    },
+                                    "scheduled_departure_at": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2026-08-16T08:00:00Z"
+                                    },
+                                    "scheduled_arrival_at": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2026-08-16T10:00:00Z"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "example": "scheduled",
+                                        "enum": [
+                                            "scheduled",
+                                            "departed",
+                                            "on_time",
+                                            "delayed",
+                                            "early",
+                                            "berthing",
+                                            "arrived",
+                                            "cancelled"
+                                        ]
+                                    },
+                                    "tolerance_minutes": {
+                                        "type": "integer",
+                                        "example": 30
+                                    },
+                                    "notes": {
+                                        "type": "string",
+                                        "example": "Regular container batch",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Vessel schedule created successfully."
+                    },
+                    "422": {
+                        "description": "Validation error."
+                    }
+                }
+            }
+        },
+        "/vessel-schedules/{id}": {
+            "get": {
+                "tags": [
+                    "Vessel Schedules"
+                ],
+                "summary": "Get single vessel schedule details",
+                "operationId": "03d2e957686159703f511a5a37843e53",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Vessel schedule details retrieved successfully."
+                    },
+                    "404": {
+                        "description": "Vessel schedule not found."
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Vessel Schedules"
+                ],
+                "summary": "Update existing vessel schedule",
+                "operationId": "4a73e2bb56c3265f0e7ec3428a044ee5",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "vessel_name": {
+                                        "type": "string"
+                                    },
+                                    "ship_ref_id": {
+                                        "type": "string"
+                                    },
+                                    "voyage_number": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "origin_port_id": {
+                                        "type": "integer"
+                                    },
+                                    "destination_port_id": {
+                                        "type": "integer"
+                                    },
+                                    "scheduled_departure_at": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    },
+                                    "scheduled_arrival_at": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    },
+                                    "actual_departure_at": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "nullable": true
+                                    },
+                                    "actual_arrival_at": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "nullable": true
+                                    },
+                                    "status": {
+                                        "type": "string"
+                                    },
+                                    "tolerance_minutes": {
+                                        "type": "integer"
+                                    },
+                                    "notes": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Vessel schedule updated successfully."
+                    },
+                    "422": {
+                        "description": "Validation error."
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Vessel Schedules"
+                ],
+                "summary": "Delete a vessel schedule",
+                "operationId": "6cf1964fe959581fe487b5b4df72b685",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Vessel schedule deleted successfully."
+                    },
+                    "403": {
+                        "description": "Forbidden."
+                    }
+                }
+            }
+        },
+        "/vessel-schedules/import": {
+            "post": {
+                "tags": [
+                    "Vessel Schedules"
+                ],
+                "summary": "Import vessel schedules via Excel (.xlsx, .xls) or CSV (.csv) file",
+                "operationId": "e15cbc8f4786e6590193bd25d853154d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "file"
+                                ],
+                                "properties": {
+                                    "file": {
+                                        "description": "Excel (.xlsx/.xls) or CSV file containing vessel schedule rows",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "File imported successfully."
+                    },
+                    "422": {
+                        "description": "Validation or file parsing error."
+                    }
+                }
+            }
+        },
+        "/vessel-schedules/template": {
+            "get": {
+                "tags": [
+                    "Vessel Schedules"
+                ],
+                "summary": "Get import template structure or download styled Excel (.xlsx) or CSV template file",
+                "operationId": "89f20f807e41283a0386a96067bfdf17",
+                "parameters": [
+                    {
+                        "name": "format",
+                        "in": "query",
+                        "description": "Download format (xlsx or csv)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "xlsx",
+                                "csv"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "download",
+                        "in": "query",
+                        "description": "Directly download template file",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Template structure or downloaded spreadsheet file."
+                    }
+                }
+            }
+        },
+        "/vessel-schedules/{id}/check-status": {
+            "post": {
+                "tags": [
+                    "Vessel Schedules"
+                ],
+                "summary": "Check vessel live distance to destination port, calculate punctuality and trigger alerts",
+                "operationId": "d96cd232227e9baec7ff6729a65e95ce",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "latitude": {
+                                        "description": "Manual current latitude (optional, fallback to live AIS)",
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "longitude": {
+                                        "description": "Manual current longitude (optional, fallback to live AIS)",
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "speed_knots": {
+                                        "description": "Current speed in knots",
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "notify": {
+                                        "description": "Whether to fire in-app notification if delay or early arrival exceeds tolerance threshold",
+                                        "type": "boolean",
+                                        "default": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Vessel status, distance, and punctuality evaluated successfully."
+                    },
+                    "404": {
+                        "description": "Vessel schedule not found."
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -2914,6 +3498,145 @@
                     }
                 },
                 "type": "object"
+            },
+            "VesselSchedule": {
+                "description": "Vessel shipping schedule and punctuality tracking record",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "vessel_name": {
+                        "type": "string",
+                        "example": "Batam Fast 18"
+                    },
+                    "ship_ref_id": {
+                        "type": "string",
+                        "example": "563123456"
+                    },
+                    "voyage_number": {
+                        "type": "string",
+                        "example": "BF-2026-081",
+                        "nullable": true
+                    },
+                    "origin_port_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "destination_port_id": {
+                        "type": "integer",
+                        "example": 4
+                    },
+                    "origin_port": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/Port"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "destination_port": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/Port"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "scheduled_departure_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "scheduled_arrival_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "actual_departure_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "actual_arrival_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "estimated_arrival_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "on_time",
+                        "enum": [
+                            "scheduled",
+                            "departed",
+                            "on_time",
+                            "delayed",
+                            "early",
+                            "berthing",
+                            "arrived",
+                            "cancelled"
+                        ]
+                    },
+                    "current_latitude": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 1.1512,
+                        "nullable": true
+                    },
+                    "current_longitude": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 103.9532,
+                        "nullable": true
+                    },
+                    "current_speed_knots": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 18.5,
+                        "nullable": true
+                    },
+                    "distance_to_destination_km": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 14.8,
+                        "nullable": true
+                    },
+                    "distance_to_destination_nm": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 7.99,
+                        "nullable": true
+                    },
+                    "variance_minutes": {
+                        "description": "Positive = delayed, negative = early",
+                        "type": "integer",
+                        "example": -15
+                    },
+                    "tolerance_minutes": {
+                        "type": "integer",
+                        "example": 30
+                    },
+                    "punctuality_status": {
+                        "type": "string",
+                        "example": "On Time (ETA within 30m)"
+                    },
+                    "notes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -2961,6 +3684,14 @@
         {
             "name": "Notifications",
             "description": "In-app notification system"
+        },
+        {
+            "name": "Dashboard",
+            "description": "Dashboard"
+        },
+        {
+            "name": "Vessel Schedules",
+            "description": "Vessel Schedules"
         }
     ]
 }

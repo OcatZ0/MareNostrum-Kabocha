@@ -22,6 +22,8 @@ class DatabaseSeeder extends Seeder
             EmissionFactorSeeder::class,
             HistoricalTripSeeder::class,
             VesselScheduleSeeder::class,
+            DemoTripSeeder::class,
+            NotificationSeeder::class,
         ]);
     }
 }
