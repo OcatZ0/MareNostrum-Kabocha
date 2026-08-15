@@ -17,7 +17,7 @@ class TruckController extends Controller
     use ApiResponse;
 
     #[OA\Get(
-        path: '/api/trucks',
+        path: '/trucks',
         summary: 'Get paginated list of trucks',
         tags: ['Trucks'],
         parameters: [
@@ -61,7 +61,7 @@ class TruckController extends Controller
     }
 
     #[OA\Post(
-        path: '/api/trucks',
+        path: '/trucks',
         summary: 'Create a new truck',
         requestBody: new OA\RequestBody(
             required: true,
@@ -95,7 +95,7 @@ class TruckController extends Controller
     }
 
     #[OA\Get(
-        path: '/api/trucks/{truck}',
+        path: '/trucks/{truck}',
         summary: 'Get single truck details',
         tags: ['Trucks'],
         parameters: [
@@ -115,7 +115,7 @@ class TruckController extends Controller
     }
 
     #[OA\Put(
-        path: '/api/trucks/{truck}',
+        path: '/trucks/{truck}',
         summary: 'Update existing truck details',
         tags: ['Trucks'],
         parameters: [
@@ -137,7 +137,7 @@ class TruckController extends Controller
     }
 
     #[OA\Delete(
-        path: '/api/trucks/{truck}',
+        path: '/trucks/{truck}',
         summary: 'Delete a truck',
         tags: ['Trucks'],
         parameters: [

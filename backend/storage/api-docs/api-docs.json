@@ -1543,13 +1543,13 @@
                 ]
             }
         },
-        "/api/trucks": {
+        "/trucks": {
             "get": {
                 "tags": [
                     "Trucks"
                 ],
                 "summary": "Get paginated list of trucks",
-                "operationId": "f415c93ec74376ab677cc3e38091699e",
+                "operationId": "6ce1f2fc38b4418a650161d79cbd52c4",
                 "parameters": [
                     {
                         "name": "status",
@@ -1605,7 +1605,7 @@
                     "Trucks"
                 ],
                 "summary": "Create a new truck",
-                "operationId": "cf9bf383af3dd4d44b290898db0a1440",
+                "operationId": "e95f8703113b1c7b17810a7336ca5353",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -1667,13 +1667,13 @@
                 }
             }
         },
-        "/api/trucks/{truck}": {
+        "/trucks/{truck}": {
             "get": {
                 "tags": [
                     "Trucks"
                 ],
                 "summary": "Get single truck details",
-                "operationId": "8b9066fbef0cb6e7979f27970de6d6e9",
+                "operationId": "a417dc3d5cb65c38674e5e5dde6014e1",
                 "parameters": [
                     {
                         "name": "truck",
@@ -1698,7 +1698,7 @@
                     "Trucks"
                 ],
                 "summary": "Update existing truck details",
-                "operationId": "e97802d020027eb757991632b79b6230",
+                "operationId": "b05000979790160de5ad7179c787eadb",
                 "parameters": [
                     {
                         "name": "truck",
@@ -1723,7 +1723,7 @@
                     "Trucks"
                 ],
                 "summary": "Delete a truck",
-                "operationId": "fb16df1b7f7681ab28276b2042bec52e",
+                "operationId": "2f7ab7295ef9b9e6ded2fad0b13cdb84",
                 "parameters": [
                     {
                         "name": "truck",
