@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { COLORS, STATUS_STYLES, CHECKPOINT_ICONS } from '../dashboard/dashboardTheme';
 import {
-  getTrip, updateTrip, recommendTrip, assignTrip,
+  getTrip, updateTrip, recommendTrip, recommendCrossBorderTrip, assignTrip,
   simulateTrip, setShipRef, getCheckpoints, getPosition,
 } from '../../api/tripsApi';
 import { getVesselSchedules, checkVesselScheduleStatus } from '../../api/vesselSchedulesApi';
@@ -677,9 +677,12 @@ const UpdateTab = ({ trip, onUpdated }) => {
 const todayStr = () => new Date().toISOString().split('T')[0];
 
 const RecommendTab = ({ trip, onUpdated }) => {
+  const isCross = !!trip.ship_destination_port;
   const hasVessel = !!trip.vessel_schedule?.scheduled_departure_at;
 
-  // If vessel schedule is present, generate options including Hari Ini and pre-vessel dates
+  // If vessel schedule is present, offer Today, +1, +2 — capped so a date past
+  // the vessel's departure day is never offered (the truck can't sail after
+  // the vessel has already left).
   const availableDates = React.useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -692,49 +695,21 @@ const RecommendTab = ({ trip, onUpdated }) => {
 
       const dateMap = new Map();
 
-      // 1. Today
-      dateMap.set(todayStrVal, {
-        dateStr: todayStrVal,
-        label: todayStrVal === vesselDateStr ? 'Today (Vessel Day)' : 'Today',
-        formatted: today.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
-      });
-
-      // 2. Pre-vessel dates (H-2, H-1, or vessel date)
-      [-2, -1, 0].forEach((offset) => {
-        const d = new Date(vesselDate);
+      [0, 1, 2].forEach((offset) => {
+        const d = new Date(today);
         d.setDate(d.getDate() + offset);
-        if (d >= today && d <= vesselDate) {
+        if (d <= vesselDate) {
           const dStr = d.toISOString().split('T')[0];
-          const daysBefore = Math.abs(offset);
-          const lbl = offset === 0 ? 'Vessel Departure Day' : `D-${daysBefore} (${daysBefore} day${daysBefore !== 1 ? 's' : ''} before vessel)`;
-          if (!dateMap.has(dStr)) {
-            dateMap.set(dStr, {
-              dateStr: dStr,
-              label: lbl,
-              formatted: d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
-            });
-          }
+          const label = offset === 0
+            ? (dStr === vesselDateStr ? 'Today (Vessel Day)' : 'Today')
+            : `+${offset} day${offset !== 1 ? 's' : ''}${dStr === vesselDateStr ? ' (Vessel Day)' : ''}`;
+          dateMap.set(dStr, {
+            dateStr: dStr,
+            label,
+            formatted: d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
+          });
         }
       });
-
-      // If still fewer than 3, add H-3
-      if (dateMap.size < 3) {
-        [-3].forEach((offset) => {
-          const d = new Date(vesselDate);
-          d.setDate(d.getDate() + offset);
-          if (d >= today) {
-            const dStr = d.toISOString().split('T')[0];
-            const daysBefore = Math.abs(offset);
-            if (!dateMap.has(dStr)) {
-              dateMap.set(dStr, {
-                dateStr: dStr,
-                label: `D-${daysBefore} (${daysBefore} day${daysBefore !== 1 ? 's' : ''} before vessel)`,
-                formatted: d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
-              });
-            }
-          }
-        });
-      }
 
       return Array.from(dateMap.values()).slice(0, 3);
     }
@@ -771,7 +746,9 @@ const RecommendTab = ({ trip, onUpdated }) => {
     setSubmitting(true);
     setApiError(null);
     try {
-      const res = await recommendTrip(trip.id, { date: selectedDate });
+      const res = isCross
+        ? await recommendCrossBorderTrip(trip.id, { date: selectedDate })
+        : await recommendTrip(trip.id, { date: selectedDate });
       onUpdated(res.data?.data);
     } catch (err) {
       setApiError(err?.response?.data?.message ?? 'Failed to get departure time recommendations.');

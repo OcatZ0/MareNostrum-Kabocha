@@ -60,8 +60,14 @@ php artisan key:generate
 
 Fill in `.env`:
 - `DB_*` — Supabase Postgres credentials (use the **connection pooler** host, session mode, port 5432 — the direct host is IPv6-only)
-- `TOMTOM_API_KEY` — from [developer.tomtom.com](https://developer.tomtom.com)
-- `VESSELAPI_KEY` — from [vesselapi.com](https://vesselapi.com)
+- `TOMTOM_API_KEY` — from [developer.tomtom.com](https://developer.tomtom.com), or use the hackathon judging key below
+- `VESSELAPI_KEY` — from [vesselapi.com](https://vesselapi.com), or use the hackathon judging key below
+
+> **For judges** — live keys so you can run the app without creating your own accounts. These will be rotated after the hackathon, do not reuse elsewhere:
+> ```
+> TOMTOM_API_KEY=g0LHKnMb1rkp4HIxFrjK88COHaAjGRw6
+> VESSELAPI_KEY=d447b8e5ae6d09ce0b18306d489051c375a237ecb0b0c3aefa2212f6e3a07aa9
+> ```
 
 ```bash
 php artisan migrate:fresh --seed
@@ -81,8 +87,10 @@ npm install
 Create `frontend/.env`:
 ```
 VITE_API_BASE_URL=http://localhost:8000
-VITE_TOMTOM_API_KEY=your_tomtom_key
+VITE_TOMTOM_API_KEY=g0LHKnMb1rkp4HIxFrjK88COHaAjGRw6
 ```
+
+> Same hackathon judging key as above — for map rendering/routing in the browser.
 
 ```bash
 npm run dev

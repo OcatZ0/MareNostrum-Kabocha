@@ -42,6 +42,15 @@ export const recommendTrip = (id, payload = {}) =>
   axiosClient.post(`/api/trips/${id}/recommend`, payload);
 
 /**
+ * POST /api/trips/:id/recommend-crossborder
+ * Cross-border counterpart of recommendTrip — only valid for trips with a
+ * ship_destination_port_id, weighs the linked vessel's departure cut-off.
+ * payload: { date?: 'YYYY-MM-DD' }
+ */
+export const recommendCrossBorderTrip = (id, payload = {}) =>
+  axiosClient.post(`/api/trips/${id}/recommend-crossborder`, payload);
+
+/**
  * POST /api/trips/:id/assign
  * payload: { truck_id, driver_id, chosen_departure_at }
  */
