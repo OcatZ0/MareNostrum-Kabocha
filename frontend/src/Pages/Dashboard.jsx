@@ -119,7 +119,7 @@ const Dashboard = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm text-xs">
+              <div className="flex items-center bg-white border-2 border-slate-200 rounded-lg p-0.5 shadow-sm text-xs">
                 {PERIOD_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
@@ -139,7 +139,7 @@ const Dashboard = () => {
                 onClick={() => fetchDashboardData(true)}
                 disabled={refreshing}
                 title="Refresh dashboard data"
-                className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                className="p-2 rounded-lg bg-white border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
                 <RefreshCw size={16} className={refreshing ? 'animate-spin text-teal-600' : ''} />
               </button>

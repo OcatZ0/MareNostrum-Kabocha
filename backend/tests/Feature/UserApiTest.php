@@ -99,7 +99,7 @@ class UserApiTest extends TestCase
         $response->assertStatus(201)
             ->assertJson([
                 'success' => true,
-                'message' => 'Pengguna berhasil ditambahkan.',
+                'message' => 'User created successfully.',
                 'data' => [
                     'name' => 'Driver Joko',
                     'username' => 'driver_joko',
@@ -226,7 +226,7 @@ class UserApiTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'message' => 'Pengguna berhasil dihapus.',
+                'message' => 'User deleted successfully.',
             ]);
 
         $this->assertDatabaseMissing('users', [
@@ -255,7 +255,7 @@ class UserApiTest extends TestCase
         $response->assertStatus(422)
             ->assertJson([
                 'success' => false,
-                'message' => 'Tidak dapat menghapus pengguna yang masih terhubung dengan riwayat trip logistik.',
+                'message' => 'Cannot delete user referenced in logistics trip history.',
             ]);
 
         $this->assertDatabaseHas('users', [
@@ -271,7 +271,7 @@ class UserApiTest extends TestCase
         $response->assertStatus(422)
             ->assertJson([
                 'success' => false,
-                'message' => 'Tidak dapat menghapus akun Anda sendiri yang sedang aktif.',
+                'message' => 'Cannot delete your own active account.',
             ]);
 
         $this->assertDatabaseHas('users', [

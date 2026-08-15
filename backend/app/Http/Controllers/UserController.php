@@ -52,7 +52,7 @@ class UserController extends Controller
 
         return $this->success(
             UserResource::collection($users),
-            'Daftar pengguna berhasil diambil.'
+            'List of users retrieved successfully.'
         );
     }
 
@@ -85,7 +85,7 @@ class UserController extends Controller
 
         return $this->success(
             new UserResource($user),
-            'Pengguna berhasil ditambahkan.',
+            'User created successfully.',
             201
         );
     }
@@ -107,7 +107,7 @@ class UserController extends Controller
     {
         return $this->success(
             new UserResource($user),
-            'Detail pengguna berhasil diambil.'
+            'User details retrieved successfully.'
         );
     }
 
@@ -148,7 +148,7 @@ class UserController extends Controller
 
         return $this->success(
             new UserResource($user),
-            'Data pengguna berhasil diperbarui.'
+            'User updated successfully.'
         );
     }
 
@@ -168,14 +168,14 @@ class UserController extends Controller
     public function destroy(Request $request, User $user): JsonResponse
     {
         if ($request->user() && $request->user()->id === $user->id) {
-            return $this->error('Tidak dapat menghapus akun Anda sendiri yang sedang aktif.', 422);
+            return $this->error('Cannot delete your own active account.', 422);
         }
 
         $hasTrips = $user->driverTrips()->exists() || $user->createdTrips()->exists();
 
         if ($hasTrips) {
             return $this->error(
-                'Tidak dapat menghapus pengguna yang masih terhubung dengan riwayat trip logistik.',
+                'Cannot delete user referenced in logistics trip history.',
                 422
             );
         }
@@ -184,7 +184,7 @@ class UserController extends Controller
 
         return $this->success(
             null,
-            'Pengguna berhasil dihapus.'
+            'User deleted successfully.'
         );
     }
 }

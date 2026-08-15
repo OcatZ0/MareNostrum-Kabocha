@@ -46,7 +46,7 @@ class AuthApiTest extends TestCase
             ])
             ->assertJson([
                 'success' => true,
-                'message' => 'Login berhasil.',
+                'message' => 'Login successful.',
                 'data' => [
                     'user' => [
                         'username' => 'admin_demo',
@@ -70,7 +70,7 @@ class AuthApiTest extends TestCase
         $response->assertStatus(401)
             ->assertJson([
                 'success' => false,
-                'message' => 'Kredensial login tidak valid. Silakan periksa kembali username dan password Anda.',
+                'message' => 'Invalid login credentials. Please check your username and password.',
             ]);
     }
 
@@ -95,7 +95,7 @@ class AuthApiTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'message' => 'Logout berhasil.',
+                'message' => 'Logout successful.',
             ]);
 
         $this->assertDatabaseMissing('personal_access_tokens', [

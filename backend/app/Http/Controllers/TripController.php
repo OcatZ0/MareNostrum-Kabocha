@@ -220,7 +220,7 @@ class TripController extends Controller
     public function show(Request $request, Trip $trip)
     {
         if ($request->user()->role !== Role::ADMIN && $trip->driver_id !== $request->user()->id) {
-            abort(403, 'Trip ini bukan milik Anda.');
+            abort(403, 'This trip does not belong to you.');
         }
 
         return $this->success(new TripResource($trip->load($this->with)));
@@ -277,7 +277,7 @@ class TripController extends Controller
     public function update(UpdateTripRequest $request, Trip $trip)
     {
         if ($trip->status !== StatusTrips::DRAFT) {
-            return $this->error('Trip hanya bisa diubah selagi masih berstatus draft.', 422);
+            return $this->error('Trip can only be updated while still in draft status.', 422);
         }
 
         // Full replacement of the origin/destination combo: fields omitted from the
@@ -360,11 +360,11 @@ class TripController extends Controller
     public function recommend(Request $request, Trip $trip)
     {
         if ($request->user()->role !== Role::ADMIN) {
-            abort(403, 'Hanya admin yang bisa membuat rekomendasi trip.');
+            abort(403, 'Only admin can generate trip recommendations.');
         }
 
         if ($trip->status !== StatusTrips::DRAFT) {
-            return $this->error('Rekomendasi hanya bisa dibuat selagi trip berstatus draft.', 422);
+            return $this->error('Recommendations can only be generated while trip is in draft status.', 422);
         }
 
         $trip->loadMissing(['originCompany', 'originPort', 'destinationCompany', 'destinationPort']);
@@ -425,7 +425,7 @@ class TripController extends Controller
                 return $hourlyEvaluated->merge($refinementEvaluated)->sortByDesc('score')->first();
             })->values();
         } catch (RuntimeException $e) {
-            return $this->error('Gagal menghubungi TomTom API: '.$e->getMessage(), 502);
+            return $this->error('Failed to connect to TomTom API: '.$e->getMessage(), 502);
         }
 
         // Night slot can never be the primary recommendation (PRD Bagian 5.1) — pick the
@@ -498,7 +498,7 @@ class TripController extends Controller
     public function assign(AssignTripRequest $request, Trip $trip)
     {
         if ($trip->status !== StatusTrips::DRAFT) {
-            return $this->error('Trip hanya bisa di-assign selagi masih berstatus draft.', 422);
+            return $this->error('Trip can only be assigned while still in draft status.', 422);
         }
 
         $truck = Truck::find($request->input('truck_id'));
@@ -519,7 +519,7 @@ class TripController extends Controller
             'user_id' => $trip->driver_id,
             'trip_id' => $trip->id,
             'type' => NotificationType::TRIP_ASSIGNED,
-            'message' => "Anda ditugaskan pada trip #{$trip->id}, keberangkatan ".Carbon::parse($trip->chosen_departure_at)->format('Y-m-d H:i'),
+            'message' => "You are assigned to trip #{$trip->id}, departure at ".Carbon::parse($trip->chosen_departure_at)->format('Y-m-d H:i'),
         ]);
 
         return $this->success(new TripResource($trip->load($this->with)), 'Trip assigned');
@@ -555,7 +555,7 @@ class TripController extends Controller
                 content: new OA\JsonContent(
                     properties: [
                         new OA\Property(property: 'success', type: 'boolean', example: true),
-                        new OA\Property(property: 'message', type: 'string', example: 'Simulasi selesai'),
+                        new OA\Property(property: 'message', type: 'string', example: 'Simulation completed'),
                         new OA\Property(property: 'data', properties: [
                             new OA\Property(property: 'simulated', type: 'object', description: 'Same shape as one recommended_slots entry.'),
                             new OA\Property(property: 'nearest_recommended', type: 'object', description: 'The closest-in-time recommended_slots entry being compared against.'),
@@ -579,11 +579,11 @@ class TripController extends Controller
     public function simulate(SimulateTripRequest $request, Trip $trip)
     {
         if ($trip->status !== 'draft') {
-            return $this->error('Simulasi hanya bisa dilakukan selagi trip berstatus draft.', 422);
+            return $this->error('Simulation can only be performed while trip is in draft status.', 422);
         }
 
         if (empty($trip->recommended_slots)) {
-            return $this->error('Trip belum punya rekomendasi, panggil /recommend dulu.', 422);
+            return $this->error('Trip does not have recommendations yet, call /recommend first.', 422);
         }
 
         $trip->loadMissing(['originCompany', 'originPort', 'destinationCompany', 'destinationPort']);
@@ -603,7 +603,7 @@ class TripController extends Controller
         try {
             $routes = $this->fetchRoutes($origin, $destination, [$departAt]);
         } catch (RuntimeException $e) {
-            return $this->error('Gagal menghubungi TomTom API: '.$e->getMessage(), 502);
+            return $this->error('Failed to connect to TomTom API: '.$e->getMessage(), 502);
         }
 
         $historicalTrips = $this->historicalTripsForRoute($trip);
@@ -637,7 +637,7 @@ class TripController extends Controller
             'simulated' => $simulated,
             'nearest_recommended' => $nearest,
             'diff' => $diff,
-        ], 'Simulasi selesai');
+        ], 'Simulation completed');
     }
 
     #[OA\Post(
@@ -669,7 +669,7 @@ class TripController extends Controller
                 content: new OA\JsonContent(
                     properties: [
                         new OA\Property(property: 'success', type: 'boolean', example: true),
-                        new OA\Property(property: 'message', type: 'string', example: 'Ship reference id disimpan'),
+                        new OA\Property(property: 'message', type: 'string', example: 'Ship reference ID saved'),
                         new OA\Property(property: 'data', ref: '#/components/schemas/Trip'),
                     ]
                 )
@@ -683,18 +683,18 @@ class TripController extends Controller
     public function ship(ShipTripRequest $request, Trip $trip)
     {
         if (! $trip->ship_destination_port_id) {
-            return $this->error('ship_ref_id hanya berlaku untuk trip lintas negara.', 422);
+            return $this->error('ship_ref_id is only applicable for cross-border trips.', 422);
         }
 
         if (in_array($trip->status, [StatusTrips::COMPLETED, StatusTrips::CANCELLED], true)) {
-            return $this->error('Trip sudah selesai atau dibatalkan, ship_ref_id tidak bisa diubah.', 422);
+            return $this->error('Trip is already completed or cancelled, ship_ref_id cannot be changed.', 422);
         }
 
         $trip->update([
             'ship_ref_id' => $request->input('ship_ref_id'),
         ]);
 
-        return $this->success(new TripResource($trip->load($this->with)), 'Ship reference id disimpan');
+        return $this->success(new TripResource($trip->load($this->with)), 'Ship reference ID saved');
     }
 
     #[OA\Get(
@@ -738,7 +738,7 @@ class TripController extends Controller
     public function position(Request $request, Trip $trip)
     {
         if ($request->user()->role !== Role::ADMIN && $trip->driver_id !== $request->user()->id) {
-            abort(403, 'Trip ini bukan milik Anda.');
+            abort(403, 'This trip does not belong to you.');
         }
 
         if ($trip->status === StatusTrips::ON_SHIP && $trip->ship_ref_id) {
@@ -756,7 +756,7 @@ class TripController extends Controller
             ->first();
 
         if (! $checkpoint) {
-            return $this->error('Belum ada data posisi untuk trip ini.', 404);
+            return $this->error('No position data recorded for this trip yet.', 404);
         }
 
         return $this->success([
@@ -844,7 +844,7 @@ class TripController extends Controller
     public function shipStatus(Request $request, Trip $trip)
     {
         if ($request->user()->role !== Role::ADMIN && $trip->driver_id !== $request->user()->id) {
-            abort(403, 'Trip ini bukan milik Anda.');
+            abort(403, 'This trip does not belong to you.');
         }
 
         if ($trip->status !== StatusTrips::ON_SHIP || ! $trip->ship_ref_id || ! $trip->ship_destination_port_id) {
@@ -938,7 +938,7 @@ class TripController extends Controller
             'user_id' => $trip->driver_id,
             'trip_id' => $trip->id,
             'type' => NotificationType::SHIP_ARRIVED,
-            'message' => "Kapal untuk trip #{$trip->id} telah tiba di pelabuhan tujuan (via {$source}).",
+            'message' => "Vessel for trip #{$trip->id} has arrived at the destination port (via {$source}).",
         ]);
     }
 
@@ -1007,7 +1007,7 @@ class TripController extends Controller
     {
         $company = $trip->originCompany ?? $trip->destinationCompany;
 
-        return $company?->city === 'Singapura' ? 'Asia/Singapore' : 'Asia/Jakarta';
+        return $company?->city === 'Singapore' || $company?->city === 'Singapura' ? 'Asia/Singapore' : 'Asia/Jakarta';
     }
 
     /**
@@ -1060,7 +1060,7 @@ class TripController extends Controller
         $pending = $routesByCacheKey->filter(fn ($route) => $route === null)->keys();
         $isFirstChunk = true;
 
-        for ($pass = 0; $pending->isNotEmpty() && $pass < 3; $pass++) {
+        for ($pass = 0; $pass < 3 && $pending->isNotEmpty(); $pass++) {
             foreach ($pending->chunk(self::ROUTE_FETCH_CONCURRENCY) as $chunk) {
                 if (! $isFirstChunk) {
                     usleep(self::ROUTE_FETCH_PACING_MICROSECONDS);
@@ -1123,7 +1123,7 @@ class TripController extends Controller
         }
 
         if ($pending->isNotEmpty()) {
-            throw new RuntimeException('TomTom rate limit sedang tercapai, coba lagi sebentar lagi.');
+            throw new RuntimeException('TomTom rate limit reached, please try again shortly.');
         }
 
         return $keyedByCacheKey->mapWithKeys(fn (Carbon $departAt, string $key) => [
@@ -1291,25 +1291,25 @@ class TripController extends Controller
 
     /**
      * PRD Bagian 5.1 step 4 static text template, e.g.:
-     * "06:00 — direkomendasikan, lalu lintas ringan, estimasi tiba 06:45".
+     * "06:00 — recommended, light traffic, estimated arrival 06:45".
      */
     protected function buildReason(array $slot): string
     {
         $level = match (true) {
-            $slot['traffic_delay_seconds'] < 300 => 'ringan',
-            $slot['traffic_delay_seconds'] < 900 => 'sedang',
-            default => 'padat',
+            $slot['traffic_delay_seconds'] < 300 => 'light',
+            $slot['traffic_delay_seconds'] < 900 => 'moderate',
+            default => 'heavy',
         };
 
         $status = match (true) {
-            $slot['is_recommended'] => 'direkomendasikan',
-            $slot['is_night'] => 'alternatif, malam hari',
-            default => 'alternatif',
+            $slot['is_recommended'] => 'recommended',
+            $slot['is_night'] => 'alternative, night time',
+            default => 'alternative',
         };
 
         $time = Carbon::parse($slot['departure_at'])->format('H:i');
         $arrival = Carbon::parse($slot['estimated_arrival_at'])->format('H:i');
 
-        return "{$time} — {$status}, lalu lintas {$level}, estimasi tiba {$arrival}";
+        return "{$time} — {$status}, {$level} traffic, estimated arrival {$arrival}";
     }
 }

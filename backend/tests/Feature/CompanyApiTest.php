@@ -99,7 +99,7 @@ class CompanyApiTest extends TestCase
         $response->assertStatus(201)
             ->assertJson([
                 'success' => true,
-                'message' => 'Perusahaan berhasil ditambahkan.',
+                'message' => 'Company created successfully.',
                 'data' => [
                     'name' => 'New Partner Warehouse',
                     'type' => CompanyType::PARTNER,
@@ -203,7 +203,7 @@ class CompanyApiTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'message' => 'Perusahaan berhasil dihapus.',
+                'message' => 'Company deleted successfully.',
             ]);
 
         $this->assertDatabaseMissing('companies', [
@@ -236,7 +236,7 @@ class CompanyApiTest extends TestCase
         $response->assertStatus(422)
             ->assertJson([
                 'success' => false,
-                'message' => 'Tidak dapat menghapus perusahaan yang masih terhubung dengan data trip.',
+                'message' => 'Cannot delete company referenced in trips.',
             ]);
 
         $this->assertDatabaseHas('companies', [

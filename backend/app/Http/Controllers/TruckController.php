@@ -59,7 +59,7 @@ class TruckController extends Controller
 
         return $this->success(
             TruckResource::collection($trucks),
-            'Daftar truk berhasil diambil.'
+            'List of trucks retrieved successfully.'
         );
     }
 
@@ -92,7 +92,7 @@ class TruckController extends Controller
 
         return $this->success(
             new TruckResource($truck),
-            'Truk berhasil ditambahkan.',
+            'Truck created successfully.',
             201
         );
     }
@@ -113,7 +113,7 @@ class TruckController extends Controller
     {
         return $this->success(
             new TruckResource($truck),
-            'Detail truk berhasil diambil.'
+            'Truck details retrieved successfully.'
         );
     }
 
@@ -135,7 +135,7 @@ class TruckController extends Controller
 
         return $this->success(
             new TruckResource($truck),
-            'Data truk berhasil diperbarui.'
+            'Truck updated successfully.'
         );
     }
 
@@ -157,7 +157,7 @@ class TruckController extends Controller
 
         if ($hasTrips) {
             return $this->error(
-                'Tidak dapat menghapus truk yang sudah terhubung dengan data riwayat trip.',
+                'Cannot delete truck referenced in trip history.',
                 422
             );
         }
@@ -166,7 +166,7 @@ class TruckController extends Controller
 
         return $this->success(
             null,
-            'Truk berhasil dihapus.'
+            'Truck deleted successfully.'
         );
     }
 
@@ -206,6 +206,6 @@ class TruckController extends Controller
                 'average_co2_per_trip_kg' => $totalTrips > 0 ? round($totalCo2Kg / $totalTrips, 2) : 0,
             ],
             'trips' => $trips,
-        ], 'Data emisi CO2 truk berhasil diambil.');
+        ], 'Truck CO2 emissions data retrieved successfully.');
     }
 }

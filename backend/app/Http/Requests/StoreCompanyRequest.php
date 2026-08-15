@@ -44,9 +44,9 @@ class StoreCompanyRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'type.in' => 'Tipe perusahaan harus bernilai internal atau partner.',
-            'latitude.between' => 'Koordinat latitude harus bernilai antara -90 dan 90.',
-            'longitude.between' => 'Koordinat longitude harus bernilai antara -180 dan 180.',
+            'type.in' => 'Company type must be internal or partner.',
+            'latitude.between' => 'Latitude coordinate must be between -90 and 90.',
+            'longitude.between' => 'Longitude coordinate must be between -180 and 180.',
         ];
     }
 }

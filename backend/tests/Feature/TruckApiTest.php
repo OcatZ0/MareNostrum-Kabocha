@@ -106,7 +106,7 @@ class TruckApiTest extends TestCase
         $response->assertStatus(201)
             ->assertJson([
                 'success' => true,
-                'message' => 'Truk berhasil ditambahkan.',
+                'message' => 'Truck created successfully.',
                 'data' => [
                     'plate_number' => 'BP 9999 NEW',
                     'brand' => 'Mitsubishi Fuso',
@@ -185,7 +185,7 @@ class TruckApiTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'message' => 'Data truk berhasil diperbarui.',
+                'message' => 'Truck updated successfully.',
                 'data' => [
                     'id' => $truck->id,
                     'plate_number' => 'BP 4444 UPDATED',
@@ -214,7 +214,7 @@ class TruckApiTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'message' => 'Truk berhasil dihapus.',
+                'message' => 'Truck deleted successfully.',
             ]);
 
         $this->assertDatabaseMissing('trucks', [
@@ -251,7 +251,7 @@ class TruckApiTest extends TestCase
         $response->assertStatus(422)
             ->assertJson([
                 'success' => false,
-                'message' => 'Tidak dapat menghapus truk yang sudah terhubung dengan data riwayat trip.',
+                'message' => 'Cannot delete truck referenced in trip history.',
             ]);
 
         $this->assertDatabaseHas('trucks', [

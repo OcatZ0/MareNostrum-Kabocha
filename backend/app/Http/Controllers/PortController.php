@@ -51,7 +51,7 @@ class PortController extends Controller
 
         return $this->success(
             PortResource::collection($ports),
-            'Daftar pelabuhan berhasil diambil.'
+            'List of ports retrieved successfully.'
         );
     }
 
@@ -83,7 +83,7 @@ class PortController extends Controller
 
         return $this->success(
             new PortResource($port),
-            'Pelabuhan berhasil ditambahkan.',
+            'Port created successfully.',
             201
         );
     }
@@ -104,7 +104,7 @@ class PortController extends Controller
     {
         return $this->success(
             new PortResource($port),
-            'Detail pelabuhan berhasil diambil.'
+            'Port details retrieved successfully.'
         );
     }
 
@@ -138,7 +138,7 @@ class PortController extends Controller
 
         return $this->success(
             new PortResource($port),
-            'Data pelabuhan berhasil diperbarui.'
+            'Port updated successfully.'
         );
     }
 
@@ -163,7 +163,7 @@ class PortController extends Controller
 
         if ($hasTrips) {
             return $this->error(
-                'Tidak dapat menghapus pelabuhan yang masih terhubung dengan data trip.',
+                'Cannot delete port referenced in trips.',
                 422
             );
         }
@@ -172,7 +172,7 @@ class PortController extends Controller
 
         return $this->success(
             null,
-            'Pelabuhan berhasil dihapus.'
+            'Port deleted successfully.'
         );
     }
 }

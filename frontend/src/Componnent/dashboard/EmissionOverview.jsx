@@ -15,7 +15,7 @@ const EmissionOverview = ({
   const max = Math.max(...safeTrend, 1);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-100 p-5 sm:p-6 flex flex-col justify-between">
+    <div className="bg-white rounded-xl border-2 border-slate-200 p-5 sm:p-6 flex flex-col justify-between shadow-sm">
       <div>
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -57,7 +57,7 @@ const EmissionOverview = ({
       </div>
 
       {categoryEmissions && (
-        <div className="grid grid-cols-3 gap-2 mt-6 pt-4 border-t border-slate-100 text-center">
+        <div className="grid grid-cols-3 gap-2 mt-6 pt-4 border-t-2 border-slate-200 text-center">
           <div className="bg-slate-50 rounded-lg p-2">
             <p className="text-[10px] text-slate-400 font-medium">Light Trucks</p>
             <p className="text-xs font-semibold text-slate-700 mt-0.5">

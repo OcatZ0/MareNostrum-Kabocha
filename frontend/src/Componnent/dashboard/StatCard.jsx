@@ -10,7 +10,7 @@ import { COLORS } from './dashboardTheme';
  */
 const StatCard = ({ icon: Icon, label, value, delta, deltaGood = true }) => {
   return (
-    <div className="bg-white rounded-xl border border-slate-100 p-5 flex items-center gap-4">
+    <div className="bg-white rounded-xl border-2 border-slate-200 p-5 flex items-center gap-4 shadow-sm">
       <div
         className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
         style={{ backgroundColor: `${COLORS.navy}0D` }}

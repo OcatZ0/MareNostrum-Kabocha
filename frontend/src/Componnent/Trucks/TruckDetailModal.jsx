@@ -5,7 +5,7 @@ import { updateTruck, deleteTruck } from '../../api/trucksApi';
 
 const FUEL_LABELS = { diesel: 'Diesel', petrol: 'Petrol', electric: 'Electric' };
 const STATUS_STYLES = {
-  active: { label: 'Aktif', bg: '#E7F5EC', color: '#38A169' },
+  active: { label: 'Active', bg: '#E7F5EC', color: '#38A169' },
   maintenance: { label: 'Maintenance', bg: '#FBF1DE', color: '#C08A1E' },
 };
 
@@ -42,7 +42,7 @@ const TruckDetailModal = ({ truck, onClose, onRefresh, onTruckUpdated }) => {
       onTruckUpdated(res.data?.data ?? { ...truck, ...form });
       setEditing(false);
     } catch (err) {
-      setError(err?.response?.data?.message ?? 'Gagal menyimpan perubahan.');
+      setError(err?.response?.data?.message ?? 'Failed to save changes.');
     } finally {
       setSubmitting(false);
     }
@@ -55,7 +55,7 @@ const TruckDetailModal = ({ truck, onClose, onRefresh, onTruckUpdated }) => {
       await deleteTruck(truck.id);
       onRefresh();
     } catch (err) {
-      setError(err?.response?.data?.message ?? 'Gagal menghapus truk.');
+      setError(err?.response?.data?.message ?? 'Failed to delete truck.');
       setSubmitting(false);
     }
   };
@@ -67,7 +67,7 @@ const TruckDetailModal = ({ truck, onClose, onRefresh, onTruckUpdated }) => {
           <div className="flex items-center gap-2">
             <TruckIcon size={16} color={COLORS.teal} />
             <h2 className="text-base font-semibold" style={{ color: COLORS.navy }}>
-              {editing ? `Edit Truk #${truck.id}` : `Truk #${truck.id}`}
+              {editing ? `Edit Truck #${truck.id}` : `Truck #${truck.id}`}
             </h2>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition">
@@ -83,12 +83,12 @@ const TruckDetailModal = ({ truck, onClose, onRefresh, onTruckUpdated }) => {
           {!editing && !confirmingDelete && (
             <>
               <div className="mb-4">
-                <Row label="Plat Nomor" value={truck.plate_number} />
+                <Row label="Plate Number" value={truck.plate_number} />
                 <Row label="Brand" value={truck.brand} />
                 <Row label="Model" value={truck.model ?? '—'} />
-                <Row label="Tahun" value={truck.year} />
-                <Row label="Bahan Bakar" value={FUEL_LABELS[truck.fuel_type] ?? truck.fuel_type} />
-                <Row label="Total Trip" value={truck.trips_count ?? 0} />
+                <Row label="Year" value={truck.year} />
+                <Row label="Fuel Type" value={FUEL_LABELS[truck.fuel_type] ?? truck.fuel_type} />
+                <Row label="Total Trips" value={truck.trips_count ?? 0} />
                 <div className="flex items-center justify-between py-2.5">
                   <span className="text-xs text-slate-400">Status</span>
                   <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ backgroundColor: s.bg, color: s.color }}>{s.label}</span>
@@ -100,7 +100,7 @@ const TruckDetailModal = ({ truck, onClose, onRefresh, onTruckUpdated }) => {
                   onClick={() => setConfirmingDelete(true)}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-red-200 text-red-600 hover:bg-red-50 transition"
                 >
-                  <Trash2 size={14} /> Hapus
+                  <Trash2 size={14} /> Delete
                 </button>
                 <button
                   onClick={() => setEditing(true)}
@@ -116,22 +116,22 @@ const TruckDetailModal = ({ truck, onClose, onRefresh, onTruckUpdated }) => {
           {confirmingDelete && (
             <>
               <p className="text-sm text-slate-600 leading-relaxed mb-4">
-                Hapus <strong>{truck.plate_number}</strong> dari armada? Histori trip truk ini tetap tersimpan, tapi
-                truk tidak bisa lagi di-assign ke trip baru.
+                Delete <strong>{truck.plate_number}</strong> from fleet? Trip history for this truck will be preserved, but
+                the truck can no longer be assigned to new trips.
               </p>
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setConfirmingDelete(false)}
                   className="px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
                 >
-                  Batal
+                  Cancel
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={submitting}
                   className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition disabled:opacity-50"
                 >
-                  {submitting ? 'Menghapus…' : 'Hapus Truk'}
+                  {submitting ? 'Deleting…' : 'Delete Truck'}
                 </button>
               </div>
             </>
@@ -140,7 +140,7 @@ const TruckDetailModal = ({ truck, onClose, onRefresh, onTruckUpdated }) => {
           {editing && (
             <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Plat Nomor</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Plate Number</label>
                 <input
                   required
                   value={form.plate_number}
@@ -169,7 +169,7 @@ const TruckDetailModal = ({ truck, onClose, onRefresh, onTruckUpdated }) => {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Tahun</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Year</label>
                   <input
                     required
                     type="number"
@@ -179,7 +179,7 @@ const TruckDetailModal = ({ truck, onClose, onRefresh, onTruckUpdated }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Bahan Bakar</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Fuel Type</label>
                   <select
                     value={form.fuel_type}
                     onChange={set('fuel_type')}
@@ -198,7 +198,7 @@ const TruckDetailModal = ({ truck, onClose, onRefresh, onTruckUpdated }) => {
                   onChange={set('status')}
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400 transition bg-white"
                 >
-                  <option value="active">Aktif</option>
+                  <option value="active">Active</option>
                   <option value="maintenance">Maintenance</option>
                 </select>
               </div>
@@ -208,7 +208,7 @@ const TruckDetailModal = ({ truck, onClose, onRefresh, onTruckUpdated }) => {
                   onClick={() => setEditing(false)}
                   className="px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
                 >
-                  Batal
+                  Cancel
                 </button>
                 <button
                   type="submit"
@@ -216,7 +216,7 @@ const TruckDetailModal = ({ truck, onClose, onRefresh, onTruckUpdated }) => {
                   className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50"
                   style={{ background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})` }}
                 >
-                  {submitting ? 'Menyimpan…' : 'Simpan Perubahan'}
+                  {submitting ? 'Saving…' : 'Save Changes'}
                 </button>
               </div>
             </form>

@@ -69,13 +69,13 @@ abstract class TripComboRequest extends FormRequest
             $hasShipPort = $this->filled('ship_destination_port_id');
 
             if ($hasOriginCompany === $hasOriginPort) {
-                $validator->errors()->add('origin_company_id', 'Pilih tepat satu titik asal: origin_company_id atau origin_port_id.');
+                $validator->errors()->add('origin_company_id', 'Select exactly one origin point: origin_company_id or origin_port_id.');
 
                 return;
             }
 
             if ($hasDestCompany === $hasDestPort) {
-                $validator->errors()->add('destination_company_id', 'Pilih tepat satu titik tujuan: destination_company_id atau destination_port_id.');
+                $validator->errors()->add('destination_company_id', 'Select exactly one destination point: destination_company_id or destination_port_id.');
 
                 return;
             }
@@ -97,24 +97,24 @@ abstract class TripComboRequest extends FormRequest
             $isArrival = $hasOriginPort && $hasDestCompany;
 
             if (! $isCrossBorder && ! $isDomestic && ! $isArrival) {
-                $validator->errors()->add('destination_port_id', 'Kombinasi origin/destination tidak didukung.');
+                $validator->errors()->add('destination_port_id', 'Unsupported origin/destination combination.');
 
                 return;
             }
 
             if ($isDomestic) {
                 if ($originCompany->id === $destCompany->id) {
-                    $validator->errors()->add('destination_company_id', 'origin_company_id dan destination_company_id tidak boleh perusahaan yang sama.');
+                    $validator->errors()->add('destination_company_id', 'origin_company_id and destination_company_id cannot be the same company.');
 
                     return;
                 }
 
                 if ($originCompany->city !== $destCompany->city) {
-                    $validator->errors()->add('destination_company_id', 'Trip domestik hanya boleh antar perusahaan di kota/negara yang sama.');
+                    $validator->errors()->add('destination_company_id', 'Domestic trips are only allowed between companies in the same city/country.');
                 }
 
                 if ($hasShipPort) {
-                    $validator->errors()->add('ship_destination_port_id', 'ship_destination_port_id hanya berlaku untuk trip lintas negara.');
+                    $validator->errors()->add('ship_destination_port_id', 'ship_destination_port_id is only applicable for cross-border trips.');
                 }
 
                 return;
@@ -124,11 +124,11 @@ abstract class TripComboRequest extends FormRequest
                 $originCountry = self::CITY_TO_COUNTRY[$destCompany->city] ?? null;
 
                 if ($originPort->country !== $originCountry) {
-                    $validator->errors()->add('origin_port_id', 'origin_port_id harus berada di negara yang sama dengan destination_company_id.');
+                    $validator->errors()->add('origin_port_id', 'origin_port_id must be in the same country as destination_company_id.');
                 }
 
                 if ($hasShipPort) {
-                    $validator->errors()->add('ship_destination_port_id', 'ship_destination_port_id hanya berlaku untuk trip lintas negara.');
+                    $validator->errors()->add('ship_destination_port_id', 'ship_destination_port_id is only applicable for cross-border trips.');
                 }
 
                 return;
@@ -139,19 +139,19 @@ abstract class TripComboRequest extends FormRequest
             $localCountry = self::CITY_TO_COUNTRY[$originCompany->city] ?? null;
 
             if ($localCountry === null) {
-                $validator->errors()->add('origin_company_id', 'Kota perusahaan tidak dikenali (harus Batam atau Singapura).');
+                $validator->errors()->add('origin_company_id', 'Unrecognized company city (must be Batam or Singapore).');
 
                 return;
             }
 
             if ($destPort->country !== $localCountry) {
-                $validator->errors()->add('destination_port_id', 'destination_port_id harus berupa pelabuhan di negara yang sama dengan origin_company_id.');
+                $validator->errors()->add('destination_port_id', 'destination_port_id must be a port in the same country as origin_company_id.');
             }
 
             if (! $hasShipPort) {
-                $validator->errors()->add('ship_destination_port_id', 'ship_destination_port_id wajib diisi untuk trip lintas negara.');
+                $validator->errors()->add('ship_destination_port_id', 'ship_destination_port_id is required for cross-border trips.');
             } elseif ($shipPort->country === $localCountry) {
-                $validator->errors()->add('ship_destination_port_id', 'ship_destination_port_id harus berupa pelabuhan di negara yang berbeda dari origin_company_id.');
+                $validator->errors()->add('ship_destination_port_id', 'ship_destination_port_id must be a port in a different country from origin_company_id.');
             }
         });
     }

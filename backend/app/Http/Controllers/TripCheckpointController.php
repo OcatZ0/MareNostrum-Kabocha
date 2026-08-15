@@ -69,7 +69,7 @@ class TripCheckpointController extends Controller
                 content: new OA\JsonContent(
                     properties: [
                         new OA\Property(property: 'success', type: 'boolean', example: true),
-                        new OA\Property(property: 'message', type: 'string', example: 'Kedatangan tervalidasi'),
+                        new OA\Property(property: 'message', type: 'string', example: 'Arrival validated'),
                         new OA\Property(property: 'data', properties: [
                             new OA\Property(property: 'checkpoint', ref: '#/components/schemas/TripCheckpoint', nullable: true),
                             new OA\Property(property: 'trip_status', type: 'string'),
@@ -86,7 +86,7 @@ class TripCheckpointController extends Controller
     public function store(StoreTripCheckpointRequest $request, Trip $trip)
     {
         if ($trip->driver_id !== $request->user()->id) {
-            abort(403, 'Trip ini bukan milik Anda.');
+            abort(403, 'This trip does not belong to you.');
         }
 
         $latitude = (float) $request->input('latitude');
@@ -130,7 +130,7 @@ class TripCheckpointController extends Controller
     public function index(Request $request, Trip $trip)
     {
         if ($request->user()->role !== Role::ADMIN && $trip->driver_id !== $request->user()->id) {
-            abort(403, 'Trip ini bukan milik Anda.');
+            abort(403, 'This trip does not belong to you.');
         }
 
         $checkpoints = $trip->checkpoints()->orderBy('recorded_at')->get();
@@ -146,7 +146,7 @@ class TripCheckpointController extends Controller
     protected function recordGpsPing(Trip $trip, float $latitude, float $longitude)
     {
         if (! in_array($trip->status, [StatusTrips::IN_TRANSIT_ORIGIN, StatusTrips::IN_TRANSIT_DESTINATION], true)) {
-            return $this->error('Trip tidak sedang dalam perjalanan.', 422);
+            return $this->error('Trip is not currently in transit.', 422);
         }
 
         TripCheckpoint::create([
@@ -178,7 +178,7 @@ class TripCheckpointController extends Controller
             // completed via the future ship-status polling), not the truck, so it stays
             // at_origin_port while the truck drives home independently.
         } else {
-            return $this->error('Trip tidak dalam status yang bisa memulai perjalanan.', 422);
+            return $this->error('Trip is not in a status that can start transit.', 422);
         }
 
         $checkpoint = TripCheckpoint::create([
@@ -193,7 +193,7 @@ class TripCheckpointController extends Controller
         return $this->success([
             'checkpoint' => new TripCheckpointResource($checkpoint),
             'trip_status' => $trip->status,
-        ], 'Keberangkatan tercatat');
+        ], 'Departure recorded');
     }
 
     protected function recordArrival(Trip $trip, string $eventType, float $latitude, float $longitude)
@@ -233,11 +233,11 @@ class TripCheckpointController extends Controller
         };
 
         if ($expectedEventType === null) {
-            return $this->error('Trip tidak sedang menunggu konfirmasi kedatangan.', 422);
+            return $this->error('Trip is not currently awaiting arrival confirmation.', 422);
         }
 
         if ($eventType !== $expectedEventType) {
-            return $this->error("event_type harus '{$expectedEventType}' untuk status trip saat ini.", 422);
+            return $this->error("event_type must be '{$expectedEventType}' for current trip status.", 422);
         }
 
         $distanceMeters = $this->haversineDistanceMeters($latitude, $longitude, $target['lat'], $target['lng']);
@@ -247,10 +247,10 @@ class TripCheckpointController extends Controller
                 'user_id' => $trip->created_by,
                 'trip_id' => $trip->id,
                 'type' => NotificationType::LOCATION_VALIDATION_FAILED,
-                'message' => "Trip #{$trip->id}: validasi lokasi gagal (jarak {$distanceMeters}m, radius maksimum ".self::ARRIVAL_RADIUS_METERS.'m).',
+                'message' => "Trip #{$trip->id}: location validation failed (distance {$distanceMeters}m, max radius ".self::ARRIVAL_RADIUS_METERS.'m).',
             ]);
 
-            return $this->error("Lokasi terlalu jauh dari titik tujuan (jarak {$distanceMeters}m, radius maksimum ".self::ARRIVAL_RADIUS_METERS.'m).', 422);
+            return $this->error("Location is too far from the destination point (distance {$distanceMeters}m, max radius ".self::ARRIVAL_RADIUS_METERS.'m).', 422);
         }
 
         $updates = $onSuccess();
@@ -269,7 +269,7 @@ class TripCheckpointController extends Controller
             'user_id' => $trip->created_by,
             'trip_id' => $trip->id,
             'type' => NotificationType::ARRIVED_AT_POINT,
-            'message' => "Trip #{$trip->id} tiba di titik {$eventType}.",
+            'message' => "Trip #{$trip->id} arrived at point {$eventType}.",
         ]);
 
         if (($updates['status'] ?? null) === StatusTrips::COMPLETED) {
@@ -277,13 +277,13 @@ class TripCheckpointController extends Controller
                 'user_id' => $trip->created_by,
                 'trip_id' => $trip->id,
                 'type' => NotificationType::TRIP_COMPLETED,
-                'message' => "Trip #{$trip->id} telah selesai.",
+                'message' => "Trip #{$trip->id} has completed.",
             ]);
         }
 
         return $this->success([
             'checkpoint' => new TripCheckpointResource($checkpoint),
             'trip_status' => $trip->status,
-        ], 'Kedatangan tervalidasi');
+        ], 'Arrival validated');
     }
 }
