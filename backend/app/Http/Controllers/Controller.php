@@ -17,8 +17,10 @@ use OpenApi\Attributes as OA;
     bearerFormat: 'Sanctum personal access token',
     description: 'Send as: Authorization: Bearer {token}'
 )]
+#[OA\Tag(name: 'Companies', description: 'Company and partner management')]
 #[OA\Tag(name: 'Trips', description: 'Trip planning, assignment and tracking')]
 abstract class Controller
+
 {
     //
 }
