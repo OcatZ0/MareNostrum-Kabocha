@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Truck,
@@ -20,6 +20,10 @@ import {
   Gauge,
   Activity,
   Layers,
+  Lightbulb,
+  Zap,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -409,8 +413,136 @@ function StepRow({ number, title, desc, last }) {
   );
 }
 
+function HeaderPullChain({ isOpen, onToggle }) {
+  const chainRef = useRef(null);
+  const handleRef = useRef(null);
+  const [pulling, setPulling] = useState(false);
+
+  const handlePull = (e) => {
+    e?.stopPropagation();
+    if (pulling) return;
+    setPulling(true);
+
+    const tl = gsap.timeline({
+      onComplete: () => setPulling(false),
+    });
+
+    // 1. Pull down with physical spring physics
+    tl.to(chainRef.current, {
+      y: 18,
+      scaleY: 1.25,
+      duration: 0.14,
+      ease: "power2.in",
+    })
+      .to(
+        handleRef.current,
+        {
+          y: 22,
+          duration: 0.14,
+          ease: "power2.in",
+        },
+        "<"
+      )
+      // 2. Snap back with spring recoil
+      .to(chainRef.current, {
+        y: 0,
+        scaleY: 1,
+        duration: 0.6,
+        ease: "elastic.out(1.5, 0.3)",
+      })
+      .to(
+        handleRef.current,
+        {
+          y: 0,
+          duration: 0.6,
+          ease: "elastic.out(1.5, 0.3)",
+          onStart: () => {
+            onToggle();
+          },
+        },
+        "<"
+      );
+  };
+
+  return (
+    <div
+      className="header-pull-chain-wrapper"
+      onClick={handlePull}
+      title="Tarik rantai saklar untuk membuka/menutup menu"
+      style={{
+        position: "absolute",
+        left: "14px",
+        bottom: "-38px",
+        zIndex: 50,
+        cursor: "pointer",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        filter: "drop-shadow(0 2px 4px rgba(26,54,93,0.3))",
+        userSelect: "none",
+        touchAction: "manipulation",
+      }}
+    >
+      <svg
+        width="28"
+        height="48"
+        viewBox="0 0 28 48"
+        style={{ overflow: "visible" }}
+      >
+        <defs>
+          <linearGradient id="brassChain" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ECC94B" />
+            <stop offset="50%" stopColor="#D69E2E" />
+            <stop offset="100%" stopColor="#975A16" />
+          </linearGradient>
+        </defs>
+
+        {/* Ring Eyelet at top attached to header bottom */}
+        <circle cx="14" cy="3" r="3" fill="none" stroke="#D69E2E" strokeWidth="1.5" />
+        <circle cx="14" cy="3" r="1.5" fill="#744210" />
+
+        {/* Beaded Ball Chain Links */}
+        <g ref={chainRef} style={{ transformOrigin: "14px 6px" }}>
+          <line x1="14" y1="6" x2="14" y2="34" stroke="#D69E2E" strokeWidth="1" strokeDasharray="1 2" />
+          {[7, 12, 17, 22, 27, 32].map((y) => (
+            <circle key={y} cx="14" cy={y} r="1.9" fill="url(#brassChain)" />
+          ))}
+        </g>
+
+        {/* Acorn / Teardrop Brass Pull Handle */}
+        <g ref={handleRef} style={{ transformOrigin: "14px 34px" }}>
+          <rect x="12" y="33" width="4" height="4" rx="1" fill="#975A16" />
+          <path
+            d="M10.5,37 Q14,47 14,48 Q14,47 17.5,37 Z"
+            fill="url(#brassChain)"
+            stroke="#744210"
+            strokeWidth="0.8"
+          />
+          <circle cx="14" cy="47.5" r="1.8" fill="#ECC94B" />
+
+          {/* Gentle pulsing ring when closed to invite interaction */}
+          {!isOpen && (
+            <circle
+              cx="14"
+              cy="42"
+              r="7"
+              fill="none"
+              stroke="#ECC94B"
+              strokeWidth="1"
+              strokeDasharray="2 2"
+              opacity="0.85"
+              style={{ animation: "spin-slow 6s linear infinite" }}
+            />
+          )}
+        </g>
+      </svg>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const pageRef = useRef(null);
+  const [isNavOpen, setIsNavOpen] = useState(false);
 
   useEffect(() => {
     // GSAP Context for clean component lifecycle
@@ -660,12 +792,54 @@ export default function LandingPage() {
         }
         .nav-link:hover:after { width: 100%; }
 
+        @media (min-width: 901px) {
+          .header-pull-chain-wrapper { display: none !important; }
+          .mobile-nav-dropdown { display: none !important; }
+        }
+
         @media (max-width: 900px) {
           .hero-grid { grid-template-columns: 1fr !important; gap: 2.5rem !important; }
           .steps-grid { grid-template-columns: 1fr !important; }
           .roles-grid { grid-template-columns: 1fr !important; }
           .nav-links { display: none !important; }
+
+          .header-pull-chain-wrapper { display: flex !important; }
+          
+          .mobile-nav-dropdown {
+            transition: max-height 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease, padding 0.35s ease;
+          }
+          .mobile-nav-dropdown.closed {
+            max-height: 0 !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            visibility: hidden !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+          }
+          .mobile-nav-dropdown.open {
+            max-height: 480px !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            visibility: visible !important;
+          }
         }
+
+        .header-pull-chain-wrapper {
+          transition: transform 0.15s ease;
+        }
+        .header-pull-chain-wrapper:hover {
+          filter: drop-shadow(0 2px 8px rgba(236,201,75,0.75));
+        }
+
+        .mobile-nav-item {
+          transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+        }
+        .mobile-nav-item:active {
+          transform: scale(0.98);
+          background: #EBF8FF !important;
+          border-color: #BEE3F8 !important;
+        }
+
         @media (prefers-reduced-motion: reduce) {
           * { animation: none !important; transition: none !important; }
         }
@@ -677,10 +851,12 @@ export default function LandingPage() {
         style={{
           position: "sticky",
           top: 0,
-          zIndex: 40,
-          background: "rgba(247,250,252,0.88)",
-          backdropFilter: "blur(12px)",
+          zIndex: 50,
+          background: "rgba(247,250,252,0.92)",
+          backdropFilter: "blur(14px)",
           borderBottom: `1px solid ${c.line}`,
+          boxShadow: isNavOpen ? "0 12px 32px -8px rgba(26,54,93,0.18)" : "none",
+          transition: "box-shadow 0.3s ease",
         }}
       >
         <div
@@ -691,18 +867,28 @@ export default function LandingPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            position: "relative",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <CompassMark size={32} />
-            <div>
-              <div style={{ fontFamily: fontDisplay, fontWeight: 700, fontSize: "1.1rem", lineHeight: 1.1, color: c.ink }}>
-                Mare Nostrum
-              </div>
-              <div style={{ fontFamily: fontMono, fontSize: "0.62rem", color: c.teal, letterSpacing: "0.1em" }}>
-                OUR SEA, OUR TRADE
+          {/* Logo & Brand with Hanging Pull Chain underneath for responsive view */}
+          <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <CompassMark size={32} />
+              <div>
+                <div style={{ fontFamily: fontDisplay, fontWeight: 700, fontSize: "1.1rem", lineHeight: 1.1, color: c.ink }}>
+                  Mare Nostrum
+                </div>
+                <div style={{ fontFamily: fontMono, fontSize: "0.62rem", color: c.teal, letterSpacing: "0.1em" }}>
+                  OUR SEA, OUR TRADE
+                </div>
               </div>
             </div>
+
+            {/* Hanging Lamp Pull Chain directly below logo on mobile/tablet */}
+            <HeaderPullChain
+              isOpen={isNavOpen}
+              onToggle={() => setIsNavOpen((prev) => !prev)}
+            />
           </div>
 
           <nav className="nav-links" style={{ display: "flex", gap: "2.2rem", fontSize: "0.92rem", fontWeight: 500 }}>
@@ -736,6 +922,106 @@ export default function LandingPage() {
           >
             Login <ArrowUpRight size={15} />
           </Link>
+        </div>
+
+        {/* RESPONSIVE DROPDOWN NAVIGATION (EXPANDS DOWNWARD WHEN PULL CHAIN IS ACTIVATED) */}
+        <div
+          className={`mobile-nav-dropdown ${isNavOpen ? "open" : "closed"}`}
+          style={{
+            borderTop: isNavOpen ? `1px solid ${c.line}` : "none",
+            background: "rgba(255,255,255,0.98)",
+            backdropFilter: "blur(16px)",
+            overflow: "hidden",
+          }}
+        >
+          <div style={{ padding: "1.1rem 1.5rem 1.3rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.2rem" }}>
+              <span style={{ fontFamily: fontMono, fontSize: "0.72rem", color: c.teal, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+                <Lightbulb size={13} color={c.aqua} /> Navigasi Eksplorasi
+              </span>
+              <span style={{ fontFamily: fontMono, fontSize: "0.68rem", color: "#8FA3B5" }}>
+                Tarik rantai untuk menutup
+              </span>
+            </div>
+
+            <a
+              href="#fitur"
+              onClick={() => setIsNavOpen(false)}
+              className="mobile-nav-item"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.85rem",
+                padding: "0.75rem 1rem",
+                borderRadius: 12,
+                background: "#F7FAFC",
+                border: `1px solid ${c.line}`,
+                textDecoration: "none",
+                color: c.ink,
+              }}
+            >
+              <div style={{ width: 34, height: 34, borderRadius: 8, background: "rgba(66,153,225,0.12)", display: "flex", alignItems: "center", justifyContent: "center", color: c.aqua, flexShrink: 0 }}>
+                <Radar size={18} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: "0.94rem" }}>Features</div>
+                <div style={{ fontSize: "0.78rem", color: "#5B7185" }}>Prediksi rute, emisi CO2 & notifikasi</div>
+              </div>
+              <ArrowRight size={15} color="#A0AEC0" style={{ marginLeft: "auto" }} />
+            </a>
+
+            <a
+              href="#alur"
+              onClick={() => setIsNavOpen(false)}
+              className="mobile-nav-item"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.85rem",
+                padding: "0.75rem 1rem",
+                borderRadius: 12,
+                background: "#F7FAFC",
+                border: `1px solid ${c.line}`,
+                textDecoration: "none",
+                color: c.ink,
+              }}
+            >
+              <div style={{ width: 34, height: 34, borderRadius: 8, background: "rgba(42,111,138,0.12)", display: "flex", alignItems: "center", justifyContent: "center", color: c.teal, flexShrink: 0 }}>
+                <Layers size={18} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: "0.94rem" }}>How it works</div>
+                <div style={{ fontSize: "0.78rem", color: "#5B7185" }}>4 langkah pengiriman darat & laut</div>
+              </div>
+              <ArrowRight size={15} color="#A0AEC0" style={{ marginLeft: "auto" }} />
+            </a>
+
+            <a
+              href="#peran"
+              onClick={() => setIsNavOpen(false)}
+              className="mobile-nav-item"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.85rem",
+                padding: "0.75rem 1rem",
+                borderRadius: 12,
+                background: "#F7FAFC",
+                border: `1px solid ${c.line}`,
+                textDecoration: "none",
+                color: c.ink,
+              }}
+            >
+              <div style={{ width: 34, height: 34, borderRadius: 8, background: "rgba(56,161,105,0.12)", display: "flex", alignItems: "center", justifyContent: "center", color: c.green, flexShrink: 0 }}>
+                <Users size={18} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: "0.94rem" }}>Roles</div>
+                <div style={{ fontSize: "0.78rem", color: "#5B7185" }}>Portal Admin dan Aplikasi Driver</div>
+              </div>
+              <ArrowRight size={15} color="#A0AEC0" style={{ marginLeft: "auto" }} />
+            </a>
+          </div>
         </div>
       </header>
 
@@ -870,198 +1156,198 @@ export default function LandingPage() {
 
       {/* HOW IT WORKS / ALUR */}
       <section id="alur" style={{ maxWidth: 1160, margin: "0 auto", padding: "5rem 1.5rem" }}>
-        <div className="steps-header">
-          <Eyebrow>How it works</Eyebrow>
-          <h2 style={{ fontFamily: fontDisplay, fontWeight: 600, fontSize: "2.2rem", margin: "0 0 2.8rem", color: c.ink }}>
-            Four steps, from plan to delivery.
-          </h2>
-        </div>
-        <div className="steps-container">
-          <StepRow
-            number="01"
-            title="Plan & Traffic Routing"
-            desc="Admin picks the origin and destination. The system pulls real-time TomTom traffic data to estimate travel time on the main route."
-          />
-          <StepRow
-            number="02"
-            title="Schedule & Slot Recommendation"
-            desc="The system builds three departure time options based on congestion and delay history, then admin assigns a truck, driver, and Ship ID for cross-border trips."
-          />
-          <StepRow
-            number="03"
-            title="Track on Land with Smart Geofence"
-            desc="The driver activates GPS on departure. Once the position enters a 100-meter radius of the destination, arrival confirmation is validated automatically."
-          />
-          <StepRow
-            number="04"
-            title="Track at Sea & Final Milestone"
-            desc="For cross-border shipments, the ship's status is tracked via its Ship ID until an arrival event is logged at the destination port."
-            last
-          />
-        </div>
-      </section>
-
-      {/* FEATURES / WHAT IT DOES */}
-      <section id="fitur" style={{ background: c.mist, borderTop: `1px solid ${c.line}`, borderBottom: `1px solid ${c.line}` }}>
-        <div style={{ maxWidth: 1160, margin: "0 auto", padding: "5rem 1.5rem" }}>
-          <div className="features-header">
-            <Eyebrow>What it does</Eyebrow>
+          <div className="steps-header">
+            <Eyebrow>How it works</Eyebrow>
             <h2 style={{ fontFamily: fontDisplay, fontWeight: 600, fontSize: "2.2rem", margin: "0 0 2.8rem", color: c.ink }}>
-              Every part of the journey, in one system.
+              Four steps, from plan to delivery.
             </h2>
           </div>
-          <div
-            className="features-grid steps-grid"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: "1.4rem",
-            }}
-          >
-            <FeatureCard
-              icon={Radar}
-              accent={c.aqua}
-              title="Traffic prediction dashboard"
-              desc="Main route and departure time recommendations are built from current and historical traffic data."
+          <div className="steps-container">
+            <StepRow
+              number="01"
+              title="Plan & Traffic Routing"
+              desc="Admin picks the origin and destination. The system pulls real-time TomTom traffic data to estimate travel time on the main route."
             />
-            <FeatureCard
-              icon={Leaf}
-              accent={c.green}
-              title="CO2 emissions calculator"
-              desc="Emissions are estimated per truck and per trip, so the fleet has data to analyze, not just routes to run."
+            <StepRow
+              number="02"
+              title="Schedule & Slot Recommendation"
+              desc="The system builds three departure time options based on congestion and delay history, then admin assigns a truck, driver, and Ship ID for cross-border trips."
             />
-            <FeatureCard
-              icon={Bell}
-              accent={c.teal}
-              title="In-app notifications"
-              desc="Drivers and admins are notified the moment a trip is assigned, a checkpoint is hit, or a trip drifts from its estimate."
+            <StepRow
+              number="03"
+              title="Track on Land with Smart Geofence"
+              desc="The driver activates GPS on departure. Once the position enters a 100-meter radius of the destination, arrival confirmation is validated automatically."
             />
-            <FeatureCard
-              icon={Truck}
-              accent={c.navy}
-              title="Truck & user management"
-              desc="Truck, driver, and admin data live in one place, complete with each vehicle's trip history."
-            />
-            <FeatureCard
-              icon={MapPin}
-              accent={c.aqua}
-              title="Driver GPS tracking"
-              desc="Truck position is tracked throughout the trip, with automatic distance validation as it nears the destination."
-            />
-            <FeatureCard
-              icon={Ship}
-              accent={c.teal}
-              title="Ship tracking via Ship ID"
-              desc="For cross-border trips, the ship's status is tracked until an arrival event at the destination port is detected."
+            <StepRow
+              number="04"
+              title="Track at Sea & Final Milestone"
+              desc="For cross-border shipments, the ship's status is tracked via its Ship ID until an arrival event is logged at the destination port."
+              last
             />
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ROLES SECTION */}
-      <section id="peran" style={{ maxWidth: 1160, margin: "0 auto", padding: "5rem 1.5rem" }}>
-        <div className="roles-header">
-          <Eyebrow>Two roles, one flow</Eyebrow>
-          <h2 style={{ fontFamily: fontDisplay, fontWeight: 600, fontSize: "2.2rem", margin: "0 0 2.8rem", color: c.ink }}>
-            Built for the people who plan and the people who drive.
-          </h2>
-        </div>
-        <div className="roles-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.8rem" }}>
-          {/* Admin Role Card */}
-          <div
-            className="role-card-admin"
-            style={{
-              background: `linear-gradient(145deg, ${c.ink}, ${c.navy})`,
-              color: "#fff",
-              borderRadius: 20,
-              padding: "2.4rem",
-              boxShadow: "0 18px 36px -10px rgba(13,33,55,0.35)",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.4rem" }}>
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: "rgba(159,196,232,0.15)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <ShieldCheck size={20} color="#9FC4E8" />
-              </div>
-              <span style={{ fontFamily: fontMono, fontSize: "0.76rem", fontWeight: 600, letterSpacing: "0.12em", color: "#9FC4E8" }}>
-                ADMIN ROLE
-              </span>
+        {/* FEATURES / WHAT IT DOES */}
+        <section id="fitur" style={{ background: c.mist, borderTop: `1px solid ${c.line}`, borderBottom: `1px solid ${c.line}` }}>
+          <div style={{ maxWidth: 1160, margin: "0 auto", padding: "5rem 1.5rem" }}>
+            <div className="features-header">
+              <Eyebrow>What it does</Eyebrow>
+              <h2 style={{ fontFamily: fontDisplay, fontWeight: 600, fontSize: "2.2rem", margin: "0 0 2.8rem", color: c.ink }}>
+                Every part of the journey, in one system.
+              </h2>
             </div>
-            <h3 style={{ fontFamily: fontDisplay, fontSize: "1.45rem", fontWeight: 600, margin: "0 0 1.2rem", lineHeight: 1.3 }}>
-              Plan, schedule, and oversee the whole fleet.
-            </h3>
-            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-              {[
-                "Manage users, trucks, and partner company data",
-                "Create and assign shipment schedules with time slots",
-                "Choose routes & departure times from system recommendations",
-                "Enter Ship ID for cross-border trips to Singapore",
-                "Monitor real-time dashboard and trip history analytics",
-              ].map((t) => (
-                <li key={t} className="role-list-item" style={{ display: "flex", gap: 10, fontSize: "0.94rem", color: "#CBD9E8", lineHeight: 1.55 }}>
-                  <CheckCircle2 size={16} color={c.aqua} style={{ flexShrink: 0, marginTop: 3 }} /> {t}
-                </li>
-              ))}
-            </ul>
+            <div
+              className="features-grid steps-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: "1.4rem",
+              }}
+            >
+              <FeatureCard
+                icon={Radar}
+                accent={c.aqua}
+                title="Traffic prediction dashboard"
+                desc="Main route and departure time recommendations are built from current and historical traffic data."
+              />
+              <FeatureCard
+                icon={Leaf}
+                accent={c.green}
+                title="CO2 emissions calculator"
+                desc="Emissions are estimated per truck and per trip, so the fleet has data to analyze, not just routes to run."
+              />
+              <FeatureCard
+                icon={Bell}
+                accent={c.teal}
+                title="In-app notifications"
+                desc="Drivers and admins are notified the moment a trip is assigned, a checkpoint is hit, or a trip drifts from its estimate."
+              />
+              <FeatureCard
+                icon={Truck}
+                accent={c.navy}
+                title="Truck & user management"
+                desc="Truck, driver, and admin data live in one place, complete with each vehicle's trip history."
+              />
+              <FeatureCard
+                icon={MapPin}
+                accent={c.aqua}
+                title="Driver GPS tracking"
+                desc="Truck position is tracked throughout the trip, with automatic distance validation as it nears the destination."
+              />
+              <FeatureCard
+                icon={Ship}
+                accent={c.teal}
+                title="Ship tracking via Ship ID"
+                desc="For cross-border trips, the ship's status is tracked until an arrival event at the destination port is detected."
+              />
+            </div>
           </div>
+        </section>
 
-          {/* Driver Role Card */}
-          <div
-            className="role-card-driver"
-            style={{
-              background: "#fff",
-              border: `1px solid ${c.line}`,
-              borderRadius: 20,
-              padding: "2.4rem",
-              boxShadow: "0 18px 36px -10px rgba(26,54,93,0.08)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.4rem" }}>
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: "rgba(42,111,138,0.1)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Users size={20} color={c.teal} />
-              </div>
-              <span style={{ fontFamily: fontMono, fontSize: "0.76rem", fontWeight: 600, letterSpacing: "0.12em", color: c.teal }}>
-                DRIVER ROLE
-              </span>
-            </div>
-            <h3 style={{ fontFamily: fontDisplay, fontSize: "1.45rem", fontWeight: 600, margin: "0 0 1.2rem", color: c.ink, lineHeight: 1.3 }}>
-              Run assigned trips, right from the browser.
-            </h3>
-            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-              {[
-                "View assigned schedule & destination instructions",
-                "Start trip and stream real-time GPS location",
-                "Confirm arrival, validated automatically via 100m geofence",
-                "Receive instant in-app alerts on schedule changes",
-              ].map((t) => (
-                <li key={t} className="role-list-item" style={{ display: "flex", gap: 10, fontSize: "0.94rem", color: "#4A5F73", lineHeight: 1.55 }}>
-                  <CheckCircle2 size={16} color={c.teal} style={{ flexShrink: 0, marginTop: 3 }} /> {t}
-                </li>
-              ))}
-            </ul>
+        {/* ROLES SECTION */}
+        <section id="peran" style={{ maxWidth: 1160, margin: "0 auto", padding: "5rem 1.5rem" }}>
+          <div className="roles-header">
+            <Eyebrow>Two roles, one flow</Eyebrow>
+            <h2 style={{ fontFamily: fontDisplay, fontWeight: 600, fontSize: "2.2rem", margin: "0 0 2.8rem", color: c.ink }}>
+              Built for the people who plan and the people who drive.
+            </h2>
           </div>
-        </div>
-      </section>
+          <div className="roles-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.8rem" }}>
+            {/* Admin Role Card */}
+            <div
+              className="role-card-admin"
+              style={{
+                background: `linear-gradient(145deg, ${c.ink}, ${c.navy})`,
+                color: "#fff",
+                borderRadius: 20,
+                padding: "2.4rem",
+                boxShadow: "0 18px 36px -10px rgba(13,33,55,0.35)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.4rem" }}>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: "rgba(159,196,232,0.15)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <ShieldCheck size={20} color="#9FC4E8" />
+                </div>
+                <span style={{ fontFamily: fontMono, fontSize: "0.76rem", fontWeight: 600, letterSpacing: "0.12em", color: "#9FC4E8" }}>
+                  ADMIN ROLE
+                </span>
+              </div>
+              <h3 style={{ fontFamily: fontDisplay, fontSize: "1.45rem", fontWeight: 600, margin: "0 0 1.2rem", lineHeight: 1.3 }}>
+                Plan, schedule, and oversee the whole fleet.
+              </h3>
+              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                {[
+                  "Manage users, trucks, and partner company data",
+                  "Create and assign shipment schedules with time slots",
+                  "Choose routes & departure times from system recommendations",
+                  "Enter Ship ID for cross-border trips to Singapore",
+                  "Monitor real-time dashboard and trip history analytics",
+                ].map((t) => (
+                  <li key={t} className="role-list-item" style={{ display: "flex", gap: 10, fontSize: "0.94rem", color: "#CBD9E8", lineHeight: 1.55 }}>
+                    <CheckCircle2 size={16} color={c.aqua} style={{ flexShrink: 0, marginTop: 3 }} /> {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Driver Role Card */}
+            <div
+              className="role-card-driver"
+              style={{
+                background: "#fff",
+                border: `1px solid ${c.line}`,
+                borderRadius: 20,
+                padding: "2.4rem",
+                boxShadow: "0 18px 36px -10px rgba(26,54,93,0.08)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.4rem" }}>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: "rgba(42,111,138,0.1)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Users size={20} color={c.teal} />
+                </div>
+                <span style={{ fontFamily: fontMono, fontSize: "0.76rem", fontWeight: 600, letterSpacing: "0.12em", color: c.teal }}>
+                  DRIVER ROLE
+                </span>
+              </div>
+              <h3 style={{ fontFamily: fontDisplay, fontSize: "1.45rem", fontWeight: 600, margin: "0 0 1.2rem", color: c.ink, lineHeight: 1.3 }}>
+                Run assigned trips, right from the browser.
+              </h3>
+              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                {[
+                  "View assigned schedule & destination instructions",
+                  "Start trip and stream real-time GPS location",
+                  "Confirm arrival, validated automatically via 100m geofence",
+                  "Receive instant in-app alerts on schedule changes",
+                ].map((t) => (
+                  <li key={t} className="role-list-item" style={{ display: "flex", gap: 10, fontSize: "0.94rem", color: "#4A5F73", lineHeight: 1.55 }}>
+                    <CheckCircle2 size={16} color={c.teal} style={{ flexShrink: 0, marginTop: 3 }} /> {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
 
       {/* CTA BANNER */}
       <section id="kontak" style={{ maxWidth: 1160, margin: "0 auto", padding: "0 1.5rem 5rem" }}>
