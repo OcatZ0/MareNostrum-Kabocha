@@ -272,56 +272,6 @@
                         "description": "List of emission factors retrieved successfully."
                     }
                 }
-            },
-            "post": {
-                "tags": [
-                    "Emission Factors"
-                ],
-                "summary": "Create a new emission factor reference",
-                "operationId": "7308f7ae133aafc19c41ac4ffd5f6d0c",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "truck_category",
-                                    "age_min_year",
-                                    "factor_kg_per_km"
-                                ],
-                                "properties": {
-                                    "truck_category": {
-                                        "type": "string",
-                                        "example": "medium"
-                                    },
-                                    "age_min_year": {
-                                        "type": "integer",
-                                        "example": 0
-                                    },
-                                    "age_max_year": {
-                                        "type": "integer",
-                                        "example": 5,
-                                        "nullable": true
-                                    },
-                                    "factor_kg_per_km": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 0.55
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "Emission factor created successfully."
-                    },
-                    "422": {
-                        "description": "Validation error."
-                    }
-                }
             }
         },
         "/emission-factors/{id}": {
@@ -347,53 +297,6 @@
                     },
                     "404": {
                         "description": "Emission factor not found."
-                    }
-                }
-            },
-            "put": {
-                "tags": [
-                    "Emission Factors"
-                ],
-                "summary": "Update existing emission factor details",
-                "operationId": "c60a8f4746f57d27ce011c048fc3381b",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Emission factor updated successfully."
-                    },
-                    "422": {
-                        "description": "Validation error."
-                    }
-                }
-            },
-            "delete": {
-                "tags": [
-                    "Emission Factors"
-                ],
-                "summary": "Delete an emission factor",
-                "operationId": "ea29070041d0c89f124680ded47f1d00",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Emission factor deleted successfully."
                     }
                 }
             }

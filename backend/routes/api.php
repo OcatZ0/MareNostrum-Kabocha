@@ -30,7 +30,7 @@ Route::middleware(BypassAuthForTesting::class)->group(function () {
     Route::apiResource('trucks', TruckController::class);
 
     // Emission Factors
-    Route::apiResource('emission-factors', EmissionFactorController::class);
+    Route::apiResource('emission-factors', EmissionFactorController::class)->only(['index', 'show']);
 
     // Trips
     Route::get('/trips', [TripController::class, 'index']);
