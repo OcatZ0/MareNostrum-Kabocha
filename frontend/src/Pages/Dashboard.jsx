@@ -216,12 +216,6 @@ const Dashboard = () => {
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
                   Logistics & Operations
                 </h1>
-                {inTransitTrips > 0 && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    {inTransitTrips} Live
-                  </span>
-                )}
               </div>
               <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                 Real-time multi-modal logistics, vessel integration & carbon intelligence
@@ -229,23 +223,6 @@ const Dashboard = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
-              {/* Period Selector Tabs */}
-              <div className="flex items-center bg-white border-2 border-slate-200 rounded-lg p-0.5 shadow-2xs text-xs">
-                {PERIOD_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setPeriod(opt.value)}
-                    className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-                      period === opt.value
-                        ? 'bg-slate-800 text-white shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-
               {/* Refresh Button */}
               <button
                 onClick={() => fetchDashboardData(true)}
@@ -255,16 +232,21 @@ const Dashboard = () => {
               >
                 <RefreshCw size={15} className={refreshing ? 'animate-spin text-teal-600' : ''} />
               </button>
-
-              {/* Create Trip Action */}
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold text-white shadow-xs transition hover:opacity-95"
-                style={{ backgroundColor: COLORS.navy }}
-              >
-                <Plus size={15} />
-                New Trip
-              </button>
+              {/* Period Selector Tabs */}
+              <div className="flex items-center bg-white border-2 border-slate-200 rounded-lg p-0.5 shadow-2xs text-xs">
+                {PERIOD_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setPeriod(opt.value)}
+                    className={`px-3 py-1.5 rounded-md font-medium transition-all ${period === opt.value
+                        ? 'bg-slate-800 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -274,32 +256,24 @@ const Dashboard = () => {
               icon={Route}
               value={String(totalTrips)}
               label="Total Dispatches"
-              delta={`${completedTrips} completed · ${assignedTrips} queued`}
-              deltaGood={completedTrips > 0}
               loading={primaryLoading}
             />
             <StatCard
               icon={Truck}
               value={String(inTransitTrips)}
               label="Active In Transit"
-              delta={inTransitTrips > 0 ? `${inTransitTrips} active on route` : 'No active dispatches'}
-              deltaGood={inTransitTrips > 0}
               loading={primaryLoading}
             />
             <StatCard
               icon={Leaf}
               value={`${totalCo2} kg`}
               label="Est. Fleet Carbon"
-              delta="-5.2% eco score"
-              deltaGood
               loading={primaryLoading}
             />
             <StatCard
               icon={Navigation}
               value={totalDistance}
               label="Total Distance"
-              delta={`${accuracyPct} AI slot accuracy`}
-              deltaGood
               loading={primaryLoading}
             />
           </div>

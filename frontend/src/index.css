@@ -1,1 +1,20 @@
 @import "tailwindcss";
+
+/* Disable outline and focus rings on Recharts and SVG charts */
+.recharts-wrapper,
+.recharts-wrapper *,
+.recharts-surface,
+.recharts-surface:focus,
+.recharts-wrapper:focus,
+.recharts-layer,
+.recharts-layer:focus,
+.recharts-bar-rectangle,
+.recharts-bar-rectangle:focus,
+.recharts-bar-rectangles,
+.recharts-responsive-container,
+svg:focus,
+svg *:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent;
+}

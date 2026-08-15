@@ -134,9 +134,15 @@ const TripVolumeChart = ({ data = null, trips = [], loading = false }) => {
         </span>
       </div>
 
-      <div className="h-72 -ml-2">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={finalData} barGap={4} barCategoryGap="28%">
+      <div className="h-72 -ml-2 outline-none select-none focus:outline-none [&_*]:outline-none">
+        <ResponsiveContainer width="100%" height="100%" style={{ outline: 'none' }}>
+          <BarChart
+            data={finalData}
+            barGap={4}
+            barCategoryGap="28%"
+            accessibilityLayer={false}
+            style={{ outline: 'none' }}
+          >
             <CartesianGrid vertical={false} stroke="#F1F5F9" />
             <XAxis
               dataKey="month"
@@ -145,9 +151,9 @@ const TripVolumeChart = ({ data = null, trips = [], loading = false }) => {
               tick={{ fontSize: 12, fill: '#94A3B8' }}
             />
             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94A3B8' }} />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#F8FAFC' }} />
-            <Bar dataKey="domestic" fill={COLORS.aqua} radius={[4, 4, 0, 0]} />
-            <Bar dataKey="crossBorder" fill={COLORS.navy} radius={[4, 4, 0, 0]} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#F8FAFC' }} wrapperStyle={{ outline: 'none' }} />
+            <Bar dataKey="domestic" fill={COLORS.aqua} radius={[4, 4, 0, 0]} style={{ outline: 'none' }} />
+            <Bar dataKey="crossBorder" fill={COLORS.navy} radius={[4, 4, 0, 0]} style={{ outline: 'none' }} />
           </BarChart>
         </ResponsiveContainer>
       </div>
