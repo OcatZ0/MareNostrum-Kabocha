@@ -9,6 +9,7 @@ use App\Http\Requests\StoreTripRequest;
 use App\Http\Requests\UpdateTripRequest;
 use App\Http\Resources\TripResource;
 use App\Models\Notification;
+use App\Models\Port;
 use App\Models\Trip;
 use App\Traits\ApiResponse;
 use App\Traits\ResolvesTripPoints;
@@ -680,6 +681,252 @@ class TripController extends Controller
         ]);
 
         return $this->success(new TripResource($trip->load($this->with)), 'Ship reference id disimpan');
+    }
+
+    #[OA\Get(
+        path: '/trips/{id}/position',
+        summary: 'Get the trip\'s current live position for a map marker',
+        description: 'Admin can view any trip. Driver can only view a trip assigned to them. Intended to be '
+            .'polled every 15-30s (PRD Bagian 15) — kept lightweight, single point only. Source switches '
+            .'automatically: status=on_ship queries VesselAPI\'s live vessel position by ship_ref_id (separate '
+            .'from Bagian 8.2\'s Port Events, which is for arrival detection via /ship-status, not built yet); '
+            .'any other status returns the most recent GPS checkpoint. Falls back to the last known GPS '
+            .'checkpoint if VesselAPI has no current data for the vessel (e.g. temporarily out of AIS range) or '
+            .'the request fails — a moving marker with slightly stale data beats no marker at all on an endpoint '
+            .'polled this frequently.',
+        security: [['sanctum' => []]],
+        tags: ['Trips'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'OK',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'OK'),
+                        new OA\Property(property: 'data', type: 'object', properties: [
+                            new OA\Property(property: 'lat', type: 'number', format: 'float'),
+                            new OA\Property(property: 'lng', type: 'number', format: 'float'),
+                            new OA\Property(property: 'recorded_at', type: 'string', format: 'date-time'),
+                            new OA\Property(property: 'source', type: 'string', enum: ['gps', 'api'], description: 'gps = last trip_checkpoints GPS ping, api = live VesselAPI vessel position.'),
+                        ]),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden — trip not assigned to this driver'),
+            new OA\Response(response: 404, description: 'Trip not found, or no position data recorded for this trip yet'),
+        ]
+    )]
+    public function position(Request $request, Trip $trip)
+    {
+        if ($request->user()->role !== 'admin' && $trip->driver_id !== $request->user()->id) {
+            abort(403, 'Trip ini bukan milik Anda.');
+        }
+
+        if ($trip->status === 'on_ship' && $trip->ship_ref_id) {
+            $position = $this->fetchVesselPosition($trip->ship_ref_id);
+
+            if ($position) {
+                return $this->success($position);
+            }
+        }
+
+        $checkpoint = $trip->checkpoints()
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->latest('recorded_at')
+            ->first();
+
+        if (! $checkpoint) {
+            return $this->error('Belum ada data posisi untuk trip ini.', 404);
+        }
+
+        return $this->success([
+            'lat' => (float) $checkpoint->latitude,
+            'lng' => (float) $checkpoint->longitude,
+            'recorded_at' => $checkpoint->recorded_at->toIso8601String(),
+            'source' => 'gps',
+        ]);
+    }
+
+    /**
+     * VesselAPI live vessel position (PRD Bagian 8.2's Port Events is a different
+     * endpoint, for arrival detection — this is /v1/vessel/{id}/position, verified
+     * directly against the real API since VesselAPI's own docs summary omitted the
+     * response's `vesselPosition` wrapper key). ship_ref_id may be either an MMSI (9
+     * digits) or an IMO number (7 digits, optionally "IMO"-prefixed) per
+     * ShipTripRequest's validation — VesselAPI needs to know which via filter.idType.
+     * Returns null on any failure (no data for this vessel right now, bad response,
+     * network error) so the caller falls back to the last GPS checkpoint instead of
+     * surfacing an error on an endpoint meant to be polled every 15-30s.
+     */
+    protected function fetchVesselPosition(string $shipRefId): ?array
+    {
+        $id = preg_replace('/^IMO/i', '', $shipRefId);
+        $idType = strlen($id) === 7 ? 'imo' : 'mmsi';
+
+        try {
+            $response = Http::withHeaders(['Authorization' => 'Bearer '.config('services.vesselapi.key')])
+                ->get("https://api.vesselapi.com/v1/vessel/{$id}/position", ['filter.idType' => $idType]);
+        } catch (ConnectionException) {
+            return null;
+        }
+
+        $position = $response->json('vesselPosition');
+
+        if (! $response->successful() || ! $position) {
+            return null;
+        }
+
+        return [
+            'lat' => (float) $position['latitude'],
+            'lng' => (float) $position['longitude'],
+            'recorded_at' => $position['timestamp'],
+            'source' => 'api',
+        ];
+    }
+
+    #[OA\Get(
+        path: '/trips/{id}/ship-status',
+        summary: 'Poll for the ship\'s arrival at the destination port',
+        description: 'Admin can view any trip. Driver can only view a trip assigned to them. Meaningful only '
+            .'while status=on_ship — polls VesselAPI Port Events (PRD Bagian 8.2) filtered by '
+            .'ship_destination_port_id\'s unlocode, checking for an arrival event matching ship_ref_id. On a '
+            .'match, updates the trip to at_destination_port, records a ship_arrived checkpoint, and notifies '
+            .'the driver — tracking ends there (Bagian 5.3: Company A does not track partner trucks on the '
+            .'other side of the border). If Port Events has no matching data, falls back to Haversine distance '
+            .'(Bagian 18) between the ship\'s last known live position and the destination port\'s coordinates, '
+            .'considered arrived within 500m. Intended to be polled every 15-30s like /position; any status '
+            .'other than on_ship is a no-op that just reports the trip\'s current status.',
+        security: [['sanctum' => []]],
+        tags: ['Trips'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'OK',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'OK'),
+                        new OA\Property(property: 'data', type: 'object', properties: [
+                            new OA\Property(property: 'status', type: 'string', example: 'on_ship'),
+                            new OA\Property(property: 'arrived', type: 'boolean', description: 'True only on the call that just detected arrival.'),
+                            new OA\Property(property: 'source', type: 'string', nullable: true, enum: ['port_events', 'haversine_fallback'], description: 'How arrival was detected; null if not arrived (yet).'),
+                        ]),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden — trip not assigned to this driver'),
+            new OA\Response(response: 404, description: 'Trip not found'),
+        ]
+    )]
+    public function shipStatus(Request $request, Trip $trip)
+    {
+        if ($request->user()->role !== 'admin' && $trip->driver_id !== $request->user()->id) {
+            abort(403, 'Trip ini bukan milik Anda.');
+        }
+
+        if ($trip->status !== 'on_ship' || ! $trip->ship_ref_id || ! $trip->ship_destination_port_id) {
+            return $this->success(['status' => $trip->status, 'arrived' => false, 'source' => null]);
+        }
+
+        $trip->loadMissing('shipDestinationPort');
+        $port = $trip->shipDestinationPort;
+
+        $source = $this->checkPortEventsArrival($trip, $port)
+            ? 'port_events'
+            : ($this->checkHaversineArrival($trip, $port) ? 'haversine_fallback' : null);
+
+        if (! $source) {
+            return $this->success(['status' => $trip->status, 'arrived' => false, 'source' => null]);
+        }
+
+        $this->markShipArrived($trip, $source);
+
+        return $this->success(['status' => $trip->fresh()->status, 'arrived' => true, 'source' => $source]);
+    }
+
+    /**
+     * PRD Bagian 8.2. Verified directly against the real API since the PRD's documented
+     * `GET /portEvents` (camelCase) 404s — the actual path is lowercase `/portevents`,
+     * response wrapped under a `portEvents` array with `vessel.mmsi`/`vessel.imo` and
+     * `port.unlo_code` fields. Matches ship_ref_id against either vessel field since we
+     * don't track which format (MMSI or IMO) a given trip's ship_ref_id is in.
+     */
+    protected function checkPortEventsArrival(Trip $trip, Port $port): bool
+    {
+        $shipRefId = preg_replace('/^IMO/i', '', $trip->ship_ref_id);
+
+        try {
+            $response = Http::withHeaders(['Authorization' => 'Bearer '.config('services.vesselapi.key')])
+                ->get('https://api.vesselapi.com/v1/portevents', [
+                    'filter.unlocode' => $port->unlocode,
+                    'filter.eventType' => 'arrival',
+                    'pagination.limit' => 50,
+                ]);
+        } catch (ConnectionException) {
+            return false;
+        }
+
+        if (! $response->successful()) {
+            return false;
+        }
+
+        return collect($response->json('portEvents', []))->contains(
+            fn (array $event) => (string) ($event['vessel']['mmsi'] ?? null) === $shipRefId
+                || (string) ($event['vessel']['imo'] ?? null) === $shipRefId
+        );
+    }
+
+    /**
+     * PRD Bagian 8.2/18 fallback: Port Events gave no match, so check the ship's last
+     * live position (same VesselAPI position lookup /position uses) against the
+     * destination port's coordinates, within 500m per Bagian 5.3 step 3 — a different,
+     * looser radius than the 100m used for GPS-based truck arrival checks elsewhere,
+     * intentionally, not an oversight.
+     */
+    protected function checkHaversineArrival(Trip $trip, Port $port): bool
+    {
+        $position = $this->fetchVesselPosition($trip->ship_ref_id);
+
+        if (! $position) {
+            return false;
+        }
+
+        $distance = $this->haversineDistanceMeters(
+            $position['lat'], $position['lng'], (float) $port->latitude, (float) $port->longitude
+        );
+
+        return $distance <= 500;
+    }
+
+    protected function markShipArrived(Trip $trip, string $source): void
+    {
+        $trip->update([
+            'status' => 'at_destination_port',
+            'actual_arrival_at' => now(),
+        ]);
+
+        $trip->checkpoints()->create([
+            'event_type' => 'ship_arrived',
+            'source' => 'api',
+            'recorded_at' => now(),
+        ]);
+
+        Notification::create([
+            'user_id' => $trip->driver_id,
+            'trip_id' => $trip->id,
+            'type' => 'ship_arrived',
+            'message' => "Kapal untuk trip #{$trip->id} telah tiba di pelabuhan tujuan (via {$source}).",
+        ]);
     }
 
     /**

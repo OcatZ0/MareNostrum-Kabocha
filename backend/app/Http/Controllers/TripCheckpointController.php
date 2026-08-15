@@ -281,21 +281,4 @@ class TripCheckpointController extends Controller
             'trip_status' => $trip->status,
         ], 'Kedatangan tervalidasi');
     }
-
-    /**
-     * PRD Bagian 18, verbatim.
-     */
-    protected function haversineDistanceMeters(float $lat1, float $lng1, float $lat2, float $lng2): float
-    {
-        $earthRadiusMeters = 6371000;
-
-        $latDelta = deg2rad($lat2 - $lat1);
-        $lngDelta = deg2rad($lng2 - $lng1);
-
-        $a = sin($latDelta / 2) ** 2
-            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($lngDelta / 2) ** 2;
-        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-
-        return round($earthRadiusMeters * $c, 1);
-    }
 }
