@@ -2,7 +2,7 @@
 
 **Our sea, our trade.** Smart cross-border logistics visibility for shipments moving between Batam and Singapore.
 
-🔗 **Live demo:** https://mare-nostrum-tau.vercel.app/
+🔗 **Live demo:** https://mare-nostrum-kabocha.vercel.app/
 
 Built for the Politeknik Negeri Batam Hackathon by **Team Kabocha**.
 
