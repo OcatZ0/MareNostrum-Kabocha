@@ -5,48 +5,29 @@ import Login from "./Pages/Login";
 import LandingPage from "./Pages/LandingPage";
 import Dashboard from "./Pages/Dashboard";
 import TripsPage from "./Pages/TripsPage";
+import CompaniesPortsPage from "./Pages/CompaniesPortsPage";
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <GuestLayout />,
     children: [
-      {
-        index: true,
-        element: <LandingPage />,
-      },
-      {
-        path: "landing-page",
-        element: <LandingPage />,
-      },
-      {
-        path: "/login",
-        element: <Login />,
-      },
+      { index: true, element: <LandingPage /> },
+      { path: "landing-page", element: <LandingPage /> },
+      { path: "/login", element: <Login /> },
     ],
   },
   {
     path: "/app",
     element: <DefaultLayout />,
     children: [
-      {
-        index: true,
-        element: <Dashboard />,
-      },
-      {
-        path: "dashboard",
-        element: <Dashboard />,
-      },
-      {
-        path: "trips",
-        element: <TripsPage />,
-      },
+      { index: true, element: <Dashboard /> },
+      { path: "dashboard", element: <Dashboard /> },
+      { path: "trips", element: <TripsPage /> },
+      { path: "companies-ports", element: <CompaniesPortsPage /> },
     ],
   },
-  {
-    path: "*",
-    element: <Navigate to="/" replace />,
-  },
+  { path: "*", element: <Navigate to="/" replace /> },
 ]);
 
 export default router;

@@ -17,7 +17,7 @@ class CompanyController extends Controller
     use ApiResponse;
 
     #[OA\Get(
-        path: '/api/companies',
+        path: '/companies',
         summary: 'Get paginated list of companies',
         tags: ['Companies'],
         parameters: [
@@ -55,7 +55,7 @@ class CompanyController extends Controller
     }
 
     #[OA\Post(
-        path: '/api/companies',
+        path: '/companies',
         summary: 'Create a new company',
         requestBody: new OA\RequestBody(
             required: true,
@@ -89,11 +89,11 @@ class CompanyController extends Controller
     }
 
     #[OA\Get(
-        path: '/api/companies/{company}',
+        path: '/companies/{id}',
         summary: 'Get single company details',
         tags: ['Companies'],
         parameters: [
-            new OA\Parameter(name: 'company', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'id', in: 'path', description: 'Company ID', required: true, schema: new OA\Schema(type: 'integer', example: 1)),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Company details retrieved successfully.'),
@@ -109,7 +109,7 @@ class CompanyController extends Controller
     }
 
     #[OA\Put(
-        path: '/api/companies/{company}',
+        path: '/companies/{id}',
         summary: 'Update existing company details',
         requestBody: new OA\RequestBody(
             required: true,
@@ -126,7 +126,7 @@ class CompanyController extends Controller
         ),
         tags: ['Companies'],
         parameters: [
-            new OA\Parameter(name: 'company', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'id', in: 'path', description: 'Company ID', required: true, schema: new OA\Schema(type: 'integer', example: 1)),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Company updated successfully.'),
@@ -144,11 +144,11 @@ class CompanyController extends Controller
     }
 
     #[OA\Delete(
-        path: '/api/companies/{company}',
+        path: '/companies/{id}',
         summary: 'Delete a company',
         tags: ['Companies'],
         parameters: [
-            new OA\Parameter(name: 'company', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'id', in: 'path', description: 'Company ID', required: true, schema: new OA\Schema(type: 'integer', example: 1)),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Company deleted successfully.'),

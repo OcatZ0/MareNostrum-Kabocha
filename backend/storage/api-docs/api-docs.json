@@ -12,13 +12,178 @@
         }
     ],
     "paths": {
-        "/api/companies": {
+        "/analytics/dashboard": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Get dashboard overview analytics summary",
+                "operationId": "885809d37aa3a0262693533797763866",
+                "parameters": [
+                    {
+                        "name": "period",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "all",
+                            "enum": [
+                                "today",
+                                "this_week",
+                                "this_month",
+                                "all"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dashboard analytics summary retrieved successfully."
+                    }
+                }
+            }
+        },
+        "/analytics/trips": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Get detailed trip estimation vs actual performance analytics",
+                "operationId": "e29a0f809d665ca6f1abdd25c9cddd29",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detailed trip analytics retrieved successfully."
+                    }
+                }
+            }
+        },
+        "/login": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Authenticate user and obtain Sanctum Bearer token",
+                "operationId": "2dd578ff7aba2721293dac66833b27d1",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "username",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "username": {
+                                        "type": "string",
+                                        "example": "admin"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login successful, returns token and user profile.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Login berhasil."
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "token": {
+                                                    "type": "string",
+                                                    "example": "1|Q3w..."
+                                                },
+                                                "user": {
+                                                    "$ref": "#/components/schemas/User"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid login credentials."
+                    },
+                    "422": {
+                        "description": "Validation error."
+                    }
+                }
+            }
+        },
+        "/logout": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Revoke active authentication token",
+                "operationId": "68a6108af04af5e3bc1ea68a6c6f1299",
+                "responses": {
+                    "200": {
+                        "description": "Logout successful."
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/companies": {
             "get": {
                 "tags": [
                     "Companies"
                 ],
                 "summary": "Get paginated list of companies",
-                "operationId": "54f966c056050f9db4fff6ee5a45a76a",
+                "operationId": "8af1177352a157e9228c00f023616d87",
                 "parameters": [
                     {
                         "name": "type",
@@ -61,7 +226,7 @@
                     "Companies"
                 ],
                 "summary": "Create a new company",
-                "operationId": "00e2db7b0f71c32b377f4dfc4dd685a8",
+                "operationId": "dd2ae66c40ea62cd8f20d49bc08e4b21",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -121,20 +286,22 @@
                 }
             }
         },
-        "/api/companies/{company}": {
+        "/companies/{id}": {
             "get": {
                 "tags": [
                     "Companies"
                 ],
                 "summary": "Get single company details",
-                "operationId": "dbcfdfb0281353ca1b00a67c0b0c2308",
+                "operationId": "662432d4be675d549b84ca1bf7e56b8d",
                 "parameters": [
                     {
-                        "name": "company",
+                        "name": "id",
                         "in": "path",
+                        "description": "Company ID",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "integer",
+                            "example": 1
                         }
                     }
                 ],
@@ -152,14 +319,16 @@
                     "Companies"
                 ],
                 "summary": "Update existing company details",
-                "operationId": "17ee846405381b70d408b7532b44601a",
+                "operationId": "00dbc7963c0f6ac45bd2b2595fb1f88e",
                 "parameters": [
                     {
-                        "name": "company",
+                        "name": "id",
                         "in": "path",
+                        "description": "Company ID",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "integer",
+                            "example": 1
                         }
                     }
                 ],
@@ -214,14 +383,16 @@
                     "Companies"
                 ],
                 "summary": "Delete a company",
-                "operationId": "815006ac9bb0fb97b1cad53b1a620652",
+                "operationId": "00a9e816ead34effffa2a6378e1cde4b",
                 "parameters": [
                     {
-                        "name": "company",
+                        "name": "id",
                         "in": "path",
+                        "description": "Company ID",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "integer",
+                            "example": 1
                         }
                     }
                 ],
@@ -231,6 +402,381 @@
                     },
                     "422": {
                         "description": "Cannot delete company referenced in trips."
+                    }
+                }
+            }
+        },
+        "/emission-factors": {
+            "get": {
+                "tags": [
+                    "Emission Factors"
+                ],
+                "summary": "Get list of emission factors",
+                "operationId": "b69ad1c9c7bc89e4425455c10b494b66",
+                "parameters": [
+                    {
+                        "name": "truck_category",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of emission factors retrieved successfully."
+                    }
+                }
+            }
+        },
+        "/emission-factors/{id}": {
+            "get": {
+                "tags": [
+                    "Emission Factors"
+                ],
+                "summary": "Get single emission factor details",
+                "operationId": "b4fcf64396dbbd86c49fe9dde20a63f0",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Emission factor details retrieved successfully."
+                    },
+                    "404": {
+                        "description": "Emission factor not found."
+                    }
+                }
+            }
+        },
+        "/notifications": {
+            "get": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get paginated list of notifications",
+                "description": "Supports unread=true query parameter to fetch only unread notifications (polled by frontend React every 15-30 seconds).",
+                "operationId": "0f031f66cd8c52bf73e89fb2d050ad83",
+                "parameters": [
+                    {
+                        "name": "unread",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of notifications retrieved successfully."
+                    }
+                }
+            }
+        },
+        "/notifications/{id}/read": {
+            "post": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark a single notification as read",
+                "operationId": "e8ec77e64be528452b6b9ee62d832d70",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notification marked as read successfully."
+                    },
+                    "404": {
+                        "description": "Notification not found."
+                    }
+                }
+            }
+        },
+        "/notifications/read-all": {
+            "post": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark all unread notifications as read",
+                "operationId": "e873443612632a319ae0f88db368dd7a",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "All notifications marked as read successfully."
+                    }
+                }
+            }
+        },
+        "/ports": {
+            "get": {
+                "tags": [
+                    "Ports"
+                ],
+                "summary": "Get paginated list of ports",
+                "operationId": "8628b3fb47954a3226512c8a6184243d",
+                "parameters": [
+                    {
+                        "name": "country",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "indonesia",
+                                "singapore"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of ports retrieved successfully."
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Ports"
+                ],
+                "summary": "Create a new port",
+                "operationId": "b23afbab3baced76c2d35e62880d4358",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "country",
+                                    "latitude",
+                                    "longitude"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Batam Centre Ferry Terminal"
+                                    },
+                                    "country": {
+                                        "type": "string",
+                                        "example": "indonesia",
+                                        "enum": [
+                                            "indonesia",
+                                            "singapore"
+                                        ]
+                                    },
+                                    "unlocode": {
+                                        "type": "string",
+                                        "example": "IDBTH"
+                                    },
+                                    "latitude": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 1.1312345
+                                    },
+                                    "longitude": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 104.0532145
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Port created successfully."
+                    },
+                    "422": {
+                        "description": "Validation error."
+                    }
+                }
+            }
+        },
+        "/ports/{id}": {
+            "get": {
+                "tags": [
+                    "Ports"
+                ],
+                "summary": "Get single port details",
+                "operationId": "77d4e2504b1df2526105d00f2c55febf",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Port ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Port details retrieved successfully."
+                    },
+                    "404": {
+                        "description": "Port not found."
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Ports"
+                ],
+                "summary": "Update existing port details",
+                "operationId": "5502a37aa519e69332b282320c295b23",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Port ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Batam Centre Ferry Terminal Updated"
+                                    },
+                                    "country": {
+                                        "type": "string",
+                                        "enum": [
+                                            "indonesia",
+                                            "singapore"
+                                        ]
+                                    },
+                                    "unlocode": {
+                                        "type": "string",
+                                        "example": "IDBTH"
+                                    },
+                                    "latitude": {
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "longitude": {
+                                        "type": "number",
+                                        "format": "float"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Port updated successfully."
+                    },
+                    "422": {
+                        "description": "Validation error."
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Ports"
+                ],
+                "summary": "Delete a port",
+                "operationId": "66d16a7e557e3ef0564b34dfe85af065",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Port ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Port deleted successfully."
+                    },
+                    "422": {
+                        "description": "Cannot delete port referenced in trips."
                     }
                 }
             }
@@ -1314,6 +1860,482 @@
                     }
                 ]
             }
+        },
+        "/trucks": {
+            "get": {
+                "tags": [
+                    "Trucks"
+                ],
+                "summary": "Get paginated list of trucks",
+                "operationId": "6ce1f2fc38b4418a650161d79cbd52c4",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "active",
+                                "maintenance"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "fuel_type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "diesel",
+                                "petrol",
+                                "electric"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of trucks retrieved successfully."
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Trucks"
+                ],
+                "summary": "Create a new truck",
+                "operationId": "e95f8703113b1c7b17810a7336ca5353",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "plate_number",
+                                    "brand",
+                                    "year",
+                                    "fuel_type"
+                                ],
+                                "properties": {
+                                    "plate_number": {
+                                        "type": "string",
+                                        "example": "BP 1004 XY"
+                                    },
+                                    "brand": {
+                                        "type": "string",
+                                        "example": "Hino"
+                                    },
+                                    "model": {
+                                        "type": "string",
+                                        "example": "Dutro 130 HD"
+                                    },
+                                    "year": {
+                                        "type": "integer",
+                                        "example": 2022
+                                    },
+                                    "fuel_type": {
+                                        "type": "string",
+                                        "example": "diesel",
+                                        "enum": [
+                                            "diesel",
+                                            "petrol",
+                                            "electric"
+                                        ]
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "example": "active",
+                                        "enum": [
+                                            "active",
+                                            "maintenance"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Truck created successfully."
+                    },
+                    "422": {
+                        "description": "Validation error."
+                    }
+                }
+            }
+        },
+        "/trucks/{id}": {
+            "get": {
+                "tags": [
+                    "Trucks"
+                ],
+                "summary": "Get single truck details",
+                "operationId": "4296d9b5363f7cc6884649025e584390",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Truck details retrieved successfully."
+                    },
+                    "404": {
+                        "description": "Truck not found."
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Trucks"
+                ],
+                "summary": "Update existing truck details",
+                "operationId": "cc2114c9cd3ff3e9ac7c26b70cf59344",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Truck updated successfully."
+                    },
+                    "422": {
+                        "description": "Validation error."
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Trucks"
+                ],
+                "summary": "Delete a truck",
+                "operationId": "8eed7a0c122de6f36b5a5666f718e54a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Truck deleted successfully."
+                    },
+                    "422": {
+                        "description": "Cannot delete truck assigned to trips."
+                    }
+                }
+            }
+        },
+        "/trucks/{id}/emissions": {
+            "get": {
+                "tags": [
+                    "Trucks"
+                ],
+                "summary": "Get total CO2 emissions and trip breakdown for a truck",
+                "operationId": "2f4cc2623e39949d63ab4f59b4f98326",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Truck emissions calculated successfully."
+                    },
+                    "404": {
+                        "description": "Truck not found."
+                    }
+                }
+            }
+        },
+        "/users": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get paginated list of users",
+                "operationId": "7e2f5799553ec93c9c43e2a58490d447",
+                "parameters": [
+                    {
+                        "name": "role",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "admin",
+                                "driver"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of users retrieved successfully."
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Create a new user/driver",
+                "operationId": "a1fce870c566eb5fc0cf3178ec5d2fed",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "username",
+                                    "password",
+                                    "role"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Budi Santoso"
+                                    },
+                                    "username": {
+                                        "type": "string",
+                                        "example": "driver_budi"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123"
+                                    },
+                                    "role": {
+                                        "type": "string",
+                                        "example": "driver",
+                                        "enum": [
+                                            "admin",
+                                            "driver"
+                                        ]
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "+6281234567890"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "User created successfully."
+                    },
+                    "422": {
+                        "description": "Validation error."
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/users/{id}": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get single user details",
+                "operationId": "910a0c7cf580e1c605648d82a4e57f46",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "User ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User details retrieved successfully."
+                    },
+                    "404": {
+                        "description": "User not found."
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Update existing user details",
+                "operationId": "ddfe232db1870b82493bf8bd25596d37",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "User ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Budi Santoso Updated"
+                                    },
+                                    "username": {
+                                        "type": "string",
+                                        "example": "driver_budi_updated"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "newpassword123",
+                                        "nullable": true
+                                    },
+                                    "role": {
+                                        "type": "string",
+                                        "enum": [
+                                            "admin",
+                                            "driver"
+                                        ]
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "+6281234567890"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "User updated successfully."
+                    },
+                    "422": {
+                        "description": "Validation error."
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Delete a user",
+                "operationId": "43dd20becb1f47444e484cbb18ce345c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "User ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User deleted successfully."
+                    },
+                    "422": {
+                        "description": "Cannot delete user with assigned trips or own account."
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -1355,6 +2377,53 @@
                         "type": "number",
                         "format": "float",
                         "example": 104.0123456
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Port": {
+                "description": "Port record details.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Batam Centre Ferry Terminal"
+                    },
+                    "country": {
+                        "type": "string",
+                        "example": "indonesia",
+                        "enum": [
+                            "indonesia",
+                            "singapore"
+                        ]
+                    },
+                    "unlocode": {
+                        "type": "string",
+                        "example": "IDBTH",
+                        "nullable": true
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 1.1312345
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 104.0532145
                     },
                     "created_at": {
                         "type": "string",
@@ -1544,6 +2613,47 @@
                     }
                 },
                 "type": "object"
+            },
+            "User": {
+                "description": "User and driver account details.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Budi Santoso"
+                    },
+                    "username": {
+                        "type": "string",
+                        "example": "driver_budi"
+                    },
+                    "role": {
+                        "type": "string",
+                        "example": "driver",
+                        "enum": [
+                            "admin",
+                            "driver"
+                        ]
+                    },
+                    "phone": {
+                        "type": "string",
+                        "example": "+6281234567890",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -1557,12 +2667,40 @@
     },
     "tags": [
         {
+            "name": "Auth",
+            "description": "Authentication and session management"
+        },
+        {
+            "name": "Users",
+            "description": "User and driver management"
+        },
+        {
             "name": "Companies",
             "description": "Company and partner management"
         },
         {
+            "name": "Ports",
+            "description": "Port and terminal management"
+        },
+        {
+            "name": "Trucks",
+            "description": "Truck fleet management"
+        },
+        {
+            "name": "Emission Factors",
+            "description": "CO2 emission factors reference data"
+        },
+        {
             "name": "Trips",
             "description": "Trip planning, assignment and tracking"
+        },
+        {
+            "name": "Analytics",
+            "description": "Dashboard overview and trip performance analytics"
+        },
+        {
+            "name": "Notifications",
+            "description": "In-app notification system"
         }
     ]
 }

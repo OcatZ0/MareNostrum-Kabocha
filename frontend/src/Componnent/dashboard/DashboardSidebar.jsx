@@ -19,7 +19,7 @@ const NAV_ITEMS = [
   { label: 'Trips', icon: Route, to: '/app/trips' },
   { label: 'Trucks', icon: Truck, to: '#' },
   { label: 'Drivers', icon: Users, to: '#' },
-  { label: 'Companies & Ports', icon: Building2, to: '#' },
+  { label: 'Companies & Ports', icon: Building2, to: '/app/companies-ports' },
   { label: 'Notifications', icon: Bell, to: '#', badge: 5 },
   { label: 'Emissions', icon: Leaf, to: '#' },
   { label: 'Settings', icon: Settings, to: '#' },
