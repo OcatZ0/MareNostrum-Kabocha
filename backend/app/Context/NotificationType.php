@@ -11,5 +11,8 @@ class NotificationType
     public const LOCATION_VALIDATION_FAILED = 'location_validation_failed';
     public const SHIP_DEPARTED = 'ship_departed';
     public const SHIP_ARRIVED = 'ship_arrived';
+    public const VESSEL_DELAY_WARNING = 'vessel_delay_warning';
+    public const VESSEL_EARLY_ALERT = 'vessel_early_alert';
     public const GENERAL = 'general';
 }
+

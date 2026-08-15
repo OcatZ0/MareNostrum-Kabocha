@@ -248,15 +248,7 @@ const Login = () => {
       {/* ===== Right form panel ===== */}
       <div className="login-right-panel w-full lg:w-1/2 flex items-center justify-center px-6 py-12 sm:px-10 relative">
         <div className="w-full max-w-sm">
-          {/* Back to landing page button */}
-          <div className="login-back-btn mb-6">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-slate-500 hover:text-slate-800 transition py-1.5 px-3 rounded-full hover:bg-slate-100 border border-slate-200"
-            >
-              <ArrowLeft size={13} /> Kembali ke Beranda
-            </Link>
-          </div>
+
 
           {/* compact brand header for mobile */}
           <div className="login-form-item flex lg:hidden items-center gap-2.5 mb-8">
@@ -355,7 +347,7 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="login-form-item">
+            <div className="login-form-item flex justify-between items-center">
               <label className="flex items-center gap-2 text-sm text-slate-600 select-none cursor-pointer">
                 <input
                   type="checkbox"
@@ -366,7 +358,17 @@ const Login = () => {
                 />
                 Remember me on this device
               </label>
+              {/* Back to landing page button */}
+              <div className="login-back-btn mb-6">
+                <Link
+                  to="/"
+                  className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-slate-500 hover:text-slate-800 transition py-1.5 px-3 rounded-full hover:bg-slate-100 border border-slate-200"
+                >
+                  <ArrowLeft size={13} /> Kembali ke Beranda
+                </Link>
+              </div>
             </div>
+
 
             <div className="login-form-item pt-1">
               <button
