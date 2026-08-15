@@ -718,7 +718,7 @@ export default function LandingPage() {
           </nav>
 
           <Link
-            to="/app/dashboard"
+            to="/login"
             className="cta-btn"
             style={{
               background: `linear-gradient(135deg, ${c.navy}, #234E70)`,
@@ -734,7 +734,7 @@ export default function LandingPage() {
               boxShadow: "0 4px 12px -2px rgba(26,54,93,0.25)",
             }}
           >
-            Open Dashboard <ArrowUpRight size={15} />
+            Login <ArrowUpRight size={15} />
           </Link>
         </div>
       </header>
