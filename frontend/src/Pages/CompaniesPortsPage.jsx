@@ -152,6 +152,8 @@ const CompaniesPortsPage = () => {
   const [showCreatePort, setShowCreatePort] = useState(false);
   const [editPort, setEditPort]             = useState(null);
   const [deletePortTarget, setDeletePortTarget] = useState(null);
+  const [newCompId, setNewCompId]           = useState(null);
+  const [newPortId, setNewPortId]           = useState(null);
 
   /* ── fetch companies ── */
   const fetchCompanies = useCallback(async () => {
@@ -284,7 +286,11 @@ const CompaniesPortsPage = () => {
                       {!compLoading && companies.map((c, i) => (
                         <tr key={c.id}
                           className="hover:bg-slate-50 transition-colors group"
-                          style={{ animation: `row-in 0.18s ease-out ${i * 30}ms both` }}>
+                          style={{
+                            animation: c.id === newCompId
+                              ? 'highlight 1.8s ease-out forwards'
+                              : `row-in 0.18s ease-out ${i * 30}ms both`,
+                          }}>
                           <td className="px-4 py-3 font-mono text-xs text-slate-400">#{c.id}</td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2.5">
@@ -327,7 +333,12 @@ const CompaniesPortsPage = () => {
                   {compLoading && <div className="py-12 text-center text-slate-400"><RefreshCw size={18} className="animate-spin inline mr-2" />Loading…</div>}
                   {!compLoading && companies.length === 0 && <div className="py-12 text-center text-slate-400 text-sm">No companies found.</div>}
                   {!compLoading && companies.map((c, i) => (
-                    <div key={c.id} className="px-4 py-4" style={{ animation: `row-in 0.18s ease-out ${i * 30}ms both` }}>
+                    <div key={c.id} className="px-4 py-4"
+                      style={{
+                        animation: c.id === newCompId
+                          ? 'highlight 1.8s ease-out forwards'
+                          : `row-in 0.18s ease-out ${i * 30}ms both`,
+                      }}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
                           <span className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
@@ -403,7 +414,11 @@ const CompaniesPortsPage = () => {
                       {!portLoading && ports.map((p, i) => (
                         <tr key={p.id}
                           className="hover:bg-slate-50 transition-colors group"
-                          style={{ animation: `row-in 0.18s ease-out ${i * 30}ms both` }}>
+                          style={{
+                            animation: p.id === newPortId
+                              ? 'highlight 1.8s ease-out forwards'
+                              : `row-in 0.18s ease-out ${i * 30}ms both`,
+                          }}>
                           <td className="px-4 py-3 font-mono text-xs text-slate-400">#{p.id}</td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2.5">
@@ -488,12 +503,21 @@ const CompaniesPortsPage = () => {
       {showCreateComp && (
         <CompanyFormModal mode="create"
           onClose={() => setShowCreateComp(false)}
-          onSaved={() => { setShowCreateComp(false); fetchCompanies(); }} />
+          onSaved={(c) => {
+            setShowCreateComp(false);
+            setCompanies((prev) => [c, ...prev]);
+            setCompMeta((m) => ({ ...m, total: m.total + 1 }));
+            setNewCompId(c.id);
+          }} />
       )}
       {editComp && (
         <CompanyFormModal mode="edit" company={editComp}
           onClose={() => setEditComp(null)}
-          onSaved={() => { setEditComp(null); fetchCompanies(); }} />
+          onSaved={(c) => {
+            setEditComp(null);
+            setCompanies((prev) => prev.map((x) => x.id === c.id ? c : x));
+            setNewCompId(c.id);
+          }} />
       )}
       {deleteComp && (
         <DeleteConfirmModal
@@ -501,8 +525,9 @@ const CompaniesPortsPage = () => {
           onClose={() => setDeleteComp(null)}
           onConfirm={async () => {
             await deleteCompany(deleteComp.id);
+            setCompanies((prev) => prev.filter((x) => x.id !== deleteComp.id));
+            setCompMeta((m) => ({ ...m, total: Math.max(0, m.total - 1) }));
             setDeleteComp(null);
-            fetchCompanies();
           }} />
       )}
 
@@ -510,12 +535,21 @@ const CompaniesPortsPage = () => {
       {showCreatePort && (
         <PortFormModal mode="create"
           onClose={() => setShowCreatePort(false)}
-          onSaved={() => { setShowCreatePort(false); fetchPorts(); }} />
+          onSaved={(p) => {
+            setShowCreatePort(false);
+            setPorts((prev) => [p, ...prev]);
+            setPortMeta((m) => ({ ...m, total: m.total + 1 }));
+            setNewPortId(p.id);
+          }} />
       )}
       {editPort && (
         <PortFormModal mode="edit" port={editPort}
           onClose={() => setEditPort(null)}
-          onSaved={() => { setEditPort(null); fetchPorts(); }} />
+          onSaved={(p) => {
+            setEditPort(null);
+            setPorts((prev) => prev.map((x) => x.id === p.id ? p : x));
+            setNewPortId(p.id);
+          }} />
       )}
       {deletePortTarget && (
         <DeleteConfirmModal
@@ -523,8 +557,9 @@ const CompaniesPortsPage = () => {
           onClose={() => setDeletePortTarget(null)}
           onConfirm={async () => {
             await deletePort(deletePortTarget.id);
+            setPorts((prev) => prev.filter((x) => x.id !== deletePortTarget.id));
+            setPortMeta((m) => ({ ...m, total: Math.max(0, m.total - 1) }));
             setDeletePortTarget(null);
-            fetchPorts();
           }} />
       )}
     </div>

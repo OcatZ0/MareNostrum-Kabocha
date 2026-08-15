@@ -16,6 +16,8 @@ const ANIM = `
   @keyframes fade-in    { from{opacity:0} to{opacity:1} }
   @keyframes shake      { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-4px)} 40%,80%{transform:translateX(4px)} }
   @keyframes highlight  { 0%{background:#E0F7F4} 100%{background:transparent} }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
 `;
 
 /* ── status badge ────────────────────────────────────────────── */
@@ -131,29 +133,37 @@ const TrucksPage = () => {
                 value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
                 className="flex-1 bg-transparent border-none outline-none text-sm text-slate-700 placeholder:text-slate-400" />
             </div>
-            {/* status pills row */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 flex-nowrap">
-              {STATUS_PILLS.map(({ key, label }) => (
-                <button key={key} onClick={() => { setStatusF(key); setPage(1); }}
-                  className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition"
-                  style={statusF === key
-                    ? key === 'maintenance'
-                      ? { backgroundColor: '#FDF2E9', color: '#C2703D', borderColor: '#C2703D' }
-                      : { backgroundColor: `${COLORS.green}18`, color: COLORS.green, borderColor: COLORS.green }
-                    : { backgroundColor: 'white', color: '#64748B', borderColor: '#E2E8F0' }}>
-                  {label}
-                </button>
-              ))}
-              <div className="w-px h-4 bg-slate-200 mx-1 shrink-0" />
-              {FUEL_PILLS.map(({ key, label }) => (
-                <button key={key} onClick={() => { setFuelF(key); setPage(1); }}
-                  className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition"
-                  style={fuelF === key
-                    ? { backgroundColor: `${COLORS.teal}14`, color: COLORS.teal, borderColor: COLORS.teal }
-                    : { backgroundColor: 'white', color: '#64748B', borderColor: '#E2E8F0' }}>
-                  {label}
-                </button>
-              ))}
+
+            {/* status + fuel pills row — hidden scrollbar, edge fade instead of a raw cut-off */}
+            <div className="relative">
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-nowrap pb-0.5 pr-8">
+                {STATUS_PILLS.map(({ key, label }) => (
+                  <button key={key} onClick={() => { setStatusF(key); setPage(1); }}
+                    className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition"
+                    style={statusF === key
+                      ? key === 'maintenance'
+                        ? { backgroundColor: '#FDF2E9', color: '#C2703D', borderColor: '#C2703D' }
+                        : { backgroundColor: `${COLORS.green}18`, color: COLORS.green, borderColor: COLORS.green }
+                      : { backgroundColor: 'white', color: '#64748B', borderColor: '#E2E8F0' }}>
+                    {label}
+                  </button>
+                ))}
+                <div className="w-px h-4 bg-slate-200 mx-1 shrink-0" />
+                {FUEL_PILLS.map(({ key, label }) => (
+                  <button key={key} onClick={() => { setFuelF(key); setPage(1); }}
+                    className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition"
+                    style={fuelF === key
+                      ? { backgroundColor: `${COLORS.teal}14`, color: COLORS.teal, borderColor: COLORS.teal }
+                      : { backgroundColor: 'white', color: '#64748B', borderColor: '#E2E8F0' }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {/* fade hint so the row reads as "scroll for more", not "cut off" */}
+              <div
+                className="pointer-events-none absolute right-0 top-0 bottom-0 w-10"
+                style={{ background: `linear-gradient(to right, transparent, ${COLORS.bg})` }}
+              />
             </div>
           </div>
 
