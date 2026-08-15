@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import logoImg from "../Assets/logo.png";
+import logoImg from "../assets/logo.png";
 
 gsap.registerPlugin(ScrollTrigger);
 

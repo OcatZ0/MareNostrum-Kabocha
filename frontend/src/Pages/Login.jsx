@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Ship, Anchor, ArrowLeft, ArrowRight, ShieldCheck, Compass, AlertCircle } from 'lucide-react';
 import gsap from 'gsap';
-import logo from '../Assets/logo.png';
+import logo from '../assets/logo.png';
 import axiosClient from '../axios';
 import { useStateContext } from '../Contexts/Context';
 

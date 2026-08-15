@@ -14,7 +14,7 @@ import {
 
 import { COLORS } from './dashboardTheme';
 import { getNotifications } from '../../api/notificationsApi';
-import logo from '../../Assets/logo.png';
+import logo from '../../assets/logo.png';
 
 const NAV_ITEMS = [
   {
