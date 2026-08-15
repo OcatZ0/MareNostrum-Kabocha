@@ -921,10 +921,18 @@ class TripController extends Controller
         return $distance <= 500;
     }
 
+    /**
+     * Cross-border trips have no leg beyond the ship reaching the destination port —
+     * the combo fields (origin_company_id, destination_port_id, ship_destination_port_id)
+     * never include a destination-side company, so this IS the end of the trip's
+     * journey. Goes straight to completed (PRD-symmetric with the domestic return leg's
+     * arrived_final -> completed), not the at_destination_port dead end this used to set,
+     * which nothing anywhere ever read or transitioned out of.
+     */
     protected function markShipArrived(Trip $trip, string $source): void
     {
         $trip->update([
-            'status' => StatusTrips::AT_DESTINATION_PORT,
+            'status' => StatusTrips::COMPLETED,
             'actual_arrival_at' => now(),
         ]);
 
@@ -939,6 +947,13 @@ class TripController extends Controller
             'trip_id' => $trip->id,
             'type' => NotificationType::SHIP_ARRIVED,
             'message' => "Vessel for trip #{$trip->id} has arrived at the destination port (via {$source}).",
+        ]);
+
+        Notification::create([
+            'user_id' => $trip->created_by,
+            'trip_id' => $trip->id,
+            'type' => NotificationType::TRIP_COMPLETED,
+            'message' => "Trip #{$trip->id} has completed.",
         ]);
     }
 

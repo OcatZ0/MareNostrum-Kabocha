@@ -28,8 +28,11 @@ class StoreTripCheckpointRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // ship_departed/ship_arrived are system-generated from VesselAPI polling, not
-            // something a driver's browser ever posts, so they're deliberately excluded here.
+            // ship_departed/ship_arrived were originally meant to be system-generated from
+            // VesselAPI polling only (that integration was never finished), but the driver
+            // dashboard's Simulate Vessel feature now posts them the same way Simulate
+            // Arrival already posts arrived_at_port/arrived_final/etc — a demo stand-in for
+            // real GPS/AIS data, not a driver's browser doing anything a real one wouldn't.
             'event_type' => ['required', Rule::in([
                 EventType::DEPARTED,
                 EventType::GPS_PING,
@@ -37,9 +40,15 @@ class StoreTripCheckpointRequest extends FormRequest
                 EventType::ARRIVED_AT_PORT,
                 EventType::ARRIVED_FINAL,
                 EventType::TRUCK_RETURNED,
+                EventType::SHIP_DEPARTED,
+                EventType::SHIP_ARRIVED,
             ])],
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
+            // ship_departed only: Simulate Vessel picks a random other-island port as the
+            // crossing's destination and sends it here, overwriting the trip's originally
+            // configured ship_destination_port_id for the duration of the simulated crossing.
+            'destination_port_id' => ['nullable', 'integer', 'exists:ports,id'],
         ];
     }
 }

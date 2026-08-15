@@ -129,7 +129,7 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Login berhasil."
+                                            "example": "Login successful."
                                         },
                                         "data": {
                                             "properties": {
@@ -847,7 +847,7 @@
                     "Trips"
                 ],
                 "summary": "Record a driver GPS ping, departure, or arrival confirmation",
-                "description": "Driver only, and only the trip's own assigned driver. event_type drives 3 different behaviors: gps_ping is a lightweight periodic position update while in transit (no status change, expected to be called every few seconds per PRD Bagian 8.3 watchPosition, kept minimal on purpose); departed starts a leg without necessarily changing status: first leg (assigned -> in_transit_origin), a domestic return leg (arrived -> in_transit_destination, when origin is the internal company and destination a partner, PRD Bagian 5.1), or a cross-border truck's return leg (status stays at_origin_port, that field tracks the ship not the truck); arrived_at_destination/arrived_at_port/arrived_final/truck_returned confirm arrival and are validated against the Haversine distance (PRD Bagian 18) to the expected target point, only accepted within ARRIVAL_RADIUS_METERS, a location_validation_failed notification fires otherwise (PRD Bagian 19) and nothing is recorded. truck_returned sets truck_returned_at only (not status/actual_arrival_at, those are the ship's). Which arrival event_type is valid depends on the trip's current status and whether it's cross-border, sending the wrong one for the current state is rejected.",
+                "description": "Driver only, and only the trip's own assigned driver. event_type drives 3 different behaviors: gps_ping is a lightweight periodic position update while in transit (no status change, expected to be called every few seconds per PRD Bagian 8.3 watchPosition, kept minimal on purpose); departed starts a leg without necessarily changing status: first leg (assigned -> in_transit_origin), a domestic return leg (arrived -> in_transit_destination, when origin is the internal company and destination a partner, PRD Bagian 5.1), or a cross-border truck's return leg (status stays at_origin_port, that field tracks the ship not the truck); arrived_at_destination/arrived_at_port/arrived_final/truck_returned confirm arrival and are validated against the Haversine distance (PRD Bagian 18) to the expected target point, only accepted within ARRIVAL_RADIUS_METERS, a location_validation_failed notification fires otherwise (PRD Bagian 19) and nothing is recorded. truck_returned sets truck_returned_at only (not status/actual_arrival_at, those are the ship's). ship_departed (at_origin_port -> on_ship) and ship_arrived (on_ship -> at_destination_port) are the Simulate Vessel feature's equivalent of the never-built real VesselAPI departure/arrival poller — ship_departed optionally accepts destination_port_id to overwrite ship_destination_port_id with a randomly-chosen other-island port for the simulated crossing. Which arrival event_type is valid depends on the trip's current status and whether it's cross-border, sending the wrong one for the current state is rejected.",
                 "operationId": "737e58c19b8b63b469b32c5652348ae2",
                 "parameters": [
                     {
@@ -878,7 +878,9 @@
                                             "arrived_at_destination",
                                             "arrived_at_port",
                                             "arrived_final",
-                                            "truck_returned"
+                                            "truck_returned",
+                                            "ship_departed",
+                                            "ship_arrived"
                                         ]
                                     },
                                     "latitude": {
@@ -888,6 +890,11 @@
                                     "longitude": {
                                         "type": "number",
                                         "format": "float"
+                                    },
+                                    "destination_port_id": {
+                                        "description": "ship_departed only: randomly-chosen other-island port ID, overwrites ship_destination_port_id.",
+                                        "type": "integer",
+                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -908,7 +915,7 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Kedatangan tervalidasi"
+                                            "example": "Arrival validated"
                                         },
                                         "data": {
                                             "properties": {
@@ -1555,7 +1562,7 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Simulasi selesai"
+                                            "example": "Simulation completed"
                                         },
                                         "data": {
                                             "properties": {
@@ -1671,7 +1678,7 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Ship reference id disimpan"
+                                            "example": "Ship reference ID saved"
                                         },
                                         "data": {
                                             "$ref": "#/components/schemas/Trip"
