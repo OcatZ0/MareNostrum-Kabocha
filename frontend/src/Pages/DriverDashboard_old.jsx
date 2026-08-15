@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Navigation, Truck, Clock, LogOut, Menu, X, AlertCircle } from 'lucide-react';
-import { getTrips } from '../api/tripsApi';
+import { MapPin, Navigation, Truck, Clock, LogOut, Menu, X, AlertCircle, Loader2, Zap, Anchor } from 'lucide-react';
+import { getTrips, getTrip, storeCheckpoint } from '../api/tripsApi';
 import { COLORS, STATUS_STYLES } from '../Componnent/dashboard/dashboardTheme';
 
-const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY || 'MASUKKAN_API_KEY_TOMTOM';
+const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY || '';
 
-/* ── Styles ──────────────────────────────────────────────────── */
 const ANIM = `
   @keyframes fade-in { from{opacity:0} to{opacity:1} }
   @keyframes slide-in-left { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
   @keyframes slide-in-right { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:translateX(0)} }
 `;
 
-/* ── Helpers ─────────────────────────────────────────────────── */
 const statusStyle = (status) =>
   STATUS_STYLES[status] ?? { label: status, bg: '#F1F5F9', color: '#64748B' };
 
@@ -31,7 +29,51 @@ const fmtDur = (min) => {
   return h ? `${h}h ${m}m` : `${m}m`;
 };
 
-/* ── Trip Card ───────────────────────────────────────────────– */
+/* ── trip simulation (demo speed: always 10s regardless of real distance) ── */
+const SIMULATE_DURATION_MS = 10000;
+const SIMULATE_PING_INTERVAL_MS = 1000;
+
+// Which leg is "in motion" depends on trip.status — mirrors the backend's own
+// state machine (TripCheckpointController::recordArrival/recordGpsPing), so
+// the event_type submitted at the end is always the one the backend expects
+// for the trip's current status, and the coords sent are always the real
+// endpoint (never an animated/interpolated point), so the Haversine arrival
+// check always passes regardless of the fake 10s "distance".
+const getSimulateConfig = (trip) => {
+  if (!trip) return null;
+  if (trip.status === 'in_transit_origin') {
+    return {
+      from: trip.origin, to: trip.destination,
+      eventType: trip.ship_destination_port_id ? 'arrived_at_port' : 'arrived_at_destination',
+      reversed: false,
+      // gps_ping is only accepted while status is in_transit_origin/destination
+      allowGpsPing: true,
+    };
+  }
+  if (trip.status === 'in_transit_destination') {
+    return { from: trip.destination, to: trip.origin, eventType: 'arrived_final', reversed: true, allowGpsPing: true };
+  }
+  if (trip.status === 'at_origin_port') {
+    // Cross-border truck's return leg — status stays at_origin_port (that
+    // field tracks the ship, not the truck), so gps_ping would 422 here.
+    return { from: trip.destination, to: trip.origin, eventType: 'truck_returned', reversed: true, allowGpsPing: false };
+  }
+  return null;
+};
+
+// Equal-time-per-segment interpolation along a [lng,lat] polyline — good
+// enough for a demo animation, doesn't need to be equal-distance.
+const interpolateAlongPath = (path, t) => {
+  if (!path || path.length < 2) return null;
+  const scaledT = Math.min(Math.max(t, 0), 1) * (path.length - 1);
+  const i = Math.floor(scaledT);
+  const frac = scaledT - i;
+  const a = path[Math.min(i, path.length - 1)];
+  const b = path[Math.min(i + 1, path.length - 1)];
+  return [a[0] + (b[0] - a[0]) * frac, a[1] + (b[1] - a[1]) * frac];
+};
+
+/* ── Trip Card Component ─────────────────────────────────────── */
 const TripCard = ({ trip, selected, onClick }) => {
   const s = statusStyle(trip.status);
   const from = trip.origin?.name ?? 'Origin';
@@ -40,254 +82,440 @@ const TripCard = ({ trip, selected, onClick }) => {
   return (
     <div
       onClick={onClick}
-      className={`p-4 rounded-lg cursor-pointer transition-all border-2 ${
-        selected ? 'border-opacity-100' : 'border-opacity-0'
-      }`}
+      className="p-3.5 rounded-xl cursor-pointer transition-all border"
       style={{
-        backgroundColor: selected ? `${COLORS.teal}10` : '#f8f9fa',
+        backgroundColor: selected ? `${COLORS.teal}0D` : COLORS.bg,
         borderColor: selected ? COLORS.teal : 'transparent',
+        boxShadow: selected ? `0 1px 3px ${COLORS.teal}20` : 'none',
         animation: 'slide-in-left 0.3s ease-out',
       }}>
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <h3 className="font-semibold text-slate-900 text-sm">Trip #{trip.id}</h3>
-          <p className="text-xs text-slate-500">Status: {s.label}</p>
+      <div className="flex items-center gap-3 mb-3">
+        <span
+          className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+          style={{ backgroundColor: `${COLORS.navy}0D` }}
+        >
+          <Truck size={16} color={COLORS.navy} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-slate-800 text-sm leading-tight">Trip #{trip.id}</h3>
         </div>
         <span
-          className="text-xs font-bold px-2 py-1 rounded-full"
-          style={{ backgroundColor: s.bg, color: s.color }}>
+          className="text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0"
+          style={{ backgroundColor: s.bg, color: s.color }}
+        >
           {s.label}
         </span>
       </div>
-
-      <div className="space-y-2 text-xs">
+      <div className="space-y-1.5 text-xs pl-0.5">
         <div className="flex items-center gap-2">
-          <MapPin size={14} style={{ color: COLORS.teal }} />
-          <span className="text-slate-600">
-            <strong>From:</strong> {from}
-          </span>
+          <MapPin size={13} style={{ color: COLORS.teal }} className="shrink-0" />
+          <span className="text-slate-500 truncate"><span className="text-slate-400">From</span> · {from}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Navigation size={14} style={{ color: COLORS.teal }} />
-          <span className="text-slate-600">
-            <strong>To:</strong> {to}
-          </span>
+          <Navigation size={13} style={{ color: COLORS.teal }} className="shrink-0" />
+          <span className="text-slate-500 truncate"><span className="text-slate-400">To</span> · {to}</span>
         </div>
-        {trip.truck?.license_plate && (
-          <div className="flex items-center gap-2">
-            <Truck size={14} style={{ color: COLORS.teal }} />
-            <span className="text-slate-600">
-              <strong>Truck:</strong> {trip.truck.license_plate}
-            </span>
-          </div>
-        )}
-        {trip.estimated_duration_min && (
-          <div className="flex items-center gap-2">
-            <Clock size={14} style={{ color: COLORS.teal }} />
-            <span className="text-slate-600">
-              <strong>Duration:</strong> {fmtDur(trip.estimated_duration_min)}
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );
 };
 
-/* ── TomTom Map Component ────────────────────────────────────– */
-const MapView = ({ trip }) => {
+/* ── Map Component ───────────────────────────────────────────── */
+const MapView = ({ trip, onStartTrip, starting, onSimulateComplete }) => {
   const mapElRef = useRef(null);
   const mapRef = useRef(null);
-  const [routeInfo, setRouteInfo] = useState(null);
+  const sdkLoadingRef = useRef(null);
+  const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState(null);
+  const [routeSummary, setRouteSummary] = useState(null);
 
-  // Load TomTom SDK
+  // Simulate-trip animation state — refs (not state) since they don't need
+  // to trigger re-renders, just persist across the 10s of rAF/interval ticks.
+  const routeCoordsRef = useRef(null);
+  const truckMarkerRef = useRef(null);
+  const simulateRafRef = useRef(null);
+  const simulatePingTimerRef = useRef(null);
+  const [simulating, setSimulating] = useState(false);
+  const [simulateError, setSimulateError] = useState(null);
+
+  // Load SDK once
   useEffect(() => {
+    if (sdkLoadingRef.current) return;
+    sdkLoadingRef.current = true;
+
+    if (!TOMTOM_API_KEY || TOMTOM_API_KEY === 'MASUKKAN_API_KEY_TOMTOM') {
+      setMapError('TomTom API key not set. Add VITE_TOMTOM_API_KEY to .env.local');
+      return;
+    }
+
+    console.log('Loading TomTom SDK...');
+
+    // Load CSS
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps.css';
     document.head.appendChild(link);
 
+    // Load JS
     const script = document.createElement('script');
     script.src = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps-web.min.js';
-    script.async = true;
     script.onload = () => {
-      console.log('TomTom SDK loaded');
+      console.log('✓ TomTom SDK loaded');
+      setMapReady(true);
+    };
+    script.onerror = () => {
+      console.error('✗ TomTom SDK load failed');
+      setMapError('Failed to load TomTom SDK');
     };
     document.body.appendChild(script);
-
-    return () => {
-      if (link.parentNode) link.parentNode.removeChild(link);
-      if (script.parentNode) script.parentNode.removeChild(script);
-    };
   }, []);
 
-  // Initialize map
+  // Init map when SDK ready
   useEffect(() => {
-    if (!mapElRef.current || mapRef.current) return;
-    if (typeof window.tt === 'undefined') return;
+    if (!mapReady || !mapElRef.current || mapRef.current) return;
+    if (!window.tt) {
+      setMapError('TomTom SDK not available');
+      return;
+    }
 
+    console.log('Initializing map...');
     try {
       mapRef.current = window.tt.map({
         key: TOMTOM_API_KEY,
         container: mapElRef.current,
-        center: [104.0305, 1.1301], // Batam default
+        center: [104.0305, 1.1301],
         zoom: 12,
       });
-
       mapRef.current.addControl(new window.tt.NavigationControl());
+      console.log('✓ Map ready');
     } catch (err) {
       console.error('Map init error:', err);
-      setMapError('Failed to initialize map');
+      setMapError(err.message);
     }
-  }, []);
+  }, [mapReady]);
 
-  // Calculate route when trip changes
+  // Draw route when trip changes
   useEffect(() => {
-    if (!trip || !mapRef.current || !window.tt) return;
+    if (!trip || !mapRef.current || !mapReady) return;
 
-    // Get coordinates from trip.origin and trip.destination (as returned by backend TripResource)
+    const map = mapRef.current;
+
+    // Extract coordinates
     const originLat = trip.origin?.latitude;
     const originLng = trip.origin?.longitude;
     const destLat = trip.destination?.latitude;
     const destLng = trip.destination?.longitude;
 
+    console.log('Trip:', trip.id, 'Origin:', [originLng, originLat], 'Dest:', [destLng, destLat]);
+
     if (!originLat || !originLng || !destLat || !destLng) {
-      console.warn('Missing coordinates:', { originLat, originLng, destLat, destLng });
-      setMapError('Origin or destination coordinates missing');
+      setMapError('Trip missing coordinates');
       return;
     }
 
-    const from = trip.origin?.name ?? 'Origin';
-    const to = trip.destination?.name ?? 'Destination';
+    // Clear old markers and route
+    document.querySelectorAll('.mapboxgl-marker').forEach(m => m.remove());
+    if (map.getLayer('route-layer')) map.removeLayer('route-layer');
+    if (map.getSource('route-src')) map.removeSource('route-src');
+    setRouteSummary(null);
 
-    // Clear previous markers and route
-    const map = mapRef.current;
-    
-    // Remove previous markers
-    document.querySelectorAll('.tt-marker').forEach(m => {
-      if (m._marker) m._marker.remove();
-    });
+    // Cancel any in-flight simulation — its marker/coords belonged to the
+    // previous trip and just got wiped above.
+    cancelAnimationFrame(simulateRafRef.current);
+    clearInterval(simulatePingTimerRef.current);
+    truckMarkerRef.current = null;
+    routeCoordsRef.current = null;
+    setSimulating(false);
+    setSimulateError(null);
 
-    // Remove previous route layer
-    if (map.getLayer('route')) map.removeLayer('route');
-    if (map.getSource('route')) map.removeSource('route');
+    const from = trip.origin?.name || 'Origin';
+    const to = trip.destination?.name || 'Destination';
 
-    // Add new markers
-    new window.tt.Marker({ color: 'green' })
+    // Pin-shaped markers (teardrop, matching TomTom's own map UI) instead of
+    // plain dots — a small SVG per marker, no extra dependency needed.
+    // Colors pulled from the shared brand palette so they match every other
+    // "origin/destination" pairing in the app (green = start, navy = end).
+    const pinSvg = (color) => `
+      <svg width="34" height="44" viewBox="0 0 34 44" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35))">
+        <path d="M17 0C7.6 0 0 7.6 0 17c0 12.75 17 27 17 27s17-14.25 17-27C34 7.6 26.4 0 17 0z" fill="${color}"/>
+        <circle cx="17" cy="17" r="7" fill="white"/>
+      </svg>`;
+
+    const markerA = document.createElement('div');
+    markerA.innerHTML = pinSvg(COLORS.green);
+    new window.tt.Marker({ element: markerA, anchor: 'bottom' })
       .setLngLat([originLng, originLat])
-      .setPopup(new window.tt.Popup().setHTML(`<strong>${from}</strong><br/>Origin`))
+      .setPopup(new window.tt.Popup().setHTML(`<strong style="color:${COLORS.navy}">${from}</strong>`))
       .addTo(map);
 
-    new window.tt.Marker({ color: 'red' })
+    const markerB = document.createElement('div');
+    markerB.innerHTML = pinSvg(COLORS.navy);
+    new window.tt.Marker({ element: markerB, anchor: 'bottom' })
       .setLngLat([destLng, destLat])
-      .setPopup(new window.tt.Popup().setHTML(`<strong>${to}</strong><br/>Destination`))
+      .setPopup(new window.tt.Popup().setHTML(`<strong style="color:${COLORS.navy}">${to}</strong>`))
       .addTo(map);
 
-    // Calculate route using TomTom API
-    // TomTom expects: lat,lng:lat,lng format
-    const origin = `${originLat},${originLng}`;
-    const destination = `${destLat},${destLng}`;
-    const url =
-      `https://api.tomtom.com/routing/1/calculateRoute/` +
-      `${origin}:${destination}/json` +
-      `?traffic=true&routeType=fastest&travelMode=car&sectionType=traffic` +
-      `&key=${TOMTOM_API_KEY}`;
+    // Calculate route — live traffic every time, no caching: this is the
+    // driver's actual navigation view, so it always needs the current road
+    // situation rather than whatever was true when the trip was recommended.
+    // Orbis v3 route-planning endpoint (distinct from the legacy v1
+    // calculateRoute used for backend recommendation scoring) — requires
+    // apiVersion=3 and an "Attributes: routes" header to select the
+    // top-level response field; geometry comes back as GeoJSON
+    // [lng, lat] pairs at routes[].legs[].path.coordinates (verified against
+    // a live call — the publicly documented Orbis v2 calculateRoute page
+    // describes a different, path-based endpoint with a points[] shape).
+    const url = `https://api.tomtom.com/maps/orbis/routing/routes/calculate?key=${TOMTOM_API_KEY}&apiVersion=3`;
 
-    fetch(url)
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
+    console.log('Fetching route (live traffic)...');
+
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Attributes': 'routes' },
+      body: JSON.stringify({
+        routePlanningLocations: {
+          origin:      { type: 'Point', coordinates: [originLng, originLat] },
+          destination: { type: 'Point', coordinates: [destLng, destLat] },
+        },
+        routeType: 'efficient',
+        traffic: 'live',
+      }),
+    })
+      .then(r => r.json())
       .then(data => {
-        console.log('TomTom Route Response:', data);
-        
-        if (!data.routes || data.routes.length === 0) {
-          throw new Error('No routes found');
-        }
+        const route = data.routes?.[0];
+        if (!route) throw new Error(data.detailedError?.message || 'No route found');
 
-        const route = data.routes[0];
-        const distance = (route.summary.lengthInMeters / 1000).toFixed(2);
-        const timeMinutes = Math.ceil(route.summary.travelTimeInSeconds / 60);
+        const coords = route.legs.flatMap(leg => leg.path.coordinates);
+        routeCoordsRef.current = coords;
 
-        setRouteInfo({
-          distance,
-          time: timeMinutes,
-          from,
-          to,
+        // Add route line
+        map.addSource('route-src', {
+          type: 'geojson',
+          data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } },
+        });
+        map.addLayer({
+          id: 'route-layer',
+          type: 'line',
+          source: 'route-src',
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': COLORS.teal, 'line-width': 6 },
         });
 
-        // Draw route
-        const points = route.legs[0].points;
-        const coordinates = points.map(p => [p.longitude, p.latitude]);
-
-        // Add route to map
-        if (!map.getSource('route')) {
-          map.addSource('route', {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
-              geometry: {
-                type: 'LineString',
-                coordinates,
-              },
-            },
-          });
-
-          map.addLayer({
-            id: 'route',
-            type: 'line',
-            source: 'route',
-            layout: {
-              'line-cap': 'round',
-              'line-join': 'round',
-            },
-            paint: {
-              'line-color': COLORS.teal,
-              'line-width': 6,
-            },
-          });
-        }
-
-        // Fit bounds
+        // Zoom to route
         const bounds = new window.tt.LngLatBounds();
-        coordinates.forEach(coord => bounds.extend(coord));
-        
-        // Wait for map to load before fitting bounds
-        if (map.loaded()) {
-          map.fitBounds(bounds, { padding: 80, maxZoom: 14 });
-        } else {
-          map.on('load', () => {
-            map.fitBounds(bounds, { padding: 80, maxZoom: 14 });
-          });
-        }
+        coords.forEach(c => bounds.extend(c));
+        map.fitBounds(bounds, { padding: 100 });
+
+        setRouteSummary({
+          distanceKm:      route.summary.lengthInMeters / 1000,
+          durationMin:     Math.round(route.summary.travelDurationInSeconds / 60),
+          trafficDelayMin: Math.round(route.summary.trafficDelayDurationInSeconds / 60),
+        });
+        console.log('✓ Route drawn — traffic delay:', route.summary.trafficDelayDurationInSeconds, 's');
+        setMapError(null);
       })
       .catch(err => {
-        console.error('Route calculation error:', err);
-        setMapError(`Failed to calculate route: ${err.message}`);
+        console.error('Route error:', err);
+        setMapError(err.message);
       });
-  }, [trip]);
+  }, [trip, mapReady]);
 
-  if (!trip) {
-    return (
-      <div className="w-full h-full bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
-        <div className="text-center">
-          <MapPin size={48} className="mx-auto mb-3 opacity-30" style={{ color: COLORS.teal }} />
-          <p className="text-slate-500 text-sm">Select a trip to view route</p>
-        </div>
-      </div>
-    );
-  }
+  const handleSimulate = () => {
+    if (!trip || simulating || !mapRef.current) return;
+    const config = getSimulateConfig(trip);
+    if (!config) return;
+
+    if (!config.to?.latitude || !config.to?.longitude || !config.from?.latitude || !config.from?.longitude) {
+      setSimulateError('Trip missing coordinates.');
+      return;
+    }
+
+    const path = routeCoordsRef.current
+      ? (config.reversed ? [...routeCoordsRef.current].reverse() : routeCoordsRef.current)
+      : [
+          [config.from.longitude, config.from.latitude],
+          [config.to.longitude, config.to.latitude],
+        ];
+
+    setSimulating(true);
+    setSimulateError(null);
+
+    const el = document.createElement('div');
+    el.style.cssText = `width:22px;height:22px;border-radius:50%;background:${COLORS.aqua};border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);`;
+    const marker = new window.tt.Marker({ element: el }).setLngLat(path[0]).addTo(mapRef.current);
+    truckMarkerRef.current = marker;
+
+    const startTime = performance.now();
+
+    const finishSimulate = async () => {
+      clearInterval(simulatePingTimerRef.current);
+      try {
+        await storeCheckpoint(trip.id, {
+          event_type: config.eventType,
+          latitude: config.to.latitude,
+          longitude: config.to.longitude,
+        });
+        const res = await getTrip(trip.id);
+        onSimulateComplete?.(res.data?.data);
+      } catch (err) {
+        setSimulateError(err?.response?.data?.message || 'Simulation failed.');
+      } finally {
+        setSimulating(false);
+      }
+    };
+
+    const step = (now) => {
+      const t = Math.min((now - startTime) / SIMULATE_DURATION_MS, 1);
+      const pos = interpolateAlongPath(path, t);
+      if (pos) marker.setLngLat(pos);
+
+      if (t < 1) {
+        simulateRafRef.current = requestAnimationFrame(step);
+      } else {
+        finishSimulate();
+      }
+    };
+    simulateRafRef.current = requestAnimationFrame(step);
+
+    // Periodic gps_ping so anything polling GET /trips/:id/position (or
+    // watching the checkpoint history) also sees the truck actually moving,
+    // not just a status flip at the end — every 1s for a visibly smooth trail.
+    if (config.allowGpsPing) {
+      simulatePingTimerRef.current = setInterval(() => {
+        const t = (performance.now() - startTime) / SIMULATE_DURATION_MS;
+        if (t >= 1) return;
+        const pos = interpolateAlongPath(path, t);
+        if (pos) {
+          storeCheckpoint(trip.id, { event_type: 'gps_ping', latitude: pos[1], longitude: pos[0] }).catch(() => {});
+        }
+      }, SIMULATE_PING_INTERVAL_MS);
+    }
+  };
 
   return (
     <div className="w-full h-full relative">
-      {mapError && (
-        <div className="absolute top-4 left-4 z-50 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3 max-w-xs">
-          <AlertCircle size={18} className="text-red-500 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-red-700">{mapError}</p>
+      {/* container is always mounted so mapElRef is available the instant the
+          SDK finishes loading — it used to only render once a trip was
+          selected, but trips load async and can resolve after the SDK,
+          leaving the "init map" effect with a null ref and nothing to retry it */}
+      <div ref={mapElRef} className="w-full h-full" />
+
+      {!trip && (
+        <div
+          className="absolute inset-0 flex items-center justify-center z-10"
+          style={{ background: `linear-gradient(160deg, ${COLORS.bg}, #E7F1F6)` }}
+        >
+          <div className="text-center">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+              style={{ backgroundColor: `${COLORS.teal}14` }}
+            >
+              <MapPin size={26} style={{ color: COLORS.teal }} />
+            </div>
+            <p className="text-slate-500 text-sm">Select a trip to view the map</p>
+          </div>
         </div>
       )}
-      <div ref={mapElRef} className="w-full h-full" />
+      {!mapReady && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/80 z-50">
+          <Loader2 className="animate-spin" size={30} style={{ color: COLORS.teal }} />
+          <p className="text-xs text-slate-400">Loading map…</p>
+        </div>
+      )}
+      {mapError && (
+        <div className="absolute top-4 left-4 z-50 bg-red-50 border border-red-200 rounded-xl p-4 max-w-xs flex gap-3 shadow-sm">
+          <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium text-red-900 text-sm">Map Error</p>
+            <p className="text-xs text-red-700 mt-0.5">{mapError}</p>
+          </div>
+        </div>
+      )}
+
+      {trip && (() => {
+        const s = statusStyle(trip.status);
+        // chosen_departure_at is the planned time picked at /assign; once the
+        // driver actually hits "Start Trip", actual_departure_at is stamped
+        // (TripCheckpointController::recordDeparture) and becomes the real
+        // value — showing the stale planned time afterward would be wrong,
+        // e.g. the driver started later/earlier than planned.
+        const hasDeparted = !!trip.actual_departure_at;
+        const departure = hasDeparted ? trip.actual_departure_at : trip.chosen_departure_at;
+        const isCompleted = trip.status === 'completed';
+        const eta = routeSummary && departure
+          ? new Date(new Date(departure).getTime() + routeSummary.durationMin * 60000)
+          : null;
+        const actualDurationMin = isCompleted && trip.actual_departure_at && trip.actual_arrival_at
+          ? Math.round((new Date(trip.actual_arrival_at) - new Date(trip.actual_departure_at)) / 60000)
+          : null;
+        const simulateConfig = getSimulateConfig(trip);
+
+        return (
+          <div className="absolute top-4 left-4 z-30 bg-white rounded-2xl shadow-lg px-4 py-4 min-w-[220px]"
+            style={{ animation: 'fade-in 0.2s ease-out' }}>
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">
+              Trip Overview
+            </p>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold px-2 py-1 rounded-full" style={{ backgroundColor: s.bg, color: s.color }}>
+                {s.label}
+              </span>
+              {!isCompleted && routeSummary?.trafficDelayMin > 0 && (
+                <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: '#C2703D' }}>
+                  <Truck size={12} />+{routeSummary.trafficDelayMin}m traffic
+                </span>
+              )}
+            </div>
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-slate-400 flex items-center gap-1.5"><Clock size={12} />{isCompleted ? 'Duration' : 'Est. Duration'}</span>
+                <span className="font-semibold text-slate-800">
+                  {isCompleted ? fmtDur(actualDurationMin) : (routeSummary ? fmtDur(routeSummary.durationMin) : '—')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-slate-400 flex items-center gap-1.5"><Navigation size={12} />{hasDeparted ? 'Departed' : 'Departure'}</span>
+                <span className="font-semibold text-slate-800">{departure ? fmt(departure) : 'Not yet assigned'}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-slate-400 flex items-center gap-1.5"><MapPin size={12} />Distance</span>
+                <span className="font-semibold text-slate-800">{routeSummary ? `${routeSummary.distanceKm.toFixed(0)} km` : '—'}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4 pt-2 border-t border-slate-100">
+                <span className="text-slate-400">{isCompleted ? 'Arrived' : 'Est. Arrival'}</span>
+                <span className="font-semibold text-slate-800">
+                  {isCompleted ? fmt(trip.actual_arrival_at) : (eta ? fmt(eta) : '—')}
+                </span>
+              </div>
+            </div>
+
+            {trip.status === 'assigned' && (
+              <button onClick={onStartTrip} disabled={starting}
+                className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60 transition"
+                style={{ background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})`, boxShadow: `0 2px 8px ${COLORS.teal}30` }}>
+                {starting
+                  ? <><Loader2 size={14} className="animate-spin" /> Starting…</>
+                  : <><Navigation size={14} /> Start Trip</>}
+              </button>
+            )}
+
+            {simulateConfig && (
+              <button onClick={handleSimulate} disabled={simulating}
+                className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60 transition"
+                style={{ background: 'linear-gradient(135deg, #C2703D, #D98C55)', boxShadow: '0 2px 8px rgba(194,112,61,0.25)' }}>
+                {simulating
+                  ? <><Loader2 size={14} className="animate-spin" /> Simulating…</>
+                  : <><Zap size={14} /> Simulate Arrival</>}
+              </button>
+            )}
+
+            {simulateError && (
+              <p className="mt-2 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} />{simulateError}</p>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 };
@@ -299,6 +527,8 @@ const DriverDashboard = () => {
   const [error, setError] = useState(null);
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState(null);
   const driverName = localStorage.getItem('user_name') || 'Driver';
 
   useEffect(() => {
@@ -311,17 +541,14 @@ const DriverDashboard = () => {
       setError(null);
       const res = await getTrips({ per_page: 100 });
       const driverTrips = res.data?.data || [];
-      console.log('Fetched trips from backend:', driverTrips);
-      if (driverTrips.length > 0) {
-        console.log('Sample trip structure:', driverTrips[0]);
-      }
+      console.log('Loaded trips:', driverTrips.length);
       setTrips(driverTrips);
       if (driverTrips.length > 0) {
         setSelectedTrip(driverTrips[0]);
       }
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to load trips');
-      console.error('Error fetching trips:', err);
+      console.error('Error:', err);
     } finally {
       setLoading(false);
     }
@@ -332,83 +559,138 @@ const DriverDashboard = () => {
     window.location.href = '/login';
   };
 
+  // Shared by handleStartTrip and MapView's simulate-arrival flow — both end
+  // with a re-fetched trip resource that needs to land in both the sidebar
+  // list and whichever trip is currently selected.
+  const syncTripUpdate = (updated) => {
+    setTrips((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+    setSelectedTrip(updated);
+  };
+
+  const handleStartTrip = () => {
+    if (!selectedTrip || starting) return;
+
+    if (!navigator.geolocation) {
+      setStartError('Geolocation is not supported by this browser.');
+      return;
+    }
+
+    setStarting(true);
+    setStartError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          await storeCheckpoint(selectedTrip.id, {
+            event_type: 'departed',
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          });
+          // Re-fetch rather than trust the checkpoint response's bare
+          // trip_status string — need the full resource (actual_departure_at
+          // etc.) to keep the map card and trip list in sync.
+          const res = await getTrip(selectedTrip.id);
+          syncTripUpdate(res.data?.data);
+        } catch (err) {
+          setStartError(err?.response?.data?.message || 'Failed to start trip.');
+        } finally {
+          setStarting(false);
+        }
+      },
+      (geoErr) => {
+        setStartError(`Could not get your location: ${geoErr.message}`);
+        setStarting(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   return (
-    <div className="flex h-screen bg-slate-50 font-sans">
+    <div className="flex h-screen font-sans" style={{ backgroundColor: COLORS.bg }}>
       <style>{ANIM}</style>
 
       {/* Sidebar */}
-      <div
-        className={`fixed inset-y-0 left-0 z-40 w-80 bg-white shadow-lg transform transition-transform duration-300 lg:relative lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}>
+      <div className={`fixed inset-y-0 left-0 z-40 w-80 bg-white shadow-lg transform transition-transform duration-300 lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-full flex flex-col">
-          <div className="px-6 py-6 border-b border-slate-200">
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-bold" style={{ color: COLORS.navy }}>
-                ⚓ MareNostrum
-              </h1>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="lg:hidden p-2 hover:bg-slate-100 rounded-lg">
-                <X size={20} />
+          <div className="px-6 py-6 border-b border-slate-100">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: `${COLORS.navy}14` }}
+                >
+                  <Anchor size={17} color={COLORS.navy} strokeWidth={2} />
+                </div>
+                <div>
+                  <p className="font-semibold tracking-[0.18em] text-xs leading-none" style={{ color: COLORS.navy }}>
+                    MARE NOSTRUM
+                  </p>
+                  <p className="text-[10px] italic mt-1 leading-none" style={{ color: COLORS.teal }}>
+                    Our sea, our trade
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setSidebarOpen(false)} className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100">
+                <X size={18} />
               </button>
             </div>
-            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+            <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: COLORS.bg }}>
               <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
-                style={{ backgroundColor: COLORS.teal }}>
+                className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shrink-0"
+                style={{ background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})` }}
+              >
                 {driverName[0]?.toUpperCase()}
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-slate-900">{driverName}</p>
-                <p className="text-xs text-slate-500">Driver</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-800 truncate">{driverName}</p>
+                <p className="text-xs text-slate-400">Driver</p>
               </div>
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto px-6 py-4">
-            <h2 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">
-              My Trips ({trips.length})
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-bold uppercase tracking-wide text-slate-400">My Trips</h2>
+              <span
+                className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                style={{ backgroundColor: `${COLORS.aqua}14`, color: COLORS.aqua }}
+              >
+                {trips.length}
+              </span>
+            </div>
 
             {loading && (
               <div className="flex items-center justify-center py-8">
-                <div
-                  className="w-6 h-6 border-2 rounded-full animate-spin"
-                  style={{ borderColor: `${COLORS.teal}40`, borderTopColor: COLORS.teal }}></div>
+                <Loader2 className="animate-spin" size={22} style={{ color: COLORS.teal }} />
               </div>
             )}
 
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
-                {error}
-              </div>
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-600">{error}</div>
             )}
 
             {!loading && trips.length === 0 && (
-              <div className="text-center py-8 text-slate-500">
-                <Navigation size={32} className="mx-auto mb-2 opacity-30" />
+              <div className="text-center py-10 text-slate-400">
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+                  style={{ backgroundColor: `${COLORS.navy}0D` }}
+                >
+                  <Navigation size={20} style={{ color: COLORS.navy, opacity: 0.5 }} />
+                </div>
                 <p className="text-sm">No trips assigned</p>
               </div>
             )}
 
-            <div className="space-y-3">
-              {trips.map((trip) => (
-                <TripCard
-                  key={trip.id}
-                  trip={trip}
-                  selected={selectedTrip?.id === trip.id}
-                  onClick={() => setSelectedTrip(trip)}
-                />
+            <div className="space-y-2.5">
+              {trips.map(trip => (
+                <TripCard key={trip.id} trip={trip} selected={selectedTrip?.id === trip.id} onClick={() => { setSelectedTrip(trip); setStartError(null); }} />
               ))}
             </div>
           </div>
 
-          <div className="border-t border-slate-200 p-4 space-y-2">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 font-medium text-sm transition-colors">
-              <LogOut size={18} />
+          <div className="border-t border-slate-100 p-4">
+            <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-red-600 hover:bg-red-50 font-medium text-sm transition">
+              <LogOut size={16} />
               Logout
             </button>
           </div>
@@ -416,65 +698,45 @@ const DriverDashboard = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        <div className="bg-white shadow-sm border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 hover:bg-slate-100 rounded-lg">
-            <Menu size={24} />
-          </button>
-          <div className="flex-1 flex items-center justify-center lg:justify-start">
-            <h1 className="text-2xl font-bold" style={{ color: COLORS.navy }}>
-              Driver Dashboard
-            </h1>
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="bg-white shadow-sm border-b border-slate-100 px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden w-9 h-9 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 shrink-0">
+              <Menu size={18} />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-semibold truncate" style={{ color: COLORS.navy }}>Driver Dashboard</h1>
+            </div>
           </div>
-          <div className="text-sm text-slate-600">
-            {selectedTrip && `Trip #${selectedTrip.id}`}
-          </div>
+          {selectedTrip && (
+            <span
+              className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full shrink-0"
+              style={{ backgroundColor: `${COLORS.teal}14`, color: COLORS.teal }}
+            >
+              Trip #{selectedTrip.id}
+            </span>
+          )}
         </div>
 
-        <div className="flex-1 overflow-hidden">
-          <MapView trip={selectedTrip} />
-        </div>
-
-        {selectedTrip && (
-          <div
-            className="bg-white border-t border-slate-200 p-6 grid grid-cols-1 md:grid-cols-4 gap-6"
-            style={{ animation: 'slide-in-right 0.3s ease-out' }}>
-            <div>
-              <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Status</p>
-              <p className="text-sm font-semibold text-slate-900 capitalize">
-                {selectedTrip.status?.replace(/_/g, ' ')}
-              </p>
+        {startError && (
+          <div className="px-4 sm:px-6 py-2.5 bg-red-50 border-b border-red-200 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-red-700">
+              <AlertCircle size={14} className="flex-shrink-0" />
+              {startError}
             </div>
-            <div>
-              <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Departure</p>
-              <p className="text-sm font-semibold text-slate-900">
-                {fmt(selectedTrip.chosen_departure_at || selectedTrip.created_at)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Estimated Duration</p>
-              <p className="text-sm font-semibold text-slate-900">
-                {fmtDur(selectedTrip.estimated_duration_min)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Distance</p>
-              <p className="text-sm font-semibold text-slate-900">
-                {selectedTrip.distance_km ? `${selectedTrip.distance_km} km` : '—'}
-              </p>
-            </div>
+            <button onClick={() => setStartError(null)} className="text-red-400 hover:text-red-600">
+              <X size={14} />
+            </button>
           </div>
         )}
+
+        <div className="flex-1 overflow-hidden">
+          <MapView trip={selectedTrip} onStartTrip={handleStartTrip} starting={starting} onSimulateComplete={syncTripUpdate} />
+        </div>
       </div>
 
       {sidebarOpen && (
-        <div
-          onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-black/50 lg:hidden z-30"
-          style={{ animation: 'fade-in 0.2s ease-out' }}
-        />
+        <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-slate-900/40 lg:hidden z-30" />
       )}
     </div>
   );
