@@ -52,19 +52,14 @@ class NotificationController extends Controller
         }
         $unreadCount = $unreadQuery->count();
 
-        $resourceCollection = NotificationResource::collection($notifications);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Daftar notifikasi berhasil diambil.',
+        $resourceCollection = NotificationResource::collection($notifications)->additional([
             'unread_count' => $unreadCount,
-            'data' => $resourceCollection,
-            'meta' => [
-                'current_page' => $notifications->currentPage(),
-                'total' => $notifications->total(),
-                'per_page' => $notifications->perPage(),
-            ],
-        ], 200);
+        ]);
+
+        return $this->success(
+            $resourceCollection,
+            'Daftar notifikasi berhasil diambil.'
+        );
     }
 
     #[OA\Post(
