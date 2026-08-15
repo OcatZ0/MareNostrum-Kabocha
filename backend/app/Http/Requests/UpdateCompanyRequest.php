@@ -31,8 +31,8 @@ class UpdateCompanyRequest extends FormRequest
             'type' => ['sometimes', 'required', 'string', Rule::in([CompanyType::INTERNAL, CompanyType::PARTNER])],
             'city' => ['sometimes', 'required', 'string', 'max:255'],
             'address' => ['nullable', 'string'],
-            'latitude' => ['sometimes', 'required', 'numeric', 'between:-90,90'],
-            'longitude' => ['sometimes', 'required', 'numeric', 'between:-180,180'],
+            'latitude' => ['sometimes', 'required', 'numeric', 'between:-90,90', 'not_in:0'],
+            'longitude' => ['sometimes', 'required', 'numeric', 'between:-180,180', 'not_in:0'],
         ];
     }
 
@@ -47,6 +47,8 @@ class UpdateCompanyRequest extends FormRequest
             'type.in' => 'Company type must be internal or partner.',
             'latitude.between' => 'Latitude coordinate must be between -90 and 90.',
             'longitude.between' => 'Longitude coordinate must be between -180 and 180.',
+            'latitude.not_in' => 'Latitude cannot be 0 — enter this company\'s real coordinate.',
+            'longitude.not_in' => 'Longitude cannot be 0 — enter this company\'s real coordinate.',
         ];
     }
 }

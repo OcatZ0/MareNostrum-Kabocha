@@ -15,6 +15,15 @@ import Cookies from 'js-cookie';
 import { COLORS } from './dashboardTheme';
 import { getNotifications, markAllAsRead } from '../../api/notificationsApi';
 import axiosClient from '../../axios';
+import { useStateContext } from '../../Contexts/Context';
+
+const initials = (name) => {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  return parts.length > 1
+    ? (parts[0][0] + parts[1][0]).toUpperCase()
+    : parts[0].slice(0, 2).toUpperCase();
+};
 
 /** onMenuClick - opens the mobile sidebar drawer */
 const DashboardTopbar = ({
@@ -22,17 +31,18 @@ const DashboardTopbar = ({
   unreadCountProp = null,
 }) => {
   const navigate = useNavigate();
+  const { currentUser, setToken, setCurrentUser } = useStateContext();
 
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(unreadCountProp ?? 0);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
-  const [currentUser, setCurrentUser] = useState({ name: 'Admin', role: 'admin' });
   const [searchTerm, setSearchTerm] = useState('');
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const notificationRef = useRef(null);
-  const userMenuRef = useRef(null);
+  const profileRef = useRef(null);
 
   // Sync unreadCount from parent prop if provided
   useEffect(() => {
@@ -42,24 +52,26 @@ const DashboardTopbar = ({
   }, [unreadCountProp]);
 
   /* ============================================================
-     LOAD CURRENT USER (From cached Cookies / LocalStorage)
+     LOAD CURRENT USER (Fallback from cached Cookies / LocalStorage if not in context)
   ============================================================ */
   useEffect(() => {
-    try {
-      const rawUser = Cookies.get('currentUser');
-      if (rawUser) {
-        const parsed = JSON.parse(rawUser);
-        setCurrentUser(parsed);
-      } else {
-        const localName = localStorage.getItem('user_name');
-        if (localName) {
-          setCurrentUser({ name: localName, role: 'admin' });
+    if (!currentUser) {
+      try {
+        const rawUser = Cookies.get('currentUser');
+        if (rawUser) {
+          const parsed = JSON.parse(rawUser);
+          setCurrentUser(parsed);
+        } else {
+          const localName = localStorage.getItem('user_name');
+          if (localName) {
+            setCurrentUser({ name: localName, role: 'admin' });
+          }
         }
+      } catch {
+        // ignore JSON parse error
       }
-    } catch {
-      // ignore JSON parse error
     }
-  }, []);
+  }, [currentUser, setCurrentUser]);
 
   /* ============================================================
      LOAD NOTIFICATIONS (Only when user opens dropdown)
@@ -121,10 +133,10 @@ const DashboardTopbar = ({
         setShowNotifications(false);
       }
       if (
-        userMenuRef.current &&
-        !userMenuRef.current.contains(event.target)
+        profileRef.current &&
+        !profileRef.current.contains(event.target)
       ) {
-        setShowUserMenu(false);
+        setShowProfileMenu(false);
       }
     };
 
@@ -147,11 +159,15 @@ const DashboardTopbar = ({
      HANDLE LOGOUT
   ============================================================ */
   const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
     try {
       await axiosClient.post('/api/logout');
-    } catch {
-      // proceed with client logout anyway
+    } catch (error) {
+      console.error('Logout request failed:', error);
     } finally {
+      setToken(null);
+      setCurrentUser(null);
       Cookies.remove('accessToken');
       Cookies.remove('currentUser');
       localStorage.removeItem('user_name');
@@ -208,21 +224,16 @@ const DashboardTopbar = ({
     navigate('/app/notifications');
   };
 
-  // User initials & display info
+  // User display info
   const userName = currentUser?.name || 'Administrator';
   const userRole = (currentUser?.role || 'admin').toUpperCase();
   const userCompany = currentUser?.company_name || 'Mare Nostrum';
-  const userInitials = userName
-    .split(' ')
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase() || 'AD';
+  const userInitials = initials(userName);
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-4 px-4 sm:px-6 py-4 bg-white border-b-2 border-slate-200">
       
-      {/* LEFT SIDE */}
+      {/* LEFT SIDE: Hamburger & Search */}
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <button
           onClick={onMenuClick}
@@ -232,7 +243,7 @@ const DashboardTopbar = ({
           <Menu size={18} />
         </button>
 
-        {/* Search */}
+        {/* Search Input */}
         <div className="hidden md:flex items-center flex-1 max-w-md px-3.5 py-2 rounded-lg border-2 border-slate-200 text-slate-400 focus-within:border-slate-400 focus-within:text-slate-600 transition">
           <Search size={16} />
           <input
@@ -249,10 +260,10 @@ const DashboardTopbar = ({
         </div>
       </div>
 
-      {/* RIGHT SIDE */}
+      {/* RIGHT SIDE: Notifications & Profile */}
       <div className="flex items-center gap-3 sm:gap-4 shrink-0">
 
-        {/* NOTIFICATION */}
+        {/* NOTIFICATIONS */}
         <div ref={notificationRef} className="relative">
           <button
             onClick={() => setShowNotifications((prev) => !prev)}
@@ -374,9 +385,9 @@ const DashboardTopbar = ({
         </div>
 
         {/* USER PROFILE & MENU */}
-        <div ref={userMenuRef} className="relative">
+        <div ref={profileRef} className="relative">
           <button
-            onClick={() => setShowUserMenu((prev) => !prev)}
+            onClick={() => setShowProfileMenu((prev) => !prev)}
             className="flex items-center gap-2 p-1 rounded-lg hover:bg-slate-50 transition border border-transparent hover:border-slate-200"
           >
             <div
@@ -397,14 +408,20 @@ const DashboardTopbar = ({
               </p>
             </div>
 
-            <ChevronDown size={14} className="hidden sm:block text-slate-400" />
+            <ChevronDown
+              size={14}
+              className={`hidden sm:block text-slate-400 transition-transform ${showProfileMenu ? 'rotate-180' : ''}`}
+            />
           </button>
 
           {/* User Menu Dropdown */}
-          {showUserMenu && (
+          {showProfileMenu && (
             <div className="absolute right-0 top-12 z-[100] w-56 bg-white rounded-xl border-2 border-slate-200 shadow-xl overflow-hidden py-1">
               <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/60">
                 <p className="text-xs font-bold text-slate-800">{userName}</p>
+                {currentUser?.username && (
+                  <p className="text-[11px] text-slate-400">@{currentUser.username}</p>
+                )}
                 <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-500">
                   <Shield size={12} className="text-teal-600" />
                   <span>{userRole} Role</span>
@@ -414,7 +431,7 @@ const DashboardTopbar = ({
               <div className="py-1">
                 <button
                   onClick={() => {
-                    setShowUserMenu(false);
+                    setShowProfileMenu(false);
                     navigate('/app/dashboard');
                   }}
                   className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 transition text-left"
@@ -427,10 +444,11 @@ const DashboardTopbar = ({
               <div className="border-t border-slate-100 py-1">
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-red-600 hover:bg-red-50 transition text-left font-medium"
+                  disabled={loggingOut}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 transition text-left font-medium disabled:opacity-60"
                 >
                   <LogOut size={14} className="text-red-500" />
-                  Sign Out
+                  {loggingOut ? 'Signing out…' : 'Sign Out'}
                 </button>
               </div>
             </div>

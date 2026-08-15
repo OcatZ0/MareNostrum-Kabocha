@@ -30,8 +30,8 @@ class StorePortRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'country' => ['required', 'string', Rule::in([Country::INDONESIA, Country::SINGAPORE])],
             'unlocode' => ['nullable', 'string', 'size:5', 'alpha_num'],
-            'latitude' => ['required', 'numeric', 'between:-90,90'],
-            'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'latitude' => ['required', 'numeric', 'between:-90,90', 'not_in:0'],
+            'longitude' => ['required', 'numeric', 'between:-180,180', 'not_in:0'],
         ];
     }
 
@@ -59,6 +59,8 @@ class StorePortRequest extends FormRequest
             'unlocode.size' => 'UN/LOCODE must be exactly 5 characters (e.g. IDBTH, SGSIN).',
             'latitude.between' => 'Latitude coordinate must be between -90 and 90.',
             'longitude.between' => 'Longitude coordinate must be between -180 and 180.',
+            'latitude.not_in' => 'Latitude cannot be 0 — enter this port\'s real coordinate.',
+            'longitude.not_in' => 'Longitude cannot be 0 — enter this port\'s real coordinate.',
         ];
     }
 }

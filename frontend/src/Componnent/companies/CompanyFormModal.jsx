@@ -62,7 +62,9 @@ const CompanyFormModal = ({ mode, company, onClose, onSaved }) => {
     const lat = parseFloat(form.latitude);
     const lng = parseFloat(form.longitude);
     if (form.latitude === '' || isNaN(lat) || lat < -90  || lat > 90)   e.latitude  = 'Valid latitude between -90 and 90';
+    else if (lat === 0)                                                e.latitude  = 'Latitude cannot be 0 — enter the real coordinate';
     if (form.longitude === ''|| isNaN(lng) || lng < -180 || lng > 180) e.longitude = 'Valid longitude between -180 and 180';
+    else if (lng === 0)                                                e.longitude = 'Longitude cannot be 0 — enter the real coordinate';
     return e;
   };
 
