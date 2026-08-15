@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\EmissionFactorController;
 use App\Http\Controllers\PortController;
@@ -31,6 +32,10 @@ Route::middleware(BypassAuthForTesting::class)->group(function () {
 
     // Emission Factors
     Route::apiResource('emission-factors', EmissionFactorController::class)->only(['index', 'show']);
+
+    // Analytics
+    Route::get('/analytics/dashboard', [AnalyticsController::class, 'dashboard']);
+    Route::get('/analytics/trips', [AnalyticsController::class, 'trips']);
 
     // Trips
     Route::get('/trips', [TripController::class, 'index']);

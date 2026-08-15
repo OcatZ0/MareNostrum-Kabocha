@@ -12,6 +12,78 @@
         }
     ],
     "paths": {
+        "/analytics/dashboard": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Get dashboard overview analytics summary",
+                "operationId": "885809d37aa3a0262693533797763866",
+                "parameters": [
+                    {
+                        "name": "period",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "all",
+                            "enum": [
+                                "today",
+                                "this_week",
+                                "this_month",
+                                "all"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dashboard analytics summary retrieved successfully."
+                    }
+                }
+            }
+        },
+        "/analytics/trips": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Get detailed trip estimation vs actual performance analytics",
+                "operationId": "e29a0f809d665ca6f1abdd25c9cddd29",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detailed trip analytics retrieved successfully."
+                    }
+                }
+            }
+        },
         "/companies": {
             "get": {
                 "tags": [
@@ -2138,6 +2210,10 @@
         {
             "name": "Trips",
             "description": "Trip planning, assignment and tracking"
+        },
+        {
+            "name": "Analytics",
+            "description": "Dashboard overview and trip performance analytics"
         }
     ]
 }
