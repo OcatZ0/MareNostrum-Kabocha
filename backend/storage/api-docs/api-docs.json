@@ -932,6 +932,165 @@
                     }
                 ]
             }
+        },
+        "/trips/{id}/position": {
+            "get": {
+                "tags": [
+                    "Trips"
+                ],
+                "summary": "Get the trip's current live position for a map marker",
+                "description": "Admin can view any trip. Driver can only view a trip assigned to them. Intended to be polled every 15-30s (PRD Bagian 15) — kept lightweight, single point only. Source switches automatically: status=on_ship queries VesselAPI's live vessel position by ship_ref_id (separate from Bagian 8.2's Port Events, which is for arrival detection via /ship-status, not built yet); any other status returns the most recent GPS checkpoint. Falls back to the last known GPS checkpoint if VesselAPI has no current data for the vessel (e.g. temporarily out of AIS range) or the request fails — a moving marker with slightly stale data beats no marker at all on an endpoint polled this frequently.",
+                "operationId": "e9763cd8169e96494e488a26763878c8",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "OK"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "lat": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "lng": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "recorded_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "source": {
+                                                    "description": "gps = last trip_checkpoints GPS ping, api = live VesselAPI vessel position.",
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "gps",
+                                                        "api"
+                                                    ]
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden — trip not assigned to this driver"
+                    },
+                    "404": {
+                        "description": "Trip not found, or no position data recorded for this trip yet"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/trips/{id}/ship-status": {
+            "get": {
+                "tags": [
+                    "Trips"
+                ],
+                "summary": "Poll for the ship's arrival at the destination port",
+                "description": "Admin can view any trip. Driver can only view a trip assigned to them. Meaningful only while status=on_ship — polls VesselAPI Port Events (PRD Bagian 8.2) filtered by ship_destination_port_id's unlocode, checking for an arrival event matching ship_ref_id. On a match, updates the trip to at_destination_port, records a ship_arrived checkpoint, and notifies the driver — tracking ends there (Bagian 5.3: Company A does not track partner trucks on the other side of the border). If Port Events has no matching data, falls back to Haversine distance (Bagian 18) between the ship's last known live position and the destination port's coordinates, considered arrived within 500m. Intended to be polled every 15-30s like /position; any status other than on_ship is a no-op that just reports the trip's current status.",
+                "operationId": "1fe25cdbf3db3d3d55c5ef9c0c7bd8d8",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "OK"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "on_ship"
+                                                },
+                                                "arrived": {
+                                                    "description": "True only on the call that just detected arrival.",
+                                                    "type": "boolean"
+                                                },
+                                                "source": {
+                                                    "description": "How arrival was detected; null if not arrived (yet).",
+                                                    "type": "string",
+                                                    "nullable": true,
+                                                    "enum": [
+                                                        "port_events",
+                                                        "haversine_fallback"
+                                                    ]
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden — trip not assigned to this driver"
+                    },
+                    "404": {
+                        "description": "Trip not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
         }
     },
     "components": {

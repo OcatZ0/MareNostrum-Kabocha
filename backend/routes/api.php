@@ -25,4 +25,6 @@ Route::middleware(BypassAuthForTesting::class)->group(function () {
     Route::post('/trips/{trip}/ship', [TripController::class, 'ship']);
     Route::post('/trips/{trip}/checkpoints', [TripCheckpointController::class, 'store']);
     Route::get('/trips/{trip}/checkpoints', [TripCheckpointController::class, 'index']);
+    Route::get('/trips/{trip}/position', [TripController::class, 'position']);
+    Route::get('/trips/{trip}/ship-status', [TripController::class, 'shipStatus']);
 });
