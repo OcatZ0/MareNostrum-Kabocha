@@ -17,7 +17,7 @@ class CompanyController extends Controller
     use ApiResponse;
 
     #[OA\Get(
-        path: '/api/companies',
+        path: '/companies',
         summary: 'Get paginated list of companies',
         tags: ['Companies'],
         parameters: [
@@ -55,7 +55,7 @@ class CompanyController extends Controller
     }
 
     #[OA\Post(
-        path: '/api/companies',
+        path: '/companies',
         summary: 'Create a new company',
         requestBody: new OA\RequestBody(
             required: true,
@@ -89,7 +89,7 @@ class CompanyController extends Controller
     }
 
     #[OA\Get(
-        path: '/api/companies/{company}',
+        path: '/companies/{company}',
         summary: 'Get single company details',
         tags: ['Companies'],
         parameters: [
@@ -109,7 +109,7 @@ class CompanyController extends Controller
     }
 
     #[OA\Put(
-        path: '/api/companies/{company}',
+        path: '/companies/{company}',
         summary: 'Update existing company details',
         requestBody: new OA\RequestBody(
             required: true,
@@ -144,7 +144,7 @@ class CompanyController extends Controller
     }
 
     #[OA\Delete(
-        path: '/api/companies/{company}',
+        path: '/companies/{company}',
         summary: 'Delete a company',
         tags: ['Companies'],
         parameters: [

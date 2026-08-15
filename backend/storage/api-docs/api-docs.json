@@ -12,13 +12,13 @@
         }
     ],
     "paths": {
-        "/api/companies": {
+        "/companies": {
             "get": {
                 "tags": [
                     "Companies"
                 ],
                 "summary": "Get paginated list of companies",
-                "operationId": "54f966c056050f9db4fff6ee5a45a76a",
+                "operationId": "8af1177352a157e9228c00f023616d87",
                 "parameters": [
                     {
                         "name": "type",
@@ -61,7 +61,7 @@
                     "Companies"
                 ],
                 "summary": "Create a new company",
-                "operationId": "00e2db7b0f71c32b377f4dfc4dd685a8",
+                "operationId": "dd2ae66c40ea62cd8f20d49bc08e4b21",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -121,13 +121,13 @@
                 }
             }
         },
-        "/api/companies/{company}": {
+        "/companies/{company}": {
             "get": {
                 "tags": [
                     "Companies"
                 ],
                 "summary": "Get single company details",
-                "operationId": "dbcfdfb0281353ca1b00a67c0b0c2308",
+                "operationId": "698a900dfd479af004615dda8237f2d1",
                 "parameters": [
                     {
                         "name": "company",
@@ -152,7 +152,7 @@
                     "Companies"
                 ],
                 "summary": "Update existing company details",
-                "operationId": "17ee846405381b70d408b7532b44601a",
+                "operationId": "5c7281a657faa268f7179916363cd7c8",
                 "parameters": [
                     {
                         "name": "company",
@@ -214,7 +214,7 @@
                     "Companies"
                 ],
                 "summary": "Delete a company",
-                "operationId": "815006ac9bb0fb97b1cad53b1a620652",
+                "operationId": "1cf2d2ee9aab00344b6a01ad6febfcea",
                 "parameters": [
                     {
                         "name": "company",
