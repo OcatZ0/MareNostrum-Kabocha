@@ -683,6 +683,7 @@ const todayStr = () => {
 };
 
 const RecommendTab = ({ trip, onUpdated }) => {
+  const isCross = !!trip.ship_destination_port;
   const hasVessel = !!trip.vessel_schedule?.scheduled_departure_at;
 
   // If vessel schedule is present, generate options including Hari Ini and pre-vessel dates
