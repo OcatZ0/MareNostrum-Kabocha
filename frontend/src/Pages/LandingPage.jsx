@@ -1052,7 +1052,7 @@ export default function LandingPage() {
               style={{ fontSize: "1.08rem", lineHeight: 1.75, color: "#3D5468", maxWidth: 500, margin: "0 0 2.2rem" }}
             >
               Mare Nostrum builds departure schedules from real-time traffic data, then
-              follows the truck and the ship until the cargo actually arrives —
+              follows the truck and the ship until the cargo actually arrives -
               not just until it reaches the port gate.
             </p>
             <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
@@ -1142,11 +1142,11 @@ export default function LandingPage() {
                 Sudirman and Yos Sudarso jam up during peak hours. Ferry and port traffic
                 to Singapore adds pressure at the same times. In between, logistics
                 visibility between Batam's industrial area and Singapore's port is
-                close to none — admins end up scheduling on guesswork, not data.
+                close to none - admins end up scheduling on guesswork, not data.
               </p>
               <p style={{ fontSize: "1.04rem", lineHeight: 1.8, color: "#3D5468", margin: 0 }}>
                 Mare Nostrum is used by Company A to plan, schedule, and track shipments
-                to many partners — across the city and across the border —
+                to many partners - across the city and across the border -
                 from a single integrated dashboard.
               </p>
             </div>
@@ -1156,198 +1156,198 @@ export default function LandingPage() {
 
       {/* HOW IT WORKS / ALUR */}
       <section id="alur" style={{ maxWidth: 1160, margin: "0 auto", padding: "5rem 1.5rem" }}>
-          <div className="steps-header">
-            <Eyebrow>How it works</Eyebrow>
+        <div className="steps-header">
+          <Eyebrow>How it works</Eyebrow>
+          <h2 style={{ fontFamily: fontDisplay, fontWeight: 600, fontSize: "2.2rem", margin: "0 0 2.8rem", color: c.ink }}>
+            Four steps, from plan to delivery.
+          </h2>
+        </div>
+        <div className="steps-container">
+          <StepRow
+            number="01"
+            title="Plan & Traffic Routing"
+            desc="Admin picks the origin and destination. The system pulls real-time TomTom traffic data to estimate travel time on the main route."
+          />
+          <StepRow
+            number="02"
+            title="Schedule & Slot Recommendation"
+            desc="The system builds three departure time options based on congestion and delay history, then admin assigns a truck, driver, and Ship ID for cross-border trips."
+          />
+          <StepRow
+            number="03"
+            title="Track on Land with Smart Geofence"
+            desc="The driver activates GPS on departure. Once the position enters a 100-meter radius of the destination, arrival confirmation is validated automatically."
+          />
+          <StepRow
+            number="04"
+            title="Track at Sea & Final Milestone"
+            desc="For cross-border shipments, the ship's status is tracked via its Ship ID until an arrival event is logged at the destination port."
+            last
+          />
+        </div>
+      </section>
+
+      {/* FEATURES / WHAT IT DOES */}
+      <section id="fitur" style={{ background: c.mist, borderTop: `1px solid ${c.line}`, borderBottom: `1px solid ${c.line}` }}>
+        <div style={{ maxWidth: 1160, margin: "0 auto", padding: "5rem 1.5rem" }}>
+          <div className="features-header">
+            <Eyebrow>What it does</Eyebrow>
             <h2 style={{ fontFamily: fontDisplay, fontWeight: 600, fontSize: "2.2rem", margin: "0 0 2.8rem", color: c.ink }}>
-              Four steps, from plan to delivery.
+              Every part of the journey, in one system.
             </h2>
           </div>
-          <div className="steps-container">
-            <StepRow
-              number="01"
-              title="Plan & Traffic Routing"
-              desc="Admin picks the origin and destination. The system pulls real-time TomTom traffic data to estimate travel time on the main route."
+          <div
+            className="features-grid steps-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: "1.4rem",
+            }}
+          >
+            <FeatureCard
+              icon={Radar}
+              accent={c.aqua}
+              title="Traffic prediction dashboard"
+              desc="Main route and departure time recommendations are built from current and historical traffic data."
             />
-            <StepRow
-              number="02"
-              title="Schedule & Slot Recommendation"
-              desc="The system builds three departure time options based on congestion and delay history, then admin assigns a truck, driver, and Ship ID for cross-border trips."
+            <FeatureCard
+              icon={Leaf}
+              accent={c.green}
+              title="CO2 emissions calculator"
+              desc="Emissions are estimated per truck and per trip, so the fleet has data to analyze, not just routes to run."
             />
-            <StepRow
-              number="03"
-              title="Track on Land with Smart Geofence"
-              desc="The driver activates GPS on departure. Once the position enters a 100-meter radius of the destination, arrival confirmation is validated automatically."
+            <FeatureCard
+              icon={Bell}
+              accent={c.teal}
+              title="In-app notifications"
+              desc="Drivers and admins are notified the moment a trip is assigned, a checkpoint is hit, or a trip drifts from its estimate."
             />
-            <StepRow
-              number="04"
-              title="Track at Sea & Final Milestone"
-              desc="For cross-border shipments, the ship's status is tracked via its Ship ID until an arrival event is logged at the destination port."
-              last
+            <FeatureCard
+              icon={Truck}
+              accent={c.navy}
+              title="Truck & user management"
+              desc="Truck, driver, and admin data live in one place, complete with each vehicle's trip history."
+            />
+            <FeatureCard
+              icon={MapPin}
+              accent={c.aqua}
+              title="Driver GPS tracking"
+              desc="Truck position is tracked throughout the trip, with automatic distance validation as it nears the destination."
+            />
+            <FeatureCard
+              icon={Ship}
+              accent={c.teal}
+              title="Ship tracking via Ship ID"
+              desc="For cross-border trips, the ship's status is tracked until an arrival event at the destination port is detected."
             />
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* FEATURES / WHAT IT DOES */}
-        <section id="fitur" style={{ background: c.mist, borderTop: `1px solid ${c.line}`, borderBottom: `1px solid ${c.line}` }}>
-          <div style={{ maxWidth: 1160, margin: "0 auto", padding: "5rem 1.5rem" }}>
-            <div className="features-header">
-              <Eyebrow>What it does</Eyebrow>
-              <h2 style={{ fontFamily: fontDisplay, fontWeight: 600, fontSize: "2.2rem", margin: "0 0 2.8rem", color: c.ink }}>
-                Every part of the journey, in one system.
-              </h2>
-            </div>
-            <div
-              className="features-grid steps-grid"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: "1.4rem",
-              }}
-            >
-              <FeatureCard
-                icon={Radar}
-                accent={c.aqua}
-                title="Traffic prediction dashboard"
-                desc="Main route and departure time recommendations are built from current and historical traffic data."
-              />
-              <FeatureCard
-                icon={Leaf}
-                accent={c.green}
-                title="CO2 emissions calculator"
-                desc="Emissions are estimated per truck and per trip, so the fleet has data to analyze, not just routes to run."
-              />
-              <FeatureCard
-                icon={Bell}
-                accent={c.teal}
-                title="In-app notifications"
-                desc="Drivers and admins are notified the moment a trip is assigned, a checkpoint is hit, or a trip drifts from its estimate."
-              />
-              <FeatureCard
-                icon={Truck}
-                accent={c.navy}
-                title="Truck & user management"
-                desc="Truck, driver, and admin data live in one place, complete with each vehicle's trip history."
-              />
-              <FeatureCard
-                icon={MapPin}
-                accent={c.aqua}
-                title="Driver GPS tracking"
-                desc="Truck position is tracked throughout the trip, with automatic distance validation as it nears the destination."
-              />
-              <FeatureCard
-                icon={Ship}
-                accent={c.teal}
-                title="Ship tracking via Ship ID"
-                desc="For cross-border trips, the ship's status is tracked until an arrival event at the destination port is detected."
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* ROLES SECTION */}
-        <section id="peran" style={{ maxWidth: 1160, margin: "0 auto", padding: "5rem 1.5rem" }}>
-          <div className="roles-header">
-            <Eyebrow>Two roles, one flow</Eyebrow>
-            <h2 style={{ fontFamily: fontDisplay, fontWeight: 600, fontSize: "2.2rem", margin: "0 0 2.8rem", color: c.ink }}>
-              Built for the people who plan and the people who drive.
-            </h2>
-          </div>
-          <div className="roles-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.8rem" }}>
-            {/* Admin Role Card */}
-            <div
-              className="role-card-admin"
-              style={{
-                background: `linear-gradient(145deg, ${c.ink}, ${c.navy})`,
-                color: "#fff",
-                borderRadius: 20,
-                padding: "2.4rem",
-                boxShadow: "0 18px 36px -10px rgba(13,33,55,0.35)",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.4rem" }}>
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    background: "rgba(159,196,232,0.15)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <ShieldCheck size={20} color="#9FC4E8" />
-                </div>
-                <span style={{ fontFamily: fontMono, fontSize: "0.76rem", fontWeight: 600, letterSpacing: "0.12em", color: "#9FC4E8" }}>
-                  ADMIN ROLE
-                </span>
+      {/* ROLES SECTION */}
+      <section id="peran" style={{ maxWidth: 1160, margin: "0 auto", padding: "5rem 1.5rem" }}>
+        <div className="roles-header">
+          <Eyebrow>Two roles, one flow</Eyebrow>
+          <h2 style={{ fontFamily: fontDisplay, fontWeight: 600, fontSize: "2.2rem", margin: "0 0 2.8rem", color: c.ink }}>
+            Built for the people who plan and the people who drive.
+          </h2>
+        </div>
+        <div className="roles-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.8rem" }}>
+          {/* Admin Role Card */}
+          <div
+            className="role-card-admin"
+            style={{
+              background: `linear-gradient(145deg, ${c.ink}, ${c.navy})`,
+              color: "#fff",
+              borderRadius: 20,
+              padding: "2.4rem",
+              boxShadow: "0 18px 36px -10px rgba(13,33,55,0.35)",
+              border: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.4rem" }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: "rgba(159,196,232,0.15)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <ShieldCheck size={20} color="#9FC4E8" />
               </div>
-              <h3 style={{ fontFamily: fontDisplay, fontSize: "1.45rem", fontWeight: 600, margin: "0 0 1.2rem", lineHeight: 1.3 }}>
-                Plan, schedule, and oversee the whole fleet.
-              </h3>
-              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-                {[
-                  "Manage users, trucks, and partner company data",
-                  "Create and assign shipment schedules with time slots",
-                  "Choose routes & departure times from system recommendations",
-                  "Enter Ship ID for cross-border trips to Singapore",
-                  "Monitor real-time dashboard and trip history analytics",
-                ].map((t) => (
-                  <li key={t} className="role-list-item" style={{ display: "flex", gap: 10, fontSize: "0.94rem", color: "#CBD9E8", lineHeight: 1.55 }}>
-                    <CheckCircle2 size={16} color={c.aqua} style={{ flexShrink: 0, marginTop: 3 }} /> {t}
-                  </li>
-                ))}
-              </ul>
+              <span style={{ fontFamily: fontMono, fontSize: "0.76rem", fontWeight: 600, letterSpacing: "0.12em", color: "#9FC4E8" }}>
+                ADMIN ROLE
+              </span>
             </div>
-
-            {/* Driver Role Card */}
-            <div
-              className="role-card-driver"
-              style={{
-                background: "#fff",
-                border: `1px solid ${c.line}`,
-                borderRadius: 20,
-                padding: "2.4rem",
-                boxShadow: "0 18px 36px -10px rgba(26,54,93,0.08)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.4rem" }}>
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    background: "rgba(42,111,138,0.1)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Users size={20} color={c.teal} />
-                </div>
-                <span style={{ fontFamily: fontMono, fontSize: "0.76rem", fontWeight: 600, letterSpacing: "0.12em", color: c.teal }}>
-                  DRIVER ROLE
-                </span>
-              </div>
-              <h3 style={{ fontFamily: fontDisplay, fontSize: "1.45rem", fontWeight: 600, margin: "0 0 1.2rem", color: c.ink, lineHeight: 1.3 }}>
-                Run assigned trips, right from the browser.
-              </h3>
-              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-                {[
-                  "View assigned schedule & destination instructions",
-                  "Start trip and stream real-time GPS location",
-                  "Confirm arrival, validated automatically via 100m geofence",
-                  "Receive instant in-app alerts on schedule changes",
-                ].map((t) => (
-                  <li key={t} className="role-list-item" style={{ display: "flex", gap: 10, fontSize: "0.94rem", color: "#4A5F73", lineHeight: 1.55 }}>
-                    <CheckCircle2 size={16} color={c.teal} style={{ flexShrink: 0, marginTop: 3 }} /> {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <h3 style={{ fontFamily: fontDisplay, fontSize: "1.45rem", fontWeight: 600, margin: "0 0 1.2rem", lineHeight: 1.3 }}>
+              Plan, schedule, and oversee the whole fleet.
+            </h3>
+            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+              {[
+                "Manage users, trucks, and partner company data",
+                "Create and assign shipment schedules with time slots",
+                "Choose routes & departure times from system recommendations",
+                "Enter Ship ID for cross-border trips to Singapore",
+                "Monitor real-time dashboard and trip history analytics",
+              ].map((t) => (
+                <li key={t} className="role-list-item" style={{ display: "flex", gap: 10, fontSize: "0.94rem", color: "#CBD9E8", lineHeight: 1.55 }}>
+                  <CheckCircle2 size={16} color={c.aqua} style={{ flexShrink: 0, marginTop: 3 }} /> {t}
+                </li>
+              ))}
+            </ul>
           </div>
-        </section>
+
+          {/* Driver Role Card */}
+          <div
+            className="role-card-driver"
+            style={{
+              background: "#fff",
+              border: `1px solid ${c.line}`,
+              borderRadius: 20,
+              padding: "2.4rem",
+              boxShadow: "0 18px 36px -10px rgba(26,54,93,0.08)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.4rem" }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: "rgba(42,111,138,0.1)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Users size={20} color={c.teal} />
+              </div>
+              <span style={{ fontFamily: fontMono, fontSize: "0.76rem", fontWeight: 600, letterSpacing: "0.12em", color: c.teal }}>
+                DRIVER ROLE
+              </span>
+            </div>
+            <h3 style={{ fontFamily: fontDisplay, fontSize: "1.45rem", fontWeight: 600, margin: "0 0 1.2rem", color: c.ink, lineHeight: 1.3 }}>
+              Run assigned trips, right from the browser.
+            </h3>
+            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+              {[
+                "View assigned schedule & destination instructions",
+                "Start trip and stream real-time GPS location",
+                "Confirm arrival, validated automatically via 100m geofence",
+                "Receive instant in-app alerts on schedule changes",
+              ].map((t) => (
+                <li key={t} className="role-list-item" style={{ display: "flex", gap: 10, fontSize: "0.94rem", color: "#4A5F73", lineHeight: 1.55 }}>
+                  <CheckCircle2 size={16} color={c.teal} style={{ flexShrink: 0, marginTop: 3 }} /> {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
 
       {/* CTA BANNER */}
       <section id="kontak" style={{ maxWidth: 1160, margin: "0 auto", padding: "0 1.5rem 5rem" }}>
@@ -1414,7 +1414,7 @@ export default function LandingPage() {
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <CompassMark size={24} />
             <span style={{ fontFamily: fontMono, fontSize: "0.8rem", color: "#5B7185", fontWeight: 500 }}>
-              Mare Nostrum — Our sea, our trade
+              Mare Nostrum - Our sea, our trade
             </span>
           </div>
           <span style={{ fontFamily: fontMono, fontSize: "0.76rem", color: "#8FA3B5" }}>

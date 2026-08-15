@@ -214,7 +214,7 @@ const Login = () => {
           </h1>
           <p className="login-left-text mt-4 text-sm leading-relaxed" style={{ color: '#B9D3E0' }}>
             Plan, schedule, and track cross-city and cross-border shipments
-            end-to-end — trucks on land, ships at sea.
+            end-to-end - trucks on land, ships at sea.
           </p>
         </div>
 
@@ -254,7 +254,7 @@ const Login = () => {
               to="/"
               className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-slate-500 hover:text-slate-800 transition py-1.5 px-3 rounded-full hover:bg-slate-100 border border-slate-200"
             >
-              <ArrowLeft size={13} /> Kembali ke Beranda
+              <ArrowLeft size={13} /> Back to Home
             </Link>
           </div>
 
@@ -280,7 +280,7 @@ const Login = () => {
             Sign in to your account
           </h2>
           <p className="login-form-item text-sm text-slate-500 mt-1">
-            Masukkan akun admin atau driver Anda untuk melanjutkan.
+            Enter your admin or driver credentials to continue.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-7 space-y-4">
@@ -306,7 +306,7 @@ const Login = () => {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="admin atau driver@marenostrum.id"
+                  placeholder="admin or driver@marenostrum.id"
                   className="w-full pl-11 pr-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:ring-2 focus:border-transparent shadow-sm"
                   style={{ '--tw-ring-color': COLORS.aqua }}
                   onFocus={(e) => (e.target.style.boxShadow = `0 0 0 2px ${COLORS.aqua}`)}
@@ -320,13 +320,6 @@ const Login = () => {
                 <label htmlFor="password" className="block text-sm font-medium text-slate-700">
                   Password
                 </label>
-                <a
-                  href="#"
-                  className="text-xs font-medium hover:underline"
-                  style={{ color: COLORS.teal }}
-                >
-                  Forgot password?
-                </a>
               </div>
               <div className="relative">
                 <Lock
@@ -355,18 +348,7 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="login-form-item">
-              <label className="flex items-center gap-2 text-sm text-slate-600 select-none cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300"
-                  style={{ accentColor: COLORS.teal }}
-                />
-                Remember me on this device
-              </label>
-            </div>
+            
 
             <div className="login-form-item pt-1">
               <button
@@ -387,7 +369,7 @@ const Login = () => {
           </form>
 
           <p className="login-form-item mt-8 text-xs text-slate-400 leading-relaxed">
-            Akses sistem dibatasi untuk personel terdaftar (Admin & Driver). Hubungi administrator jika Anda belum memiliki kredensial login.
+            System access is restricted to registered personnel (Admin & Driver). Contact your administrator if you do not have login credentials.
           </p>
         </div>
       </div>
