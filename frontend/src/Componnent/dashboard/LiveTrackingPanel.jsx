@@ -86,7 +86,7 @@ const LiveTrackingPanel = ({ trip = null, checkpoints = [] }) => {
   const isCompleted = rawStatus === 'completed' || rawStatus === 'arrived';
 
   return (
-    <div className="bg-white rounded-xl border border-slate-100 p-5 sm:p-6 h-full flex flex-col">
+    <div className="bg-white rounded-xl border-2 border-slate-200 p-5 sm:p-6 h-full flex flex-col shadow-sm">
       <div className="flex items-start justify-between mb-1">
         <div>
           <div className="flex items-center gap-2">

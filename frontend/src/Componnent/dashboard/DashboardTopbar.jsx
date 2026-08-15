@@ -215,7 +215,7 @@ const DashboardTopbar = ({ onMenuClick = () => {} }) => {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between gap-4 px-4 sm:px-6 py-4 bg-white border-b border-slate-100">
+    <header className="sticky top-0 z-30 flex items-center justify-between gap-4 px-4 sm:px-6 py-4 bg-white border-b-2 border-slate-200">
       
       {/* ========================================================
           LEFT SIDE
@@ -229,7 +229,7 @@ const DashboardTopbar = ({ onMenuClick = () => {} }) => {
             lg:hidden
             w-9 h-9
             rounded-lg
-            border border-slate-200
+            border-2 border-slate-200
             flex items-center justify-center
             text-slate-500
           "
@@ -238,7 +238,7 @@ const DashboardTopbar = ({ onMenuClick = () => {} }) => {
         </button>
 
         {/* Search */}
-        <div className="hidden md:flex items-center flex-1 max-w-md px-3.5 py-2 rounded-lg border border-slate-200 text-slate-400">
+        <div className="hidden md:flex items-center flex-1 max-w-md px-3.5 py-2 rounded-lg border-2 border-slate-200 text-slate-400">
           <Search size={16} />
 
           <input
@@ -284,14 +284,14 @@ const DashboardTopbar = ({ onMenuClick = () => {} }) => {
               relative
               w-9 h-9
               rounded-full
-              border
+              border-2
               flex
               items-center
               justify-center
               transition
               ${
                 showNotifications
-                  ? 'border-slate-300 bg-slate-50 text-slate-700'
+                  ? 'border-slate-400 bg-slate-50 text-slate-700'
                   : 'border-slate-200 text-slate-500 hover:bg-slate-50'
               }
             `}
@@ -342,7 +342,7 @@ const DashboardTopbar = ({ onMenuClick = () => {} }) => {
                 max-w-[calc(100vw-2rem)]
                 bg-white
                 rounded-xl
-                border
+                border-2
                 border-slate-200
                 shadow-xl
                 overflow-hidden
@@ -350,7 +350,7 @@ const DashboardTopbar = ({ onMenuClick = () => {} }) => {
             >
 
               {/* Dropdown Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+              <div className="flex items-center justify-between px-4 py-3 border-b-2 border-slate-100">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800">
                     Notifications

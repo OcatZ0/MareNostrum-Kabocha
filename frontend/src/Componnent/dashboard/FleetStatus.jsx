@@ -13,7 +13,7 @@ const FleetStatus = ({ trucks = [], loading = false }) => {
   const displayTrucks = trucks.length > 0 ? trucks : (loading ? [] : DEFAULT_TRUCKS);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-100 p-5 sm:p-6">
+    <div className="bg-white rounded-xl border-2 border-slate-200 p-5 sm:p-6 shadow-sm">
       <div className="flex items-start justify-between mb-5">
         <h3 className="text-sm font-semibold text-slate-800">Fleet Status</h3>
         <span className="text-xs font-medium text-slate-400">
@@ -26,7 +26,7 @@ const FleetStatus = ({ trucks = [], loading = false }) => {
       ) : displayTrucks.length === 0 ? (
         <div className="py-8 text-center text-xs text-slate-400">Belum ada armada truk.</div>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y-2 divide-slate-100">
           {displayTrucks.map((t, idx) => {
             const plate = t.plate_number || t.plate || `Truck #${idx + 1}`;
             const model = t.brand ? `${t.brand} ${t.model || ''}`.trim() : (t.model || 'Commercial Truck');

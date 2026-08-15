@@ -35,7 +35,7 @@ const NAV_ITEMS = [
   {
     label: 'Drivers',
     icon: Users,
-    to: '/app/drivers',
+    to: '/app/driversPage',
   },
   {
     label: 'Companies & Ports',
@@ -47,16 +47,6 @@ const NAV_ITEMS = [
     icon: Bell,
     to: '/app/notifications',
     badgeKey: 'unread',
-  },
-  {
-    label: 'Emissions',
-    icon: Leaf,
-    to: '#',
-  },
-  {
-    label: 'Settings',
-    icon: Settings,
-    to: '#',
   },
 ];
 
@@ -102,7 +92,7 @@ const DashboardSidebar = ({ open = false, onClose = () => {} }) => {
       <aside
         className={`
           fixed inset-y-0 left-0 z-50 w-64
-          bg-white border-r border-slate-100
+          bg-white border-r-2 border-slate-200
           flex flex-col
           transform transition-transform duration-200 ease-out
           lg:translate-x-0
@@ -164,33 +154,7 @@ const DashboardSidebar = ({ open = false, onClose = () => {} }) => {
 
           {/* Navigation items */}
           {NAV_ITEMS.map(({ label, icon: Icon, to, badgeKey }) => {
-            const disabled = to === '#';
-            const badge = badgeKey === 'unread' ? unreadCount : 0;
-
-            /* =================================================
-               Disabled menu
-            ================================================== */
-            if (disabled) {
-              return (
-                <div
-                  key={label}
-                  className="
-                    w-full flex items-center justify-between gap-2
-                    px-3 py-2.5 rounded-lg
-                    text-sm font-medium
-                    text-slate-400
-                    cursor-not-allowed
-                    select-none
-                    opacity-50
-                  "
-                >
-                  <span className="flex items-center gap-3">
-                    <Icon size={18} color="#CBD5E1" />
-                    {label}
-                  </span>
-                </div>
-              );
-            }
+            const badge = badgeKey === 'unread' ? unreadCount : 0;  
 
             /* =================================================
                Active / enabled menu
@@ -266,7 +230,7 @@ const DashboardSidebar = ({ open = false, onClose = () => {} }) => {
         {/* =====================================================
             SIDEBAR FOOTER
         ====================================================== */}
-        <div className="px-5 py-4 border-t border-slate-100">
+        <div className="px-5 py-4 border-t-2 border-slate-200">
           <p className="text-[11px] text-slate-400 leading-relaxed">
             Batam ↔ Singapore cross-border logistics visibility.
           </p>
