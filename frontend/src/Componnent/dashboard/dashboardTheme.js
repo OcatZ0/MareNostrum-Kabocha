@@ -13,6 +13,7 @@ export const COLORS = {
 
 export const STATUS_STYLES = {
   // fleet
+  active: { label: 'Active', bg: '#E7F6EC', color: COLORS.green },
   onRoute: { label: 'On route', bg: '#E8F4FB', color: COLORS.aqua },
   idle: { label: 'Idle', bg: '#EEF2F6', color: '#64748B' },
   maintenance: { label: 'Maintenance', bg: '#FDF2E9', color: '#C2703D' },
