@@ -32,8 +32,45 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-const TripVolumeChart = ({ data = DEFAULT_DATA }) => {
-  const total = data.reduce((sum, d) => sum + d.domestic + d.crossBorder, 0);
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const TripVolumeChart = ({ data = null, trips = [] }) => {
+  let chartData = data;
+
+  if (!chartData && trips && trips.length > 0) {
+    const monthlyMap = {};
+    MONTHS.forEach((m) => {
+      monthlyMap[m] = { month: m, domestic: 0, crossBorder: 0 };
+    });
+
+    trips.forEach((t) => {
+      const d = t.created_at ? new Date(t.created_at) : new Date();
+      const monthName = MONTHS[d.getMonth()];
+      const isCrossBorder = Boolean(
+        t.ship_ref_id ||
+        t.origin_port_id ||
+        t.destination_port_id ||
+        t.destination?.type === 'port' ||
+        t.origin?.type === 'port'
+      );
+
+      if (monthlyMap[monthName]) {
+        if (isCrossBorder) {
+          monthlyMap[monthName].crossBorder += 1;
+        } else {
+          monthlyMap[monthName].domestic += 1;
+        }
+      }
+    });
+
+    const hasAny = Object.values(monthlyMap).some((m) => m.domestic > 0 || m.crossBorder > 0);
+    chartData = hasAny ? Object.values(monthlyMap) : DEFAULT_DATA;
+  } else if (!chartData) {
+    chartData = DEFAULT_DATA;
+  }
+
+  const finalData = Array.isArray(chartData) && chartData.length > 0 ? chartData : DEFAULT_DATA;
+  const total = finalData.reduce((sum, d) => sum + (d.domestic || 0) + (d.crossBorder || 0), 0);
 
   return (
     <div className="bg-white rounded-xl border border-slate-100 p-5 sm:p-6">
@@ -41,13 +78,9 @@ const TripVolumeChart = ({ data = DEFAULT_DATA }) => {
         <div>
           <h3 className="text-base font-semibold text-slate-800">Trip Volume</h3>
           <p className="text-sm text-slate-400 mt-0.5">
-            Total trips this year: {total.toLocaleString()}
+            Total recorded trips: {total.toLocaleString()}
           </p>
         </div>
-        <button className="flex items-center gap-1.5 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5">
-          Monthly
-          <ChevronDown size={14} />
-        </button>
       </div>
 
       <div className="flex items-center gap-5 mb-4">
@@ -63,7 +96,7 @@ const TripVolumeChart = ({ data = DEFAULT_DATA }) => {
 
       <div className="h-72 -ml-2">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} barGap={4} barCategoryGap="28%">
+          <BarChart data={finalData} barGap={4} barCategoryGap="28%">
             <CartesianGrid vertical={false} stroke="#F1F5F9" />
             <XAxis
               dataKey="month"
