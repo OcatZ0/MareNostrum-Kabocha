@@ -97,7 +97,7 @@ class PortApiTest extends TestCase
         $response->assertStatus(201)
             ->assertJson([
                 'success' => true,
-                'message' => 'Pelabuhan berhasil ditambahkan.',
+                'message' => 'Port created successfully.',
                 'data' => [
                     'name' => 'Sekupang International Ferry Terminal',
                     'country' => Country::INDONESIA,
@@ -202,7 +202,7 @@ class PortApiTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'message' => 'Pelabuhan berhasil dihapus.',
+                'message' => 'Port deleted successfully.',
             ]);
 
         $this->assertDatabaseMissing('ports', [
@@ -237,7 +237,7 @@ class PortApiTest extends TestCase
         $response->assertStatus(422)
             ->assertJson([
                 'success' => false,
-                'message' => 'Tidak dapat menghapus pelabuhan yang masih terhubung dengan data trip.',
+                'message' => 'Cannot delete port referenced in trips.',
             ]);
 
         $this->assertDatabaseHas('ports', [

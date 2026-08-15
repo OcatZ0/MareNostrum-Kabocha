@@ -39,7 +39,7 @@ const DriverDetailModal = ({ user, onClose, onRefresh, onUserUpdated }) => {
       onUserUpdated(res.data?.data ?? { ...user, ...form });
       setEditing(false);
     } catch (err) {
-      setError(err?.response?.data?.message ?? 'Gagal menyimpan perubahan.');
+      setError(err?.response?.data?.message ?? 'Failed to save changes.');
     } finally {
       setSubmitting(false);
     }
@@ -52,7 +52,7 @@ const DriverDetailModal = ({ user, onClose, onRefresh, onUserUpdated }) => {
       await deleteUser(user.id);
       onRefresh();
     } catch (err) {
-      setError(err?.response?.data?.message ?? 'Gagal menghapus user.');
+      setError(err?.response?.data?.message ?? 'Failed to delete user.');
       setSubmitting(false);
     }
   };
@@ -80,10 +80,10 @@ const DriverDetailModal = ({ user, onClose, onRefresh, onUserUpdated }) => {
           {!editing && !confirmingDelete && (
             <>
               <div className="mb-4">
-                <Row label="Nama" value={user.name} />
+                <Row label="Name" value={user.name} />
                 <Row label="Username" value={user.username} />
-                <Row label="Telepon" value={user.phone ?? '—'} />
-                <Row label="Total Trip" value={user.trips_count ?? 0} />
+                <Row label="Phone" value={user.phone ?? '—'} />
+                <Row label="Total Trips" value={user.trips_count ?? 0} />
                 <div className="flex items-center justify-between py-2.5">
                   <span className="text-xs text-slate-400">Role</span>
                   <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ backgroundColor: s.bg, color: s.color }}>{s.label}</span>
@@ -95,7 +95,7 @@ const DriverDetailModal = ({ user, onClose, onRefresh, onUserUpdated }) => {
                   onClick={() => setConfirmingDelete(true)}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-red-200 text-red-600 hover:bg-red-50 transition"
                 >
-                  <Trash2 size={14} /> Hapus
+                  <Trash2 size={14} /> Delete
                 </button>
                 <button
                   onClick={() => setEditing(true)}
@@ -111,22 +111,22 @@ const DriverDetailModal = ({ user, onClose, onRefresh, onUserUpdated }) => {
           {confirmingDelete && (
             <>
               <p className="text-sm text-slate-600 leading-relaxed mb-4">
-                Hapus <strong>{user.name}</strong>? Trip yang pernah ditangani tetap tersimpan di histori, tapi
-                akun ini tidak bisa lagi login atau di-assign ke trip baru.
+                Delete <strong>{user.name}</strong>? Trips previously handled will be preserved in history, but
+                this account can no longer log in or be assigned to new trips.
               </p>
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setConfirmingDelete(false)}
                   className="px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
                 >
-                  Batal
+                  Cancel
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={submitting}
                   className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition disabled:opacity-50"
                 >
-                  {submitting ? 'Menghapus…' : 'Hapus User'}
+                  {submitting ? 'Deleting…' : 'Delete User'}
                 </button>
               </div>
             </>
@@ -135,7 +135,7 @@ const DriverDetailModal = ({ user, onClose, onRefresh, onUserUpdated }) => {
           {editing && (
             <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Name</label>
                 <input
                   required
                   value={form.name}
@@ -153,7 +153,7 @@ const DriverDetailModal = ({ user, onClose, onRefresh, onUserUpdated }) => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Telepon</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Phone</label>
                 <input
                   value={form.phone}
                   onChange={set('phone')}
@@ -177,7 +177,7 @@ const DriverDetailModal = ({ user, onClose, onRefresh, onUserUpdated }) => {
                   onClick={() => setEditing(false)}
                   className="px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
                 >
-                  Batal
+                  Cancel
                 </button>
                 <button
                   type="submit"
@@ -185,7 +185,7 @@ const DriverDetailModal = ({ user, onClose, onRefresh, onUserUpdated }) => {
                   className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50"
                   style={{ background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})` }}
                 >
-                  {submitting ? 'Menyimpan…' : 'Simpan Perubahan'}
+                  {submitting ? 'Saving…' : 'Save Changes'}
                 </button>
               </div>
             </form>

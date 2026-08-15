@@ -38,7 +38,7 @@ class EmissionFactorController extends Controller
 
         return $this->success(
             EmissionFactorResource::collection($factors),
-            'Daftar faktor emisi berhasil diambil.'
+            'List of emission factors retrieved successfully.'
         );
     }
 
@@ -58,7 +58,7 @@ class EmissionFactorController extends Controller
     {
         return $this->success(
             new EmissionFactorResource($emissionFactor),
-            'Detail faktor emisi berhasil diambil.'
+            'Emission factor details retrieved successfully.'
         );
     }
 }

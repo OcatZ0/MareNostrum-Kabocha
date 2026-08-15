@@ -42,10 +42,10 @@ class StoreUserRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'username.unique' => 'Username ini sudah digunakan oleh akun lain.',
-            'username.alpha_dash' => 'Username hanya boleh berisi huruf, angka, tanda hubung (-), dan garis bawah (_).',
-            'password.min' => 'Password minimal harus 6 karakter.',
-            'role.in' => 'Role harus bernilai admin atau driver.',
+            'username.unique' => 'This username is already taken.',
+            'username.alpha_dash' => 'Username may only contain letters, numbers, dashes (-), and underscores (_).',
+            'password.min' => 'Password must be at least 6 characters.',
+            'role.in' => 'Role must be admin or driver.',
         ];
     }
 }

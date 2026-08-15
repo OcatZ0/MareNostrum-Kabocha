@@ -155,7 +155,7 @@ class AnalyticsController extends Controller
             'emissions_by_truck_category' => $categoryEmissions,
             'top_emitting_trucks' => $topTrucks,
             'recent_trips' => TripResource::collection($recentTrips),
-        ], 'Ringkasan analitik dashboard berhasil diambil.');
+        ], 'Dashboard analytics summary retrieved successfully.');
     }
 
     #[OA\Get(
@@ -245,7 +245,7 @@ class AnalyticsController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Detail analitik trip berhasil diambil.',
+            'message' => 'Detailed trip analytics retrieved successfully.',
             'data' => $transformedItems,
             'meta' => [
                 'current_page' => $paginator->currentPage(),
