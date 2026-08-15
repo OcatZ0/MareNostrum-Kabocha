@@ -65,7 +65,10 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Batam (WIB) is the app's primary timezone — Company A's home base and where
+    // most trips originate. Singapore-origin trips (SGT, UTC+8) are handled per-trip
+    // in TripController::resolveTimezone(), not by this global default.
+    'timezone' => 'Asia/Jakarta',
 
     /*
     |--------------------------------------------------------------------------
