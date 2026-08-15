@@ -18,7 +18,6 @@ use OpenApi\Attributes as OA;
     description: 'Send as: Authorization: Bearer {token}'
 )]
 #[OA\Tag(name: 'Trips', description: 'Trip planning, assignment and tracking')]
-#[OA\Tag(name: 'Companies', description: 'Company master data (internal + partner)')]
 abstract class Controller
 {
     //
