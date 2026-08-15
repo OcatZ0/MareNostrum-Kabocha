@@ -1542,6 +1542,207 @@
                     }
                 ]
             }
+        },
+        "/api/trucks": {
+            "get": {
+                "tags": [
+                    "Trucks"
+                ],
+                "summary": "Get paginated list of trucks",
+                "operationId": "f415c93ec74376ab677cc3e38091699e",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "active",
+                                "maintenance"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "fuel_type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "diesel",
+                                "petrol",
+                                "electric"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of trucks retrieved successfully."
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Trucks"
+                ],
+                "summary": "Create a new truck",
+                "operationId": "cf9bf383af3dd4d44b290898db0a1440",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "plate_number",
+                                    "brand",
+                                    "year",
+                                    "fuel_type"
+                                ],
+                                "properties": {
+                                    "plate_number": {
+                                        "type": "string",
+                                        "example": "BP 1004 XY"
+                                    },
+                                    "brand": {
+                                        "type": "string",
+                                        "example": "Hino"
+                                    },
+                                    "model": {
+                                        "type": "string",
+                                        "example": "Dutro 130 HD"
+                                    },
+                                    "year": {
+                                        "type": "integer",
+                                        "example": 2022
+                                    },
+                                    "fuel_type": {
+                                        "type": "string",
+                                        "example": "diesel",
+                                        "enum": [
+                                            "diesel",
+                                            "petrol",
+                                            "electric"
+                                        ]
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "example": "active",
+                                        "enum": [
+                                            "active",
+                                            "maintenance"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Truck created successfully."
+                    },
+                    "422": {
+                        "description": "Validation error."
+                    }
+                }
+            }
+        },
+        "/api/trucks/{truck}": {
+            "get": {
+                "tags": [
+                    "Trucks"
+                ],
+                "summary": "Get single truck details",
+                "operationId": "8b9066fbef0cb6e7979f27970de6d6e9",
+                "parameters": [
+                    {
+                        "name": "truck",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Truck details retrieved successfully."
+                    },
+                    "404": {
+                        "description": "Truck not found."
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Trucks"
+                ],
+                "summary": "Update existing truck details",
+                "operationId": "e97802d020027eb757991632b79b6230",
+                "parameters": [
+                    {
+                        "name": "truck",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Truck updated successfully."
+                    },
+                    "422": {
+                        "description": "Validation error."
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Trucks"
+                ],
+                "summary": "Delete a truck",
+                "operationId": "fb16df1b7f7681ab28276b2042bec52e",
+                "parameters": [
+                    {
+                        "name": "truck",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Truck deleted successfully."
+                    },
+                    "422": {
+                        "description": "Cannot delete truck assigned to trips."
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -1838,6 +2039,10 @@
         {
             "name": "Ports",
             "description": "Port and terminal management"
+        },
+        {
+            "name": "Trucks",
+            "description": "Truck fleet management"
         },
         {
             "name": "Trips",
