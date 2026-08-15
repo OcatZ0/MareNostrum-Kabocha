@@ -1,9 +1,7 @@
-// NOTE: adjust this import to match whatever axios instance tripsApi.js
-// actually uses in your repo (e.g. '../api/http' or '../api/axios').
-import http from './http';
+import axiosClient from '../axios';
 
-export const getTrucks = (params) => http.get('/trucks', { params });
-export const getTruck = (id) => http.get(`/trucks/${id}`);
-export const createTruck = (payload) => http.post('/trucks', payload);
-export const updateTruck = (id, payload) => http.put(`/trucks/${id}`, payload);
-export const deleteTruck = (id) => http.delete(`/trucks/${id}`);
+export const getUsers    = (params = {}) => axiosClient.get('/api/users', { params });
+export const getUser     = (id)          => axiosClient.get(`/api/users/${id}`);
+export const createUser  = (payload)     => axiosClient.post('/api/users', payload);
+export const updateUser  = (id, payload) => axiosClient.put(`/api/users/${id}`, payload);
+export const deleteUser  = (id)          => axiosClient.delete(`/api/users/${id}`);

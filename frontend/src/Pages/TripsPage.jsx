@@ -108,14 +108,14 @@ const TripsPage = () => {
         <main className="flex-1 px-4 sm:px-6 py-6 space-y-5">
 
           {/* ── page header ── */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div>
               <h1 className="text-xl font-semibold" style={{ color: COLORS.navy }}>
                 Trips
               </h1>
               <p className="text-sm text-slate-400 mt-0.5">{meta.total} trips registered</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={fetchTrips}
                 className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition"
@@ -128,14 +128,14 @@ const TripsPage = () => {
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition"
                 style={{ background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})` }}
               >
-                <Plus size={16} /> New Trip
+                <Plus size={16} /><span className="hidden sm:inline">New Trip</span><span className="sm:hidden">Add</span>
               </button>
             </div>
           </div>
 
           {/* ── filter bar ── */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex items-center gap-2 flex-1 max-w-sm px-3 py-2 rounded-lg border border-slate-200 bg-white">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white">
               <Search size={15} className="text-slate-400 shrink-0" />
               <input
                 type="text"
@@ -145,9 +145,8 @@ const TripsPage = () => {
                 className="flex-1 bg-transparent border-none outline-none text-sm text-slate-700 placeholder:text-slate-400"
               />
             </div>
-
-            {/* status pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 flex-nowrap">
+            {/* status pills — horizontally scrollable on mobile */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 flex-nowrap">
               {STATUS_FILTERS.map((s) => {
                 const active = s === statusFilter;
                 const style  = s !== 'all' ? statusStyle(s) : null;

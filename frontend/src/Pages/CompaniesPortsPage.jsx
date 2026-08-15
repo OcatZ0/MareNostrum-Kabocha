@@ -17,6 +17,7 @@ const ANIM = `
   @keyframes row-in   { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
   @keyframes card-in  { from{opacity:0;transform:translateY(10px) scale(0.98)} to{opacity:1;transform:translateY(0) scale(1)} }
   @keyframes fade-in  { from{opacity:0} to{opacity:1} }
+  @keyframes highlight{ 0%{background:#E0F7F4} 100%{background:transparent} }
 `;
 
 /* ── shared badge ────────────────────────────────────────────── */
@@ -42,12 +43,12 @@ const CountryBadge = ({ country }) => {
 
 /* ── page header sub-component (shared between tabs) ─────────── */
 const PageHeader = ({ title, subtitle, loading, onRefresh, onAdd, addLabel }) => (
-  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+  <div className="flex items-center justify-between gap-3">
     <div>
       <h1 className="text-xl font-semibold" style={{ color: COLORS.navy }}>{title}</h1>
       <p className="text-sm text-slate-400 mt-0.5">{subtitle}</p>
     </div>
-    <div className="flex items-center gap-2 self-start sm:self-auto">
+    <div className="flex items-center gap-2 shrink-0">
       <button onClick={onRefresh}
         className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition"
         title="Refresh">
@@ -56,7 +57,9 @@ const PageHeader = ({ title, subtitle, loading, onRefresh, onAdd, addLabel }) =>
       <button onClick={onAdd}
         className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition"
         style={{ background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})` }}>
-        <Plus size={16} />{addLabel}
+        <Plus size={16} />
+        <span className="hidden sm:inline">{addLabel}</span>
+        <span className="sm:hidden">Add</span>
       </button>
     </div>
   </div>
@@ -64,17 +67,17 @@ const PageHeader = ({ title, subtitle, loading, onRefresh, onAdd, addLabel }) =>
 
 /* ── filter bar sub-component ────────────────────────────────── */
 const FilterBar = ({ searchValue, onSearchChange, pills, activePill, onPillChange, searchPlaceholder }) => (
-  <div className="flex flex-col sm:flex-row gap-3">
-    <div className="flex items-center gap-2 flex-1 max-w-sm px-3 py-2 rounded-lg border border-slate-200 bg-white">
+  <div className="space-y-2">
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white">
       <Search size={15} className="text-slate-400 shrink-0" />
       <input type="text" placeholder={searchPlaceholder} value={searchValue}
         onChange={(e) => onSearchChange(e.target.value)}
         className="flex-1 bg-transparent border-none outline-none text-sm text-slate-700 placeholder:text-slate-400" />
     </div>
-    <div className="flex items-center gap-1.5 flex-wrap">
+    <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 flex-nowrap">
       {pills.map(({ key, label, activeStyle }) => (
         <button key={key} onClick={() => onPillChange(key)}
-          className="text-xs font-semibold px-3 py-1.5 rounded-full border transition"
+          className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition"
           style={activePill === key
             ? activeStyle
             : { backgroundColor: 'white', color: '#64748B', borderColor: '#E2E8F0' }}>
