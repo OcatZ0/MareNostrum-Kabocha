@@ -222,6 +222,17 @@ const TripsPage = () => {
                             <span className="truncate">{to}</span>
                             {trip.distance_km && <span className="shrink-0 ml-1">· {trip.distance_km} km</span>}
                           </div>
+                          {isCross && trip.vessel_schedule && (
+                            <div className="mt-1 flex items-center gap-1">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200">
+                                <Ship size={10} />
+                                <span>{trip.vessel_schedule.vessel_name}</span>
+                                {trip.vessel_schedule.status && (
+                                  <span className="font-mono text-[9px] uppercase opacity-75">· {trip.vessel_schedule.status}</span>
+                                )}
+                              </span>
+                            </div>
+                          )}
                         </td>
 
                         <td className="px-4 py-3">
@@ -308,6 +319,14 @@ const TripsPage = () => {
                         </div>
                         <p className="text-sm font-medium text-slate-800 truncate">{from}</p>
                         <p className="text-xs text-slate-400 truncate mt-0.5">→ {to}</p>
+                        {isCross && trip.vessel_schedule && (
+                          <div className="mt-1 flex items-center gap-1">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200">
+                              <Ship size={10} />
+                              <span>{trip.vessel_schedule.vessel_name}</span>
+                            </span>
+                          </div>
+                        )}
                         <p className="text-xs text-slate-400 mt-1">{fmt(trip.chosen_departure_at)}</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">

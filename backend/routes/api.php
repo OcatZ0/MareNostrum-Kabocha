@@ -11,6 +11,7 @@ use App\Http\Controllers\TripCheckpointController;
 use App\Http\Controllers\TripController;
 use App\Http\Controllers\TruckController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\VesselScheduleController;
 use App\Http\Middleware\BypassAuthForTesting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +37,12 @@ Route::middleware(BypassAuthForTesting::class)->group(function () {
 
     // Ports
     Route::apiResource('ports', PortController::class);
+
+    // Vessel Schedules
+    Route::get('/vessel-schedules/template', [VesselScheduleController::class, 'template']);
+    Route::post('/vessel-schedules/import', [VesselScheduleController::class, 'import']);
+    Route::post('/vessel-schedules/{vesselSchedule}/check-status', [VesselScheduleController::class, 'checkStatus']);
+    Route::apiResource('vessel-schedules', VesselScheduleController::class);
 
     // Trucks
     Route::get('/trucks/{truck}/emissions', [TruckController::class, 'emissions']);

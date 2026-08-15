@@ -22,8 +22,8 @@ class ShipTripRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // MMSI: 9 digits. IMO: 7 digits, optionally prefixed "IMO" (PRD Bagian 5.1/7: "MMSI/IMO").
-            'ship_ref_id' => ['required', 'string', 'regex:/^(\d{9}|(IMO)?\d{7})$/i'],
+            'vessel_schedule_id' => ['nullable', 'integer', 'exists:vessel_schedules,id'],
+            'ship_ref_id' => ['required_without:vessel_schedule_id', 'nullable', 'string', 'regex:/^(\d{9}|(IMO)?\d{7})$/i'],
         ];
     }
 
@@ -31,6 +31,7 @@ class ShipTripRequest extends FormRequest
     {
         return [
             'ship_ref_id.regex' => 'ship_ref_id must be MMSI (9 digits) or IMO (7 digits, optionally prefixed with "IMO").',
+            'ship_ref_id.required_without' => 'Either ship_ref_id or vessel_schedule_id is required.',
         ];
     }
 }

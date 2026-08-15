@@ -254,7 +254,7 @@ const Login = () => {
               to="/"
               className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-slate-500 hover:text-slate-800 transition py-1.5 px-3 rounded-full hover:bg-slate-100 border border-slate-200"
             >
-              <ArrowLeft size={13} /> Back to Home
+              <ArrowLeft size={13} /> Kembali ke Beranda
             </Link>
           </div>
 
@@ -348,7 +348,18 @@ const Login = () => {
               </div>
             </div>
 
-            
+            <div className="login-form-item flex justify-between items-center">
+              <label className="flex items-center gap-2 text-sm text-slate-600 select-none cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300"
+                  style={{ accentColor: COLORS.teal }}
+                />
+                Remember me on this device
+              </label>
+            </div>
 
             <div className="login-form-item pt-1">
               <button

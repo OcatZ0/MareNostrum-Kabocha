@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Route,
   Truck,
+  Ship,
   Users,
   Building2,
   Bell,
@@ -31,6 +32,11 @@ const NAV_ITEMS = [
     label: 'Trucks',
     icon: Truck,
     to: '/app/trucks',
+  },
+  {
+    label: 'Jadwal Kapal',
+    icon: Ship,
+    to: '/app/vessel-schedules',
   },
   {
     label: 'Drivers',

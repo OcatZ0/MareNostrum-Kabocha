@@ -1,2 +1,10 @@
-frontend/node_modules/.vite/deps/_metadata.json
+node_modules/
+frontend/node_modules/
+backend/vendor/
+frontend/dist/
+backend/.env
+frontend/.env
+frontend/.env.local
+.DS_Store
+Thumbs.db
 PRD Mare Nostrum.md

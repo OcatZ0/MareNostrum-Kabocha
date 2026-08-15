@@ -41,6 +41,7 @@ class TripController extends Controller
         'destinationCompany',
         'destinationPort',
         'shipDestinationPort',
+        'vesselSchedule',
     ];
 
     protected array $comboFields = [
@@ -49,6 +50,7 @@ class TripController extends Controller
         'destination_company_id',
         'destination_port_id',
         'ship_destination_port_id',
+        'vessel_schedule_id',
     ];
 
     /**
@@ -182,8 +184,16 @@ class TripController extends Controller
     )]
     public function store(StoreTripRequest $request)
     {
+        $data = $request->validated();
+        if (! empty($data['vessel_schedule_id'])) {
+            $vessel = \App\Models\VesselSchedule::find($data['vessel_schedule_id']);
+            if ($vessel) {
+                $data['ship_ref_id'] = $vessel->ship_ref_id;
+            }
+        }
+
         $trip = Trip::create([
-            ...$request->validated(),
+            ...$data,
             'status' => 'draft',
             'created_by' => $request->user()->id,
         ])->load($this->with);
@@ -302,6 +312,12 @@ class TripController extends Controller
         // alongside ship_destination_port_id) — drop it if the new combo isn't one.
         if (! $comboData['ship_destination_port_id']) {
             $comboData['ship_ref_id'] = null;
+            $comboData['vessel_schedule_id'] = null;
+        } elseif (! empty($comboData['vessel_schedule_id'])) {
+            $vessel = \App\Models\VesselSchedule::find($comboData['vessel_schedule_id']);
+            if ($vessel) {
+                $comboData['ship_ref_id'] = $vessel->ship_ref_id;
+            }
         }
 
         $trip->update($comboData);
@@ -367,14 +383,41 @@ class TripController extends Controller
             return $this->error('Recommendations can only be generated while trip is in draft status.', 422);
         }
 
-        $trip->loadMissing(['originCompany', 'originPort', 'destinationCompany', 'destinationPort']);
+        $trip->loadMissing(['originCompany', 'originPort', 'destinationCompany', 'destinationPort', 'vesselSchedule']);
 
         $origin = $this->resolvePoint($trip, 'origin');
         $destination = $this->resolvePoint($trip, 'destination');
         $timezone = $this->resolveTimezone($trip);
-        $date = $request->filled('date')
-            ? Carbon::parse($request->input('date'), $timezone)
-            : Carbon::tomorrow($timezone);
+
+        // For cross-border Batam trips with linked vessel schedule, delivery is scheduled up to 3 days prior to vessel departure or today
+        if ($trip->vesselSchedule?->scheduled_departure_at) {
+            $vesselDepart = Carbon::parse($trip->vesselSchedule->scheduled_departure_at, $timezone);
+            if ($request->filled('date')) {
+                $date = Carbon::parse($request->input('date'), $timezone)->startOfDay();
+                $today = Carbon::today($timezone);
+                if ($date->isBefore($today)) {
+                    return $this->error('Tanggal keberangkatan tidak boleh sebelum hari ini.', 422);
+                }
+                if ($date->isAfter($vesselDepart->copy()->endOfDay())) {
+                    return $this->error('Jadwal truk untuk rute Batam ke Singapura hanya dapat dijadwalkan maksimal hingga hari keberangkatan kapal (disarankan hari ini atau 1-3 hari sebelum kapal berangkat).', 422);
+                }
+            } else {
+                // Default date: today or 1 day before vessel departure, whichever is later
+                $today = Carbon::today($timezone);
+                $oneDayBefore = $vesselDepart->copy()->subDay()->startOfDay();
+                $date = $oneDayBefore->isBefore($today) ? $today : $oneDayBefore;
+            }
+        } else {
+            if ($request->filled('date')) {
+                $date = Carbon::parse($request->input('date'), $timezone)->startOfDay();
+                $today = Carbon::today($timezone);
+                if ($date->isBefore($today)) {
+                    return $this->error('Tanggal keberangkatan tidak boleh sebelum hari ini.', 422);
+                }
+            } else {
+                $date = Carbon::tomorrow($timezone);
+            }
+        }
 
         // The 3 ranges are searched as 2 network "waves" total (all ranges' hourly
         // candidates fetched together, then all ranges' refinement candidates fetched
@@ -405,7 +448,7 @@ class TripController extends Controller
             $fastestTravelTimeSeconds = collect($hourlyRoutes)->min('travel_time_seconds');
 
             $hourlyEvaluatedByRange = $hourlySlotsByRange->map(
-                fn (Collection $slots) => $this->evaluateCandidates($historicalTrips, $slots, $hourlyRoutes, $timezone, $fastestTravelTimeSeconds)
+                fn (Collection $slots) => $this->evaluateCandidates($historicalTrips, $slots, $hourlyRoutes, $timezone, $fastestTravelTimeSeconds, $trip)
             );
 
             $refinementSlotsByRange = $hourlyEvaluatedByRange->map(function (Collection $evaluated, int $i) use ($ranges) {
@@ -419,8 +462,8 @@ class TripController extends Controller
                 ? $this->fetchRoutes($origin, $destination, $allRefinementSlots->all())
                 : [];
 
-            $slots = $hourlyEvaluatedByRange->map(function (Collection $hourlyEvaluated, int $i) use ($refinementSlotsByRange, $refinementRoutes, $historicalTrips, $timezone, $fastestTravelTimeSeconds) {
-                $refinementEvaluated = $this->evaluateCandidates($historicalTrips, $refinementSlotsByRange[$i], $refinementRoutes, $timezone, $fastestTravelTimeSeconds);
+            $slots = $hourlyEvaluatedByRange->map(function (Collection $hourlyEvaluated, int $i) use ($refinementSlotsByRange, $refinementRoutes, $historicalTrips, $timezone, $fastestTravelTimeSeconds, $trip) {
+                $refinementEvaluated = $this->evaluateCandidates($historicalTrips, $refinementSlotsByRange[$i], $refinementRoutes, $timezone, $fastestTravelTimeSeconds, $trip);
 
                 return $hourlyEvaluated->merge($refinementEvaluated)->sortByDesc('score')->first();
             })->values();
@@ -428,16 +471,18 @@ class TripController extends Controller
             return $this->error('Failed to connect to TomTom API: '.$e->getMessage(), 502);
         }
 
-        // Night slot can never be the primary recommendation (PRD Bagian 5.1) — pick the
-        // best non-night slot. Only range 3 can ever produce a night result (ranges 1/2
-        // are 06:00-18:00, entirely daytime), so at most 1 of the 3 slots is ever night;
-        // the "?? overall best" fallback is a safety net in case searchRanges changes.
-        $winner = $slots->reject(fn (array $slot) => $slot['is_night'])->sortByDesc('score')->first()
+        // Night slot can never be the primary recommendation (PRD Bagian 5.1).
+        // For cross-border trips with a linked vessel, slots violating the 1h cut-off
+        // are also rejected from primary recommendation.
+        $eligibleSlots = $slots->reject(fn (array $slot) => $slot['is_night'] || ($slot['breakdown']['vessel_cutoff_penalty'] ?? 0) > 0);
+
+        $winner = $eligibleSlots->sortByDesc('score')->first()
+            ?? $slots->reject(fn (array $slot) => $slot['is_night'])->sortByDesc('score')->first()
             ?? $slots->sortByDesc('score')->first();
 
-        $persistedSlots = $slots->map(function (array $slot) use ($winner) {
+        $persistedSlots = $slots->map(function (array $slot) use ($winner, $trip) {
             $slot['is_recommended'] = $slot['departure_at'] === $winner['departure_at'];
-            $slot['reason'] = $this->buildReason($slot);
+            $slot['reason'] = $this->buildReason($slot, $trip);
             $slot['distance_km'] = round($slot['distance_meters'] / 1000, 2);
             unset($slot['is_night'], $slot['distance_meters']);
 
@@ -499,6 +544,30 @@ class TripController extends Controller
     {
         if ($trip->status !== StatusTrips::DRAFT) {
             return $this->error('Trip can only be assigned while still in draft status.', 422);
+        }
+
+        if ($request->filled('chosen_departure_at')) {
+            $timezone = $this->resolveTimezone($trip);
+            $chosenDepart = Carbon::parse($request->input('chosen_departure_at'), $timezone);
+            $today = Carbon::today($timezone);
+            if ($chosenDepart->startOfDay()->isBefore($today)) {
+                return $this->error('Waktu keberangkatan truk tidak boleh sebelum hari ini.', 422);
+            }
+            if ($trip->vesselSchedule?->scheduled_departure_at) {
+                $vesselDepart = Carbon::parse($trip->vesselSchedule->scheduled_departure_at, $timezone);
+                if ($chosenDepart->isAfter($vesselDepart)) {
+                    return $this->error('Waktu keberangkatan truk tidak boleh melebihi jadwal keberangkatan kapal.', 422);
+                }
+
+                // Check estimated arrival buffer against vessel departure (min 1 hour buffer required)
+                $estDurationMin = $trip->estimated_duration_min ?? 45;
+                $estArrival = $chosenDepart->copy()->addMinutes($estDurationMin);
+                $diffMinutes = $estArrival->diffInMinutes($vesselDepart, false);
+
+                if ($diffMinutes < 60) {
+                    return $this->error("Waktu keberangkatan truk tidak dapat dipilih: truk harus tiba di pelabuhan minimal 1 jam sebelum jadwal keberangkatan kapal ({$vesselDepart->format('H:i')}). Estimasi tiba: {$estArrival->format('H:i')} (hanya selisih {$diffMinutes} menit).", 422);
+                }
+            }
         }
 
         $truck = Truck::find($request->input('truck_id'));
@@ -690,11 +759,33 @@ class TripController extends Controller
             return $this->error('Trip is already completed or cancelled, ship_ref_id cannot be changed.', 422);
         }
 
+        $vesselScheduleId = $request->input('vessel_schedule_id');
+        $shipRefId = $request->input('ship_ref_id');
+
+        if ($vesselScheduleId) {
+            $vessel = \App\Models\VesselSchedule::find($vesselScheduleId);
+            if ($vessel) {
+                $shipRefId = $vessel->ship_ref_id;
+            }
+        } elseif ($shipRefId) {
+            // Auto-link matching schedule if exists
+            $vessel = \App\Models\VesselSchedule::where('ship_ref_id', $shipRefId)
+                ->where('destination_port_id', $trip->ship_destination_port_id)
+                ->latest()
+                ->first()
+                ?? \App\Models\VesselSchedule::where('ship_ref_id', $shipRefId)->latest()->first();
+
+            if ($vessel) {
+                $vesselScheduleId = $vessel->id;
+            }
+        }
+
         $trip->update([
-            'ship_ref_id' => $request->input('ship_ref_id'),
+            'ship_ref_id' => $shipRefId,
+            'vessel_schedule_id' => $vesselScheduleId,
         ]);
 
-        return $this->success(new TripResource($trip->load($this->with)), 'Ship reference ID saved');
+        return $this->success(new TripResource($trip->load($this->with)), 'Ship reference and schedule linked');
     }
 
     #[OA\Get(
@@ -851,12 +942,22 @@ class TripController extends Controller
             return $this->success(['status' => $trip->status, 'arrived' => false, 'source' => null]);
         }
 
-        $trip->loadMissing('shipDestinationPort');
+        $trip->loadMissing(['shipDestinationPort', 'vesselSchedule']);
         $port = $trip->shipDestinationPort;
 
-        $source = $this->checkPortEventsArrival($trip, $port)
-            ? 'port_events'
-            : ($this->checkHaversineArrival($trip, $port) ? 'haversine_fallback' : null);
+        $source = null;
+        if ($trip->vesselSchedule) {
+            $sch = $trip->vesselSchedule;
+            if ($sch->status === \App\Context\VesselScheduleStatus::ARRIVED || ($sch->distance_to_destination_km !== null && $sch->distance_to_destination_km <= 0.5)) {
+                $source = 'vessel_schedule';
+            }
+        }
+
+        if (! $source) {
+            $source = $this->checkPortEventsArrival($trip, $port)
+                ? 'port_events'
+                : ($this->checkHaversineArrival($trip, $port) ? 'haversine_fallback' : null);
+        }
 
         if (! $source) {
             return $this->success(['status' => $trip->status, 'arrived' => false, 'source' => null]);
@@ -995,18 +1096,18 @@ class TripController extends Controller
     /**
      * @param  array<string, array>  $routesByIso  keyed by departAt->toIso8601String(), as returned by fetchRoutes()
      */
-    protected function evaluateCandidates(Collection $historicalTrips, Collection $departAts, array $routesByIso, string $timezone, int $fastestTravelTimeSeconds): Collection
+    protected function evaluateCandidates(Collection $historicalTrips, Collection $departAts, array $routesByIso, string $timezone, int $fastestTravelTimeSeconds, ?Trip $trip = null): Collection
     {
         return $departAts->map(
-            fn (Carbon $departAt) => $this->scoreSlotAt($historicalTrips, $departAt, $routesByIso[$departAt->toIso8601String()], $timezone, $fastestTravelTimeSeconds)
+            fn (Carbon $departAt) => $this->scoreSlotAt($historicalTrips, $departAt, $routesByIso[$departAt->toIso8601String()], $timezone, $fastestTravelTimeSeconds, $trip)
         );
     }
 
-    protected function scoreSlotAt(Collection $historicalTrips, Carbon $departAt, array $route, string $timezone, int $fastestTravelTimeSeconds): array
+    protected function scoreSlotAt(Collection $historicalTrips, Carbon $departAt, array $route, string $timezone, int $fastestTravelTimeSeconds, ?Trip $trip = null): array
     {
         $delay = $this->historicalDelayPenalty($historicalTrips, $departAt->hour, $timezone);
 
-        return $this->scoreSlot($departAt, $route, $delay, $fastestTravelTimeSeconds);
+        return $this->scoreSlot($departAt, $route, $delay, $fastestTravelTimeSeconds, $trip);
     }
 
     /**
@@ -1279,22 +1380,39 @@ class TripController extends Controller
      * proportional to its real time cost, ties only happen when candidates are
      * genuinely equal.
      */
-    protected function scoreSlot(Carbon $departAt, array $route, array $delay, int $fastestTravelTimeSeconds): array
+    protected function scoreSlot(Carbon $departAt, array $route, array $delay, int $fastestTravelTimeSeconds, ?Trip $trip = null): array
     {
         $trafficPenalty = max(0, $route['travel_time_seconds'] - $fastestTravelTimeSeconds) / 60 * 2;
         $isNight = $departAt->hour >= 22 || $departAt->hour < 5;
         $nightPenalty = $isNight ? 50 : 0;
         $delayPenalty = $delay['penalty'];
 
+        $estimatedArrival = $departAt->copy()->addSeconds($route['travel_time_seconds']);
+        $vesselPenalty = 0;
+        $vesselBufferMinutes = null;
+
+        if ($trip?->vesselSchedule?->scheduled_departure_at) {
+            $vesselDepart = Carbon::parse($trip->vesselSchedule->scheduled_departure_at);
+            $diffMinutes = $estimatedArrival->diffInMinutes($vesselDepart, false);
+            $vesselBufferMinutes = $diffMinutes;
+
+            // Truck MUST arrive at least 1 hour (60 minutes) before vessel departure for port cut-off
+            if ($diffMinutes < 60) {
+                $vesselPenalty = 80;
+            }
+        }
+
         return [
             'departure_at' => $departAt->toIso8601String(),
-            'estimated_arrival_at' => $departAt->copy()->addSeconds($route['travel_time_seconds'])->toIso8601String(),
-            'score' => round(100 - $trafficPenalty - $delayPenalty - $nightPenalty, 2),
+            'estimated_arrival_at' => $estimatedArrival->toIso8601String(),
+            'score' => round(max(0, 100 - $trafficPenalty - $delayPenalty - $nightPenalty - $vesselPenalty), 2),
             'breakdown' => [
                 'base' => 100,
                 'traffic_penalty' => round($trafficPenalty, 2),
                 'delay_penalty' => round($delayPenalty, 2),
                 'night_penalty' => $nightPenalty,
+                'vessel_cutoff_penalty' => $vesselPenalty,
+                'vessel_buffer_minutes' => $vesselBufferMinutes,
                 'historical_sample_size' => $delay['sample_size'],
             ],
             'traffic_delay_seconds' => $route['traffic_delay_seconds'],
@@ -1308,7 +1426,7 @@ class TripController extends Controller
      * PRD Bagian 5.1 step 4 static text template, e.g.:
      * "06:00 — recommended, light traffic, estimated arrival 06:45".
      */
-    protected function buildReason(array $slot): string
+    protected function buildReason(array $slot, ?Trip $trip = null): string
     {
         $level = match (true) {
             $slot['traffic_delay_seconds'] < 300 => 'light',
@@ -1316,15 +1434,36 @@ class TripController extends Controller
             default => 'heavy',
         };
 
+        $time = Carbon::parse($slot['departure_at'])->format('H:i');
+        $arrival = Carbon::parse($slot['estimated_arrival_at'])->format('H:i');
+
+        $vesselSuffix = '';
+        $isVesselDisqualified = false;
+        if ($trip?->vesselSchedule?->scheduled_departure_at) {
+            $vesselDepart = Carbon::parse($trip->vesselSchedule->scheduled_departure_at);
+            $estArrival = Carbon::parse($slot['estimated_arrival_at']);
+            $diffMinutes = $estArrival->diffInMinutes($vesselDepart, false);
+            if ($diffMinutes >= 60) {
+                $hours = floor($diffMinutes / 60);
+                $mins = $diffMinutes % 60;
+                $bufferStr = $hours > 0 ? "{$hours}h {$mins}m" : "{$mins}m";
+                $vesselSuffix = " ({$bufferStr} sebelum {$trip->vesselSchedule->vessel_name} ETD {$vesselDepart->format('H:i')}, cut-off aman)";
+            } elseif ($diffMinutes > 0 && $diffMinutes < 60) {
+                $vesselSuffix = " (Peringatan: tiba {$diffMinutes}m sebelum kapal ETD {$vesselDepart->format('H:i')}, melewati batas cut-off 1 jam)";
+                $isVesselDisqualified = true;
+            } elseif ($diffMinutes <= 0) {
+                $vesselSuffix = " (Tidak valid: tiba setelah kapal berangkat)";
+                $isVesselDisqualified = true;
+            }
+        }
+
         $status = match (true) {
+            $isVesselDisqualified => 'tidak disarankan (cut-off kapal)',
             $slot['is_recommended'] => 'recommended',
             $slot['is_night'] => 'alternative, night time',
             default => 'alternative',
         };
 
-        $time = Carbon::parse($slot['departure_at'])->format('H:i');
-        $arrival = Carbon::parse($slot['estimated_arrival_at'])->format('H:i');
-
-        return "{$time} — {$status}, {$level} traffic, estimated arrival {$arrival}";
+        return "{$time} — {$status}, {$level} traffic, estimasi tiba {$arrival}{$vesselSuffix}";
     }
 }

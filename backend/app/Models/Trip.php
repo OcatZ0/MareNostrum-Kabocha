@@ -17,6 +17,7 @@ class Trip extends Model
         'truck_id',
         'driver_id',
         'ship_ref_id',
+        'vessel_schedule_id',
         'recommended_slots',
         'chosen_departure_at',
         'status',
@@ -63,6 +64,11 @@ class Trip extends Model
     public function shipDestinationPort(): BelongsTo
     {
         return $this->belongsTo(Port::class, 'ship_destination_port_id');
+    }
+
+    public function vesselSchedule(): BelongsTo
+    {
+        return $this->belongsTo(VesselSchedule::class, 'vessel_schedule_id');
     }
 
     public function truck(): BelongsTo

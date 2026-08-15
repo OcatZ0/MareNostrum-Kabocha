@@ -12,6 +12,7 @@ import DriverActorPage     from "./Pages/DriverActorPage";
 import DriverDashboard     from "./Pages/DriverDashboard";
 import CompaniesPortsPage  from "./Pages/CompaniesPortsPage";
 import NotificationsPage   from "./Pages/NotificationsPage";
+import VesselSchedulesPage from "./Pages/VesselSchedulesPage";
 
 const router = createBrowserRouter([
   {
@@ -31,6 +32,7 @@ const router = createBrowserRouter([
       { path: "dashboard",            element: <Dashboard /> },
       { path: "trips",                element: <TripsPage /> },
       { path: "trucks",               element: <TrucksPage /> },
+      { path: "vessel-schedules",     element: <VesselSchedulesPage /> },
       { path: "drivers",              element: <DriversPage /> },
       { path: "drivers/:driverId",    element: <DriverActorPage /> },
       { path: "companies-ports",      element: <CompaniesPortsPage /> },
