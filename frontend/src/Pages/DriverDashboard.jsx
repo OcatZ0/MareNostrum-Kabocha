@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Navigation, Truck, Clock, LogOut, Menu, X, AlertCircle, Loader2, Zap, CheckCircle2, Ship } from 'lucide-react';
-import { getTrips, getTrip, storeCheckpoint, getCheckpoints } from '../api/tripsApi';
-import { getPorts } from '../api/portsApi';
+import { MapPin, Navigation, Truck, Clock, LogOut, Menu, X, AlertCircle, Loader2, Zap, Anchor } from 'lucide-react';
+import { getTrips, getTrip, storeCheckpoint } from '../api/tripsApi';
 import { COLORS, STATUS_STYLES } from '../Componnent/dashboard/dashboardTheme';
 
 const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY || '';
@@ -89,29 +88,38 @@ const TripCard = ({ trip, selected, onClick }) => {
   return (
     <div
       onClick={onClick}
-      className={`p-4 rounded-lg cursor-pointer transition-all border-2`}
+      className="p-3.5 rounded-xl cursor-pointer transition-all border"
       style={{
-        backgroundColor: selected ? `${COLORS.teal}10` : '#f8f9fa',
+        backgroundColor: selected ? `${COLORS.teal}0D` : COLORS.bg,
         borderColor: selected ? COLORS.teal : 'transparent',
+        boxShadow: selected ? `0 1px 3px ${COLORS.teal}20` : 'none',
         animation: 'slide-in-left 0.3s ease-out',
       }}>
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <h3 className="font-semibold text-slate-900 text-sm">Trip #{trip.id}</h3>
-          <p className="text-xs text-slate-500">{s.label}</p>
+      <div className="flex items-center gap-3 mb-3">
+        <span
+          className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+          style={{ backgroundColor: `${COLORS.navy}0D` }}
+        >
+          <Truck size={16} color={COLORS.navy} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-slate-800 text-sm leading-tight">Trip #{trip.id}</h3>
         </div>
-        <span className="text-xs font-bold px-2 py-1 rounded-full" style={{ backgroundColor: s.bg, color: s.color }}>
+        <span
+          className="text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0"
+          style={{ backgroundColor: s.bg, color: s.color }}
+        >
           {s.label}
         </span>
       </div>
-      <div className="space-y-2 text-xs">
+      <div className="space-y-1.5 text-xs pl-0.5">
         <div className="flex items-center gap-2">
-          <MapPin size={14} style={{ color: COLORS.teal }} />
-          <span className="text-slate-600"><strong>From:</strong> {from}</span>
+          <MapPin size={13} style={{ color: COLORS.teal }} className="shrink-0" />
+          <span className="text-slate-500 truncate"><span className="text-slate-400">From</span> · {from}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Navigation size={14} style={{ color: COLORS.teal }} />
-          <span className="text-slate-600"><strong>To:</strong> {to}</span>
+          <Navigation size={13} style={{ color: COLORS.teal }} className="shrink-0" />
+          <span className="text-slate-500 truncate"><span className="text-slate-400">To</span> · {to}</span>
         </div>
       </div>
     </div>
@@ -265,6 +273,8 @@ const MapView = ({ trip, onStartTrip, starting, onSimulateComplete }) => {
 
     // Pin-shaped markers (teardrop, matching TomTom's own map UI) instead of
     // plain dots — a small SVG per marker, no extra dependency needed.
+    // Colors pulled from the shared brand palette so they match every other
+    // "origin/destination" pairing in the app (green = start, navy = end).
     const pinSvg = (color) => `
       <svg width="34" height="44" viewBox="0 0 34 44" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35))">
         <path d="M17 0C7.6 0 0 7.6 0 17c0 12.75 17 27 17 27s17-14.25 17-27C34 7.6 26.4 0 17 0z" fill="${color}"/>
@@ -272,17 +282,17 @@ const MapView = ({ trip, onStartTrip, starting, onSimulateComplete }) => {
       </svg>`;
 
     const markerA = document.createElement('div');
-    markerA.innerHTML = pinSvg('#10b981');
+    markerA.innerHTML = pinSvg(COLORS.green);
     new window.tt.Marker({ element: markerA, anchor: 'bottom' })
       .setLngLat([originLng, originLat])
-      .setPopup(new window.tt.Popup().setHTML(`<strong>${from}</strong>`))
+      .setPopup(new window.tt.Popup().setHTML(`<strong style="color:${COLORS.navy}">${from}</strong>`))
       .addTo(map);
 
     const markerB = document.createElement('div');
-    markerB.innerHTML = pinSvg('#1e40af');
+    markerB.innerHTML = pinSvg(COLORS.navy);
     new window.tt.Marker({ element: markerB, anchor: 'bottom' })
       .setLngLat([destLng, destLat])
-      .setPopup(new window.tt.Popup().setHTML(`<strong>${to}</strong>`))
+      .setPopup(new window.tt.Popup().setHTML(`<strong style="color:${COLORS.navy}">${to}</strong>`))
       .addTo(map);
 
     // Calculate route — live traffic every time, no caching: this is the
@@ -542,24 +552,33 @@ const MapView = ({ trip, onStartTrip, starting, onSimulateComplete }) => {
       <div ref={mapElRef} className="w-full h-full" />
 
       {!trip && (
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center z-10">
+        <div
+          className="absolute inset-0 flex items-center justify-center z-10"
+          style={{ background: `linear-gradient(160deg, ${COLORS.bg}, #E7F1F6)` }}
+        >
           <div className="text-center">
-            <MapPin size={48} className="mx-auto mb-3 opacity-30" style={{ color: COLORS.teal }} />
-            <p className="text-slate-500">Select a trip to view map</p>
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+              style={{ backgroundColor: `${COLORS.teal}14` }}
+            >
+              <MapPin size={26} style={{ color: COLORS.teal }} />
+            </div>
+            <p className="text-slate-500 text-sm">Select a trip to view the map</p>
           </div>
         </div>
       )}
       {!mapReady && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-50">
-          <Loader2 className="animate-spin" size={32} style={{ color: COLORS.teal }} />
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/80 z-50">
+          <Loader2 className="animate-spin" size={30} style={{ color: COLORS.teal }} />
+          <p className="text-xs text-slate-400">Loading map…</p>
         </div>
       )}
       {mapError && (
-        <div className="absolute top-4 left-4 z-50 bg-red-50 border border-red-300 rounded-lg p-4 max-w-xs flex gap-3">
+        <div className="absolute top-4 left-4 z-50 bg-red-50 border border-red-200 rounded-xl p-4 max-w-xs flex gap-3 shadow-sm">
           <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium text-red-900">Map Error</p>
-            <p className="text-sm text-red-700">{mapError}</p>
+            <p className="font-medium text-red-900 text-sm">Map Error</p>
+            <p className="text-xs text-red-700 mt-0.5">{mapError}</p>
           </div>
         </div>
       )}
@@ -591,34 +610,37 @@ const MapView = ({ trip, onStartTrip, starting, onSimulateComplete }) => {
         const showSimulate = simulateConfig && !showStartTrip && !truckReturned;
 
         return (
-          <div className="absolute top-4 left-4 z-30 bg-white rounded-xl shadow-lg px-4 py-3 min-w-[210px]"
+          <div className="absolute top-4 left-4 z-30 bg-white rounded-2xl shadow-lg px-4 py-4 min-w-[220px]"
             style={{ animation: 'fade-in 0.2s ease-out' }}>
-            <div className="flex items-center justify-between mb-2.5">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">
+              Trip Overview
+            </p>
+            <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold px-2 py-1 rounded-full" style={{ backgroundColor: s.bg, color: s.color }}>
                 {s.label}
               </span>
               {!isCompleted && routeSummary?.trafficDelayMin > 0 && (
-                <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: '#EA580C' }}>
+                <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: '#C2703D' }}>
                   <Truck size={12} />+{routeSummary.trafficDelayMin}m traffic
                 </span>
               )}
             </div>
-            <div className="space-y-1.5 text-xs">
+            <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between gap-4">
-                <span className="text-slate-400">{isCompleted ? 'Duration' : 'Estimated Duration'}</span>
+                <span className="text-slate-400 flex items-center gap-1.5"><Clock size={12} />{isCompleted ? 'Duration' : 'Est. Duration'}</span>
                 <span className="font-semibold text-slate-800">
                   {isCompleted ? fmtDur(actualDurationMin) : (routeSummary ? fmtDur(routeSummary.durationMin) : '—')}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <span className="text-slate-400">{hasDeparted ? 'Departed' : 'Departure'}</span>
+                <span className="text-slate-400 flex items-center gap-1.5"><Navigation size={12} />{hasDeparted ? 'Departed' : 'Departure'}</span>
                 <span className="font-semibold text-slate-800">{departure ? fmt(departure) : 'Not yet assigned'}</span>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <span className="text-slate-400">Distance</span>
+                <span className="text-slate-400 flex items-center gap-1.5"><MapPin size={12} />Distance</span>
                 <span className="font-semibold text-slate-800">{routeSummary ? `${routeSummary.distanceKm.toFixed(0)} km` : '—'}</span>
               </div>
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center justify-between gap-4 pt-2 border-t border-slate-100">
                 <span className="text-slate-400">{isCompleted ? 'Arrived' : 'Est. Arrival'}</span>
                 <span className="font-semibold text-slate-800">
                   {isCompleted ? fmt(trip.actual_arrival_at) : (eta ? fmt(eta) : '—')}
@@ -628,8 +650,8 @@ const MapView = ({ trip, onStartTrip, starting, onSimulateComplete }) => {
 
             {showStartTrip && (
               <button onClick={onStartTrip} disabled={starting}
-                className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
-                style={{ background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})` }}>
+                className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60 transition"
+                style={{ background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})`, boxShadow: `0 2px 8px ${COLORS.teal}30` }}>
                 {starting
                   ? <><Loader2 size={14} className="animate-spin" /> Starting…</>
                   : <><Navigation size={14} /> Start Trip</>}
@@ -638,8 +660,8 @@ const MapView = ({ trip, onStartTrip, starting, onSimulateComplete }) => {
 
             {showSimulate && (
               <button onClick={handleSimulate} disabled={simulating}
-                className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
-                style={{ background: 'linear-gradient(135deg, #F97316, #FB923C)' }}>
+                className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60 transition"
+                style={{ background: 'linear-gradient(135deg, #C2703D, #D98C55)', boxShadow: '0 2px 8px rgba(194,112,61,0.25)' }}>
                 {simulating
                   ? <><Loader2 size={14} className="animate-spin" /> Simulating…</>
                   : <><Zap size={14} /> {simulateConfig.label}</>}
@@ -672,7 +694,7 @@ const MapView = ({ trip, onStartTrip, starting, onSimulateComplete }) => {
             )}
 
             {simulateError && (
-              <p className="mt-2 text-xs text-red-500">{simulateError}</p>
+              <p className="mt-2 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} />{simulateError}</p>
             )}
             {vesselError && (
               <p className="mt-2 text-xs text-red-500">{vesselError}</p>
@@ -770,60 +792,91 @@ const DriverDashboard = () => {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 font-sans">
+    <div className="flex h-screen font-sans" style={{ backgroundColor: COLORS.bg }}>
       <style>{ANIM}</style>
 
       {/* Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-40 w-80 bg-white shadow-lg transform transition-transform duration-300 lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-full flex flex-col">
-          <div className="px-6 py-6 border-b border-slate-200">
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-bold" style={{ color: COLORS.navy }}>⚓ MareNostrum</h1>
-              <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 hover:bg-slate-100 rounded-lg">
-                <X size={20} />
+          <div className="px-6 py-6 border-b border-slate-100">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: `${COLORS.navy}14` }}
+                >
+                  <Anchor size={17} color={COLORS.navy} strokeWidth={2} />
+                </div>
+                <div>
+                  <p className="font-semibold tracking-[0.18em] text-xs leading-none" style={{ color: COLORS.navy }}>
+                    MARE NOSTRUM
+                  </p>
+                  <p className="text-[10px] italic mt-1 leading-none" style={{ color: COLORS.teal }}>
+                    Our sea, our trade
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setSidebarOpen(false)} className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100">
+                <X size={18} />
               </button>
             </div>
-            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold" style={{ backgroundColor: COLORS.teal }}>
+            <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: COLORS.bg }}>
+              <div
+                className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shrink-0"
+                style={{ background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})` }}
+              >
                 {driverName[0]?.toUpperCase()}
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-slate-900">{driverName}</p>
-                <p className="text-xs text-slate-500">Driver</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-800 truncate">{driverName}</p>
+                <p className="text-xs text-slate-400">Driver</p>
               </div>
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto px-6 py-4">
-            <h2 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">My Trips ({trips.length})</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-bold uppercase tracking-wide text-slate-400">My Trips</h2>
+              <span
+                className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                style={{ backgroundColor: `${COLORS.aqua}14`, color: COLORS.aqua }}
+              >
+                {trips.length}
+              </span>
+            </div>
 
             {loading && (
               <div className="flex items-center justify-center py-8">
-                <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: `${COLORS.teal}40`, borderTopColor: COLORS.teal }}></div>
+                <Loader2 className="animate-spin" size={22} style={{ color: COLORS.teal }} />
               </div>
             )}
 
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">{error}</div>
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-600">{error}</div>
             )}
 
             {!loading && trips.length === 0 && (
-              <div className="text-center py-8 text-slate-500">
-                <Navigation size={32} className="mx-auto mb-2 opacity-30" />
+              <div className="text-center py-10 text-slate-400">
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+                  style={{ backgroundColor: `${COLORS.navy}0D` }}
+                >
+                  <Navigation size={20} style={{ color: COLORS.navy, opacity: 0.5 }} />
+                </div>
                 <p className="text-sm">No trips assigned</p>
               </div>
             )}
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {trips.map(trip => (
                 <TripCard key={trip.id} trip={trip} selected={selectedTrip?.id === trip.id} onClick={() => { setSelectedTrip(trip); setStartError(null); }} />
               ))}
             </div>
           </div>
 
-          <div className="border-t border-slate-200 p-4">
-            <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 font-medium text-sm">
-              <LogOut size={18} />
+          <div className="border-t border-slate-100 p-4">
+            <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-red-600 hover:bg-red-50 font-medium text-sm transition">
+              <LogOut size={16} />
               Logout
             </button>
           </div>
@@ -831,17 +884,28 @@ const DriverDashboard = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        <div className="bg-white shadow-sm border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 hover:bg-slate-100 rounded-lg">
-            <Menu size={24} />
-          </button>
-          <h1 className="text-2xl font-bold" style={{ color: COLORS.navy }}>Driver Dashboard</h1>
-          <div className="text-sm text-slate-600">{selectedTrip && `Trip #${selectedTrip.id}`}</div>
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="bg-white shadow-sm border-b border-slate-100 px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden w-9 h-9 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 shrink-0">
+              <Menu size={18} />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-semibold truncate" style={{ color: COLORS.navy }}>Driver Dashboard</h1>
+            </div>
+          </div>
+          {selectedTrip && (
+            <span
+              className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full shrink-0"
+              style={{ backgroundColor: `${COLORS.teal}14`, color: COLORS.teal }}
+            >
+              Trip #{selectedTrip.id}
+            </span>
+          )}
         </div>
 
         {startError && (
-          <div className="px-6 py-2.5 bg-red-50 border-b border-red-200 flex items-center justify-between gap-3">
+          <div className="px-4 sm:px-6 py-2.5 bg-red-50 border-b border-red-200 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-xs text-red-700">
               <AlertCircle size={14} className="flex-shrink-0" />
               {startError}
@@ -858,7 +922,7 @@ const DriverDashboard = () => {
       </div>
 
       {sidebarOpen && (
-        <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/50 lg:hidden z-30" />
+        <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-slate-900/40 lg:hidden z-30" />
       )}
     </div>
   );
