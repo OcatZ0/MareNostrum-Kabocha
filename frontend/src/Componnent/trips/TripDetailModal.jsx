@@ -18,14 +18,14 @@ import { getUser } from '../../api/usersApi';
 import { getTruck } from '../../api/trucksApi';
 
 const VESSEL_STATUS_CONFIG = {
-  scheduled: { label: 'Terjadwal', bg: '#f1f5f9', color: '#475569' },
-  departed: { label: 'Sedang Berlayar', bg: '#eff6ff', color: '#2563eb' },
-  on_time: { label: 'Tepat Waktu', bg: '#ecfdf5', color: '#059669' },
-  delayed: { label: 'Terlambat', bg: '#fef2f2', color: '#dc2626' },
-  early: { label: 'Tiba Lebih Cepat', bg: '#fdf4ff', color: '#9333ea' },
-  berthing: { label: 'Sedang Sandar', bg: '#fffbeb', color: '#d97706' },
-  arrived: { label: 'Tiba di Pelabuhan', bg: '#f0fdf4', color: '#16a34a' },
-  cancelled: { label: 'Dibatalkan', bg: '#f8fafc', color: '#94a3b8' },
+  scheduled: { label: 'Scheduled', bg: '#f1f5f9', color: '#475569' },
+  departed: { label: 'Departed', bg: '#eff6ff', color: '#2563eb' },
+  on_time: { label: 'On Time', bg: '#ecfdf5', color: '#059669' },
+  delayed: { label: 'Delayed', bg: '#fef2f2', color: '#dc2626' },
+  early: { label: 'Early Arrival', bg: '#fdf4ff', color: '#9333ea' },
+  berthing: { label: 'Berthing', bg: '#fffbeb', color: '#d97706' },
+  arrived: { label: 'Arrived', bg: '#f0fdf4', color: '#16a34a' },
+  cancelled: { label: 'Cancelled', bg: '#f8fafc', color: '#94a3b8' },
 };
 
 const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY || '';
@@ -453,7 +453,7 @@ const InfoTab = ({ trip }) => {
 
       {trip.vessel_schedule && (
         <div className="sm:col-span-2">
-          <Section title="Jadwal Pelayaran Kapal Terhubung" icon={Ship}>
+          <Section title="Connected Vessel Schedule" icon={Ship}>
             <div className="p-4 rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50/60 to-slate-50 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-teal-100/80 pb-3">
                 <div className="flex items-center gap-2.5">
@@ -490,15 +490,15 @@ const InfoTab = ({ trip }) => {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <div className="bg-white/80 p-2.5 rounded-lg border border-slate-100">
-                  <span className="text-[10px] text-slate-400 block font-medium">Jadwal Berangkat (ETD)</span>
+                  <span className="text-[10px] text-slate-400 block font-medium">Scheduled Departure (ETD)</span>
                   <span className="font-semibold text-slate-700">{fmt(trip.vessel_schedule.scheduled_departure_at)}</span>
                 </div>
                 <div className="bg-white/80 p-2.5 rounded-lg border border-slate-100">
-                  <span className="text-[10px] text-slate-400 block font-medium">Estimasi Tiba (ETA)</span>
+                  <span className="text-[10px] text-slate-400 block font-medium">Estimated Arrival (ETA)</span>
                   <span className="font-semibold text-slate-700">{fmt(trip.vessel_schedule.scheduled_arrival_at)}</span>
                 </div>
                 <div className="bg-white/80 p-2.5 rounded-lg border border-slate-100">
-                  <span className="text-[10px] text-slate-400 block font-medium">Sisa Jarak Laut</span>
+                  <span className="text-[10px] text-slate-400 block font-medium">Remaining Sea Distance</span>
                   <span className="font-semibold text-slate-700">
                     {trip.vessel_schedule.distance_to_destination_km != null
                       ? `${trip.vessel_schedule.distance_to_destination_km} km (${trip.vessel_schedule.distance_to_destination_nm} NM)`
@@ -506,7 +506,7 @@ const InfoTab = ({ trip }) => {
                   </span>
                 </div>
                 <div className="bg-white/80 p-2.5 rounded-lg border border-slate-100">
-                  <span className="text-[10px] text-slate-400 block font-medium">Kecepatan Transponder</span>
+                  <span className="text-[10px] text-slate-400 block font-medium">Transponder Speed</span>
                   <span className="font-semibold text-slate-700">
                     {trip.vessel_schedule.current_speed_knots != null
                       ? `${trip.vessel_schedule.current_speed_knots} Knots`
@@ -692,11 +692,11 @@ const RecommendTab = ({ trip, onUpdated }) => {
 
       const dateMap = new Map();
 
-      // 1. Hari Ini
+      // 1. Today
       dateMap.set(todayStrVal, {
         dateStr: todayStrVal,
-        label: todayStrVal === vesselDateStr ? 'Hari Ini (Hari Kapal)' : 'Hari Ini',
-        formatted: today.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }),
+        label: todayStrVal === vesselDateStr ? 'Today (Vessel Day)' : 'Today',
+        formatted: today.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
       });
 
       // 2. Pre-vessel dates (H-2, H-1, or vessel date)
@@ -706,12 +706,12 @@ const RecommendTab = ({ trip, onUpdated }) => {
         if (d >= today && d <= vesselDate) {
           const dStr = d.toISOString().split('T')[0];
           const daysBefore = Math.abs(offset);
-          const lbl = offset === 0 ? 'Hari Keberangkatan Kapal' : `H-${daysBefore} (${daysBefore} Hari Sebelum Kapal)`;
+          const lbl = offset === 0 ? 'Vessel Departure Day' : `D-${daysBefore} (${daysBefore} day${daysBefore !== 1 ? 's' : ''} before vessel)`;
           if (!dateMap.has(dStr)) {
             dateMap.set(dStr, {
               dateStr: dStr,
               label: lbl,
-              formatted: d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }),
+              formatted: d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
             });
           }
         }
@@ -728,8 +728,8 @@ const RecommendTab = ({ trip, onUpdated }) => {
             if (!dateMap.has(dStr)) {
               dateMap.set(dStr, {
                 dateStr: dStr,
-                label: `H-${daysBefore} (${daysBefore} Hari Sebelum Kapal)`,
-                formatted: d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }),
+                label: `D-${daysBefore} (${daysBefore} day${daysBefore !== 1 ? 's' : ''} before vessel)`,
+                formatted: d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
               });
             }
           }
@@ -744,8 +744,8 @@ const RecommendTab = ({ trip, onUpdated }) => {
       const d = new Date();
       d.setDate(d.getDate() + offset);
       const dateStr = d.toISOString().split('T')[0];
-      const label = offset === 0 ? 'Hari Ini' : `+${offset} Hari`;
-      const formatted = d.toLocaleDateString('id-ID', {
+      const label = offset === 0 ? 'Today' : `+${offset} day${offset !== 1 ? 's' : ''}`;
+      const formatted = d.toLocaleDateString('en-GB', {
         weekday: 'short',
         day: 'numeric',
         month: 'short',
@@ -774,7 +774,7 @@ const RecommendTab = ({ trip, onUpdated }) => {
       const res = await recommendTrip(trip.id, { date: selectedDate });
       onUpdated(res.data?.data);
     } catch (err) {
-      setApiError(err?.response?.data?.message ?? 'Gagal mendapatkan rekomendasi waktu keberangkatan.');
+      setApiError(err?.response?.data?.message ?? 'Failed to get departure time recommendations.');
     } finally {
       setSubmitting(false);
     }
@@ -785,15 +785,15 @@ const RecommendTab = ({ trip, onUpdated }) => {
       <div className="px-4 py-3 rounded-xl text-xs text-slate-600 bg-slate-50 border border-slate-200">
         <p className="font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
           <Clock size={14} className="text-teal-600" />
-          Rekomendasi Waktu Keberangkatan Truk (AI & Traffic Engine)
+          Truck Departure Time Recommendation (AI & Traffic Engine)
         </p>
         {hasVessel ? (
           <span>
-            Sesuai regulasi logistik ekspor Batam–Singapura, jadwal truk dibuka <strong>hingga 3 hari sebelum keberangkatan kapal</strong> untuk memastikan proses bea cukai, dokumen PEB/NPE, dan penumpukan kontainer di pelabuhan selesai tepat waktu sebelum kapal lepas jangkar.
+            Per Batam–Singapore export logistics regulations, truck scheduling opens <strong>up to 3 days before vessel departure</strong> to ensure customs clearance, PEB/NPE export documents, and container stacking at the port are all completed on time before the vessel sails.
           </span>
         ) : (
           <span>
-            Pilih salah satu dari <strong>3 tanggal jadwal rute pengantaran</strong>. Rekomendasi memperhitungkan estimasi kedatangan truk dengan lalu lintas optimal.
+            Choose one of <strong>3 delivery route schedule dates</strong>. Recommendations account for estimated truck arrival under optimal traffic conditions.
           </span>
         )}
       </div>
@@ -812,7 +812,7 @@ const RecommendTab = ({ trip, onUpdated }) => {
             </div>
           </div>
           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-200">
-            Jendela Pengantaran: H-3 s/d H-1
+            Delivery Window: D-3 to D-1
           </span>
         </div>
       )}
@@ -820,7 +820,7 @@ const RecommendTab = ({ trip, onUpdated }) => {
       {hasVessel ? (
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-2">
-            Pilih Tanggal Pengantaran Truk (Tersedia 3 Hari Sebelum Kapal Berangkat):
+            Select Truck Delivery Date (Available 3 Days Before Vessel Departure):
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {availableDates.map(({ dateStr, label, formatted }) => {
@@ -852,7 +852,7 @@ const RecommendTab = ({ trip, onUpdated }) => {
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Pilih Tanggal Keberangkatan Truk:
+              Select Truck Departure Date:
             </label>
             <input
               type="date"
@@ -864,12 +864,12 @@ const RecommendTab = ({ trip, onUpdated }) => {
               onBlur={(e) => (e.target.style.boxShadow = 'none')}
             />
             <p className="text-[11px] text-slate-400 mt-1">
-              * Bebas memilih tanggal keberangkatan mulai dari hari ini ke depan.
+              * Freely choose any departure date from today onward.
             </p>
           </div>
 
           <div>
-            <span className="text-[11px] font-medium text-slate-500 block mb-1.5">Pilihan Cepat:</span>
+            <span className="text-[11px] font-medium text-slate-500 block mb-1.5">Quick Picks:</span>
             <div className="grid grid-cols-3 gap-2">
               {availableDates.map(({ dateStr, label, formatted }) => {
                 const isSelected = selectedDate === dateStr;
@@ -905,12 +905,12 @@ const RecommendTab = ({ trip, onUpdated }) => {
         >
           {submitting ? (
             <>
-              <Spinner /> Menganalisis Rute & Rekomendasi Waktu…
+              <Spinner /> Analyzing Route & Time Recommendation…
             </>
           ) : (
             <>
               <Zap size={14} />
-              <span>Hitung Rekomendasi Jam Truk</span>
+              <span>Calculate Truck Time Recommendation</span>
             </>
           )}
         </button>
@@ -1362,7 +1362,7 @@ const AssignTab = ({ trip, onUpdated }) => {
             <label className="block text-xs font-medium text-slate-600">Select Departure Time</label>
             {vesselDepart && (
               <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md font-medium">
-                Wajib tiba minimal 1 jam sebelum ETD Kapal ({fmt(trip.vessel_schedule.scheduled_departure_at)})
+                Must arrive at least 1 hour before vessel ETD ({fmt(trip.vessel_schedule.scheduled_departure_at)})
               </span>
             )}
           </div>
@@ -1404,7 +1404,7 @@ const AssignTab = ({ trip, onUpdated }) => {
                       </span>
                       {disallowed && (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700 border border-red-200">
-                          Tidak Dapat Dipilih (Melewati Cut-Off 1 Jam Kapal)
+                          Not Selectable (Past 1-Hour Vessel Cut-Off)
                         </span>
                       )}
                     </div>
@@ -1500,7 +1500,7 @@ const ShipTab = ({ trip, onUpdated }) => {
     setSuccess(false);
 
     if (!selectedScheduleId) {
-      setError('Silakan pilih salah satu jadwal kapal yang tersedia');
+      setError('Please select one of the available vessel schedules');
       setSubmitting(false);
       return;
     }
@@ -1510,7 +1510,7 @@ const ShipTab = ({ trip, onUpdated }) => {
       onUpdated(res.data?.data);
       setSuccess(true);
     } catch (err) {
-      setApiError(err?.response?.data?.message ?? 'Gagal menghubungkan jadwal kapal ke trip ini.');
+      setApiError(err?.response?.data?.message ?? 'Failed to link the vessel schedule to this trip.');
     } finally {
       setSubmitting(false);
     }
@@ -1528,7 +1528,7 @@ const ShipTab = ({ trip, onUpdated }) => {
       const res = await checkVesselScheduleStatus(vesselId, { notify: true });
       const data = res.data?.data;
       setRadarMessage(
-        `Radar update: Status ${data?.status?.toUpperCase()} · Sisa Jarak ${data?.distance_to_destination_km} km (${data?.distance_to_destination_nm} NM) · Deviasi ${data?.variance_minutes ?? 0} mnt`
+        `Radar update: Status ${data?.status?.toUpperCase()} · Remaining Distance ${data?.distance_to_destination_km} km (${data?.distance_to_destination_nm} NM) · Deviation ${data?.variance_minutes ?? 0} min`
       );
 
       // Refresh trip to sync updated telemetry
@@ -1537,7 +1537,7 @@ const ShipTab = ({ trip, onUpdated }) => {
         onUpdated(updatedTripRes.data.data);
       }
     } catch (err) {
-      setApiError(err?.response?.data?.message ?? 'Gagal memperbarui radar kapal via transponder.');
+      setApiError(err?.response?.data?.message ?? 'Failed to update vessel radar via transponder.');
     } finally {
       setCheckingRadar(false);
     }
@@ -1548,25 +1548,25 @@ const ShipTab = ({ trip, onUpdated }) => {
       <div className="px-4 py-3 rounded-xl text-xs text-slate-600 bg-slate-50 border border-slate-200/80">
         <p className="font-semibold text-slate-800 flex items-center gap-1.5 mb-1">
           <Ship size={14} className="text-teal-600" />
-          Pilih Jadwal Kapal Rute Lintas Batas ({trip.destination?.name ?? 'Batam'} ➔ {trip.ship_destination_port?.name ?? 'Singapura'})
+          Select Cross-Border Route Vessel Schedule ({trip.destination?.name ?? 'Batam'} ➔ {trip.ship_destination_port?.name ?? 'Singapore'})
         </p>
-        Pilih jadwal pelayaran kapal yang sesuai untuk menyinkronkan waktu cut-off kedatangan truk sebelum kapal berangkat.
+        Select the appropriate vessel schedule to synchronize the truck's arrival cut-off time before the vessel departs.
       </div>
 
       <div className="space-y-2.5">
         <label className="block text-xs font-medium text-slate-600">
-          Daftar Jadwal Kapal Aktif & Terverifikasi:
+          Active & Verified Vessel Schedules:
         </label>
 
         {loadingSchedules ? (
           <div className="p-4 rounded-xl border border-slate-200 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
             <Loader2 size={16} className="animate-spin text-teal-600" />
-            <span>Memuat jadwal kapal tersedia...</span>
+            <span>Loading available vessel schedules...</span>
           </div>
         ) : availableSchedules.length === 0 ? (
           <div className="p-4 rounded-xl border border-dashed border-slate-300 text-center space-y-2">
             <p className="text-xs text-slate-500">
-              Belum ada jadwal pelayaran kapal yang cocok di rute ini pada sistem.
+              No matching vessel schedules found for this route in the system yet.
             </p>
           </div>
         ) : (
@@ -1611,7 +1611,7 @@ const ShipTab = ({ trip, onUpdated }) => {
                           ETD: <b>{fmt(sch.scheduled_departure_at)}</b> · ETA: <b>{fmt(sch.scheduled_arrival_at)}</b>
                         </p>
                         <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                          MMSI: {sch.ship_ref_id} · Sisa Jarak: {sch.distance_to_destination_km != null ? `${sch.distance_to_destination_km} km (${sch.distance_to_destination_nm} NM)` : '—'}
+                          MMSI: {sch.ship_ref_id} · Remaining Distance: {sch.distance_to_destination_km != null ? `${sch.distance_to_destination_km} km (${sch.distance_to_destination_nm} NM)` : '—'}
                         </p>
                       </div>
                     </div>
@@ -1656,7 +1656,7 @@ const ShipTab = ({ trip, onUpdated }) => {
               ) : (
                 <>
                   <Radio size={12} />
-                  <span>Ping Radar Kapal</span>
+                  <span>Ping Vessel Radar</span>
                 </>
               )}
             </button>
@@ -1664,19 +1664,19 @@ const ShipTab = ({ trip, onUpdated }) => {
 
           <div className="grid grid-cols-3 gap-2 text-[11px] text-slate-300">
             <div className="bg-white/5 p-2 rounded-lg">
-              <span className="text-slate-400 block text-[10px]">Posisi Terkini</span>
+              <span className="text-slate-400 block text-[10px]">Current Position</span>
               <span className="font-mono font-medium">
                 {trip.vessel_schedule.current_latitude?.toFixed(4)}, {trip.vessel_schedule.current_longitude?.toFixed(4)}
               </span>
             </div>
             <div className="bg-white/5 p-2 rounded-lg">
-              <span className="text-slate-400 block text-[10px]">Sisa Jarak</span>
+              <span className="text-slate-400 block text-[10px]">Remaining Distance</span>
               <span className="font-medium text-emerald-300">
                 {trip.vessel_schedule.distance_to_destination_km != null ? `${trip.vessel_schedule.distance_to_destination_km} km` : '—'}
               </span>
             </div>
             <div className="bg-white/5 p-2 rounded-lg">
-              <span className="text-slate-400 block text-[10px]">Kecepatan</span>
+              <span className="text-slate-400 block text-[10px]">Speed</span>
               <span className="font-medium text-cyan-300">
                 {trip.vessel_schedule.current_speed_knots != null ? `${trip.vessel_schedule.current_speed_knots} Knots` : '—'}
               </span>
@@ -1694,7 +1694,7 @@ const ShipTab = ({ trip, onUpdated }) => {
       {success && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-green-200 bg-green-50 text-xs text-green-700">
           <CheckCircle2 size={12} />
-          Jadwal kapal berhasil dipilih! Melanjutkan ke Rekomendasi Waktu…
+          Vessel schedule selected successfully! Proceeding to Time Recommendation…
         </div>
       )}
 
@@ -1709,12 +1709,12 @@ const ShipTab = ({ trip, onUpdated }) => {
         >
           {submitting ? (
             <>
-              <Spinner /> Menyimpan Pilihan Kapal…
+              <Spinner /> Saving Vessel Selection…
             </>
           ) : (
             <>
               <Anchor size={14} />
-              <span>Simpan Kapal & Lanjut Rekomendasi</span>
+              <span>Save Vessel & Continue to Recommendation</span>
             </>
           )}
         </button>

@@ -112,14 +112,14 @@ const StatusBadge = ({ status }) => {
 };
 
 const STATUS_FILTER_PILLS = [
-  { key: '', label: 'Semua Status' },
-  { key: 'scheduled', label: 'Terjadwal' },
-  { key: 'on_time', label: 'Tepat Waktu' },
-  { key: 'delayed', label: 'Terlambat (Delayed)' },
-  { key: 'early', label: 'Kedatangan Cepat' },
-  { key: 'berthing', label: 'Proses Sandar' },
-  { key: 'arrived', label: 'Tiba di Pelabuhan' },
-  { key: 'cancelled', label: 'Dibatalkan' },
+  { key: '', label: 'All Statuses' },
+  { key: 'scheduled', label: 'Scheduled' },
+  { key: 'on_time', label: 'On Time' },
+  { key: 'delayed', label: 'Delayed' },
+  { key: 'early', label: 'Early Arrival' },
+  { key: 'berthing', label: 'Berthing' },
+  { key: 'arrived', label: 'Arrived' },
+  { key: 'cancelled', label: 'Cancelled' },
 ];
 
 const VesselSchedulesPage = () => {
@@ -201,7 +201,7 @@ const VesselSchedulesPage = () => {
       setSchedules(data);
       setPagination(meta);
     } catch {
-      showToast('Gagal memuat jadwal kapal.', 'error');
+      showToast('Failed to load vessel schedules.', 'error');
     } finally {
       setLoading(false);
     }
@@ -294,10 +294,10 @@ const VesselSchedulesPage = () => {
                 </div>
                 <div>
                   <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-                    Jadwal Kedatangan & Keberangkatan Kapal
+                    Vessel Arrival & Departure Schedule
                   </h1>
                   <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                    Kelola pelayaran kapal kargo/feri, impor file Excel, dan pantau toleransi ketepatan waktu
+                    Manage cargo/ferry vessel voyages, import Excel files, and monitor punctuality tolerance
                   </p>
                 </div>
               </div>
@@ -309,20 +309,20 @@ const VesselSchedulesPage = () => {
                 onClick={() => handleDownloadTemplate('xlsx')}
                 type="button"
                 className="px-3 py-2.5 rounded-xl text-xs font-bold bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-400 transition flex items-center gap-1.5 shadow-sm"
-                title="Unduh Template Excel dengan layout rapi dan kolom luas"
+                title="Download Excel template with clean layout and wide columns"
               >
                 <Download size={14} className="text-emerald-600" />
-                <span>Template Excel (.XLSX)</span>
+                <span>Excel Template (.XLSX)</span>
               </button>
 
               <button
                 onClick={() => handleDownloadTemplate('csv')}
                 type="button"
                 className="px-3 py-2.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition flex items-center gap-1.5 shadow-sm"
-                title="Unduh Template CSV standar"
+                title="Download standard CSV template"
               >
                 <Download size={14} className="text-slate-500" />
-                <span>Template CSV</span>
+                <span>CSV Template</span>
               </button>
 
               <button
@@ -344,7 +344,7 @@ const VesselSchedulesPage = () => {
                 }}
               >
                 <Plus size={16} />
-                <span>Tambah Jadwal</span>
+                <span>Add Schedule</span>
               </button>
             </div>
           </div>
@@ -353,9 +353,9 @@ const VesselSchedulesPage = () => {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-500">Total Pelayaran</p>
+                <p className="text-xs font-medium text-slate-500">Total Voyages</p>
                 <p className="text-2xl font-black text-slate-800 mt-1">{metrics.total}</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Jadwal tercatat</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Recorded schedules</p>
               </div>
               <div className="p-3 rounded-xl bg-slate-100 text-slate-600">
                 <Ship size={20} />
@@ -364,9 +364,9 @@ const VesselSchedulesPage = () => {
 
             <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-emerald-600">Tepat Waktu / Sandar</p>
+                <p className="text-xs font-medium text-emerald-600">On Time / Berthing</p>
                 <p className="text-2xl font-black text-emerald-700 mt-1">{metrics.onTimeCount}</p>
-                <p className="text-[11px] text-emerald-600/80 mt-0.5">Sesuai perkiraan</p>
+                <p className="text-[11px] text-emerald-600/80 mt-0.5">As estimated</p>
               </div>
               <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600">
                 <CheckCircle2 size={20} />
@@ -375,9 +375,9 @@ const VesselSchedulesPage = () => {
 
             <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-rose-600">Terlambat (Delayed)</p>
+                <p className="text-xs font-medium text-rose-600">Delayed</p>
                 <p className="text-2xl font-black text-rose-700 mt-1">{metrics.delayedCount}</p>
-                <p className="text-[11px] text-rose-500 mt-0.5">&gt; Batas toleransi</p>
+                <p className="text-[11px] text-rose-500 mt-0.5">&gt; Tolerance limit</p>
               </div>
               <div className="p-3 rounded-xl bg-rose-50 text-rose-600">
                 <AlertTriangle size={20} />
@@ -386,9 +386,9 @@ const VesselSchedulesPage = () => {
 
             <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-blue-600">Kedatangan Cepat</p>
+                <p className="text-xs font-medium text-blue-600">Early Arrival</p>
                 <p className="text-2xl font-black text-blue-700 mt-1">{metrics.earlyCount}</p>
-                <p className="text-[11px] text-blue-500 mt-0.5">&lt; Waktu jadwal</p>
+                <p className="text-[11px] text-blue-500 mt-0.5">&lt; Scheduled time</p>
               </div>
               <div className="p-3 rounded-xl bg-blue-50 text-blue-600">
                 <Zap size={20} />
@@ -404,7 +404,7 @@ const VesselSchedulesPage = () => {
                 <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari nama kapal, MMSI, nomor pelayaran..."
+                  placeholder="Search vessel name, MMSI, voyage number..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-cyan-500 transition outline-none"
@@ -425,7 +425,7 @@ const VesselSchedulesPage = () => {
                 onChange={(e) => setOriginPortFilter(e.target.value)}
                 className="text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-cyan-500 transition outline-none"
               >
-                <option value="">Semua Pelabuhan Asal</option>
+                <option value="">All Origin Ports</option>
                 {ports.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.country === 'singapore' ? '🇸🇬' : '🇮🇩'} {p.name}
@@ -439,7 +439,7 @@ const VesselSchedulesPage = () => {
                 onChange={(e) => setDestPortFilter(e.target.value)}
                 className="text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-cyan-500 transition outline-none"
               >
-                <option value="">Semua Pelabuhan Tujuan</option>
+                <option value="">All Destination Ports</option>
                 {ports.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.country === 'singapore' ? '🇸🇬' : '🇮🇩'} {p.name}
@@ -460,7 +460,7 @@ const VesselSchedulesPage = () => {
                 onClick={() => fetchSchedules(pagination.current_page)}
                 disabled={loading}
                 className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 transition shrink-0 flex items-center justify-center disabled:opacity-50"
-                title="Muat Ulang"
+                title="Refresh"
               >
                 <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
               </button>
@@ -495,16 +495,16 @@ const VesselSchedulesPage = () => {
             {loading ? (
               <div className="p-16 flex flex-col items-center justify-center text-slate-400 space-y-3">
                 <div className="w-8 h-8 border-3 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-xs font-semibold">Memuat jadwal kapal...</p>
+                <p className="text-xs font-semibold">Loading vessel schedules...</p>
               </div>
             ) : schedules.length === 0 ? (
               <div className="p-16 flex flex-col items-center justify-center text-slate-400 space-y-3 text-center">
                 <div className="p-4 rounded-2xl bg-slate-50 text-slate-400">
                   <Ship size={36} />
                 </div>
-                <p className="text-sm font-bold text-slate-700">Tidak ada jadwal kapal ditemukan</p>
+                <p className="text-sm font-bold text-slate-700">No vessel schedules found</p>
                 <p className="text-xs text-slate-400 max-w-sm">
-                  Coba ubah kata kunci pencarian atau tambah jadwal pelayaran baru.
+                  Try changing the search keyword or add a new vessel schedule.
                 </p>
                 <button
                   onClick={handleOpenCreate}
@@ -512,7 +512,7 @@ const VesselSchedulesPage = () => {
                   style={{ backgroundColor: COLORS.teal }}
                 >
                   <Plus size={14} />
-                  <span>Tambah Jadwal Sekarang</span>
+                  <span>Add Schedule Now</span>
                 </button>
               </div>
             ) : (
@@ -522,13 +522,13 @@ const VesselSchedulesPage = () => {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50/75 text-[11px] uppercase tracking-wider font-bold text-slate-400">
-                        <th className="py-3.5 px-4">Kapal & MMSI</th>
-                        <th className="py-3.5 px-4">Rute Pelabuhan</th>
-                        <th className="py-3.5 px-4">Jadwal Berangkat</th>
-                        <th className="py-3.5 px-4">Jadwal Tiba & ETA</th>
-                        <th className="py-3.5 px-4">Sisa Jarak & Speed</th>
-                        <th className="py-3.5 px-4">Status & Deviasi</th>
-                        <th className="py-3.5 px-4 text-right">Aksi</th>
+                        <th className="py-3.5 px-4">Vessel & MMSI</th>
+                        <th className="py-3.5 px-4">Port Route</th>
+                        <th className="py-3.5 px-4">Scheduled Departure</th>
+                        <th className="py-3.5 px-4">Scheduled Arrival & ETA</th>
+                        <th className="py-3.5 px-4">Remaining Distance & Speed</th>
+                        <th className="py-3.5 px-4">Status & Deviation</th>
+                        <th className="py-3.5 px-4 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs">
@@ -572,13 +572,13 @@ const VesselSchedulesPage = () => {
                                 <div className="flex items-center gap-1.5 text-slate-700 font-medium">
                                   <span className="text-[11px]">{sch.origin_port?.country === 'singapore' ? '🇸🇬' : '🇮🇩'}</span>
                                   <span className="truncate max-w-[140px]" title={sch.origin_port?.name}>
-                                    {sch.origin_port?.name || 'Pelabuhan Asal'}
+                                    {sch.origin_port?.name || 'Origin Port'}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1.5 text-slate-700 font-medium">
                                   <span className="text-[11px]">{sch.destination_port?.country === 'singapore' ? '🇸🇬' : '🇮🇩'}</span>
                                   <span className="truncate max-w-[140px] font-bold text-slate-800" title={sch.destination_port?.name}>
-                                    {sch.destination_port?.name || 'Pelabuhan Tujuan'}
+                                    {sch.destination_port?.name || 'Destination Port'}
                                   </span>
                                 </div>
                               </div>
@@ -628,7 +628,7 @@ const VesselSchedulesPage = () => {
                                       isLate ? 'text-rose-600' : isEarly ? 'text-blue-600' : 'text-slate-500'
                                     }`}
                                   >
-                                    {variance > 0 ? `+${variance} mnt telat` : `${Math.abs(variance)} mnt lebih cepat`}
+                                    {variance > 0 ? `+${variance} min late` : `${Math.abs(variance)} min early`}
                                   </p>
                                 )}
                               </div>
@@ -640,21 +640,21 @@ const VesselSchedulesPage = () => {
                                 <button
                                   onClick={() => handleOpenStatusCheck(sch)}
                                   className="p-1.5 rounded-lg text-teal-600 hover:bg-teal-50 transition"
-                                  title="Cek Radar / Evaluasi Ketepatan Waktu"
+                                  title="Check Radar / Evaluate Punctuality"
                                 >
                                   <Radio size={15} />
                                 </button>
                                 <button
                                   onClick={() => handleOpenEdit(sch)}
                                   className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition"
-                                  title="Edit Jadwal"
+                                  title="Edit Schedule"
                                 >
                                   <Edit2 size={15} />
                                 </button>
                                 <button
                                   onClick={() => handleOpenDelete(sch)}
                                   className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition"
-                                  title="Hapus Jadwal"
+                                  title="Delete Schedule"
                                 >
                                   <Trash2 size={15} />
                                 </button>
@@ -690,10 +690,10 @@ const VesselSchedulesPage = () => {
                         </p>
                         <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200/60">
                           <span>
-                            Tiba: <b>{sch.scheduled_arrival_at ? new Date(sch.scheduled_arrival_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}</b>
+                            Arrival: <b>{sch.scheduled_arrival_at ? new Date(sch.scheduled_arrival_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}</b>
                           </span>
                           <span>
-                            Sisa Jarak: <b>{sch.distance_to_destination_km ?? '-'} km</b>
+                            Remaining Distance: <b>{sch.distance_to_destination_km ?? '-'} km</b>
                           </span>
                         </div>
                       </div>
@@ -726,7 +726,7 @@ const VesselSchedulesPage = () => {
                 {/* Pagination */}
                 <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
                   <p className="text-xs text-slate-500">
-                    Menampilkan <b>{schedules.length}</b> dari <b>{pagination.total}</b> jadwal
+                    Showing <b>{schedules.length}</b> of <b>{pagination.total}</b> schedules
                   </p>
 
                   <div className="flex items-center gap-2">
@@ -738,7 +738,7 @@ const VesselSchedulesPage = () => {
                       <ChevronLeft size={16} />
                     </button>
                     <span className="text-xs font-semibold text-slate-700">
-                      Halaman {pagination.current_page}
+                      Page {pagination.current_page}
                     </span>
                     <button
                       onClick={() => fetchSchedules(pagination.current_page + 1)}

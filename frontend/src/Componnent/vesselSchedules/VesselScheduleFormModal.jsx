@@ -7,14 +7,14 @@ import { COLORS } from '../dashboard/dashboardTheme';
 import { createVesselSchedule, updateVesselSchedule } from '../../api/vesselSchedulesApi';
 
 const STATUS_OPTIONS = [
-  { value: 'scheduled', label: 'Scheduled (Terjadwal)' },
-  { value: 'departed', label: 'Departed (Berlayar)' },
-  { value: 'on_time', label: 'On Time (Tepat Waktu)' },
-  { value: 'delayed', label: 'Delayed (Terlambat)' },
-  { value: 'early', label: 'Early (Datang Lebih Cepat)' },
-  { value: 'berthing', label: 'Berthing (Proses Sandar)' },
-  { value: 'arrived', label: 'Arrived (Tiba di Pelabuhan)' },
-  { value: 'cancelled', label: 'Cancelled (Dibatalkan)' },
+  { value: 'scheduled', label: 'Scheduled' },
+  { value: 'departed', label: 'Departed' },
+  { value: 'on_time', label: 'On Time' },
+  { value: 'delayed', label: 'Delayed' },
+  { value: 'early', label: 'Early' },
+  { value: 'berthing', label: 'Berthing' },
+  { value: 'arrived', label: 'Arrived' },
+  { value: 'cancelled', label: 'Cancelled' },
 ];
 
 const formatForInput = (isoString) => {
@@ -97,29 +97,29 @@ const VesselScheduleFormModal = ({
   const validate = () => {
     const errs = {};
     if (!formData.vessel_name.trim()) {
-      errs.vessel_name = 'Nama kapal wajib diisi.';
+      errs.vessel_name = 'Vessel name is required.';
     }
     if (!formData.ship_ref_id.trim()) {
-      errs.ship_ref_id = 'Nomor MMSI / IMO wajib diisi.';
+      errs.ship_ref_id = 'MMSI / IMO number is required.';
     }
     if (!formData.origin_port_id) {
-      errs.origin_port_id = 'Pelabuhan asal wajib dipilih.';
+      errs.origin_port_id = 'Origin port must be selected.';
     }
     if (!formData.destination_port_id) {
-      errs.destination_port_id = 'Pelabuhan tujuan wajib dipilih.';
+      errs.destination_port_id = 'Destination port must be selected.';
     }
     if (formData.origin_port_id && formData.destination_port_id && formData.origin_port_id === formData.destination_port_id) {
-      errs.destination_port_id = 'Pelabuhan tujuan tidak boleh sama dengan pelabuhan asal.';
+      errs.destination_port_id = 'Destination port cannot be the same as the origin port.';
     }
     if (!formData.scheduled_departure_at) {
-      errs.scheduled_departure_at = 'Waktu keberangkatan wajib diisi.';
+      errs.scheduled_departure_at = 'Departure time is required.';
     }
     if (!formData.scheduled_arrival_at) {
-      errs.scheduled_arrival_at = 'Waktu kedatangan wajib diisi.';
+      errs.scheduled_arrival_at = 'Arrival time is required.';
     }
     if (formData.scheduled_departure_at && formData.scheduled_arrival_at) {
       if (new Date(formData.scheduled_arrival_at) <= new Date(formData.scheduled_departure_at)) {
-        errs.scheduled_arrival_at = 'Waktu kedatangan harus setelah waktu keberangkatan.';
+        errs.scheduled_arrival_at = 'Arrival time must be after the departure time.';
       }
     }
     return errs;
@@ -151,7 +151,7 @@ const VesselScheduleFormModal = ({
       } else {
         await createVesselSchedule(payload);
       }
-      onSaved(isEdit ? 'Jadwal kapal berhasil diperbarui.' : 'Jadwal kapal berhasil ditambahkan.');
+      onSaved(isEdit ? 'Vessel schedule updated successfully.' : 'Vessel schedule added successfully.');
       onClose();
     } catch (err) {
       if (err.response?.status === 422 && err.response.data?.errors) {
@@ -161,7 +161,7 @@ const VesselScheduleFormModal = ({
         });
         setErrors(serverErrs);
       } else {
-        setErrors({ general: err.response?.data?.message || 'Gagal menyimpan jadwal kapal.' });
+        setErrors({ general: err.response?.data?.message || 'Failed to save vessel schedule.' });
       }
     } finally {
       setLoading(false);
@@ -188,12 +188,12 @@ const VesselScheduleFormModal = ({
             </div>
             <div>
               <h2 className="text-lg font-bold">
-                {isEdit ? 'Edit Jadwal Kapal' : 'Tambah Jadwal Kapal Baru'}
+                {isEdit ? 'Edit Vessel Schedule' : 'Add New Vessel Schedule'}
               </h2>
               <p className="text-xs text-slate-300">
                 {isEdit
-                  ? `Mengubah rincian pelayaran ${schedule?.vessel_name}`
-                  : 'Rencanakan jadwal pelayaran kapal Batam ↔ Singapura'}
+                  ? `Editing voyage details for ${schedule?.vessel_name}`
+                  : 'Plan a vessel schedule for the Batam ↔ Singapore route'}
               </p>
             </div>
           </div>
@@ -218,12 +218,12 @@ const VesselScheduleFormModal = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Nama Kapal <span className="text-rose-500">*</span>
+                Vessel Name <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Contoh: Batam Fast 18"
+                  placeholder="e.g. Batam Fast 18"
                   value={formData.vessel_name}
                   onChange={(e) => setFormData({ ...formData, vessel_name: e.target.value })}
                   className={`w-full text-sm px-3.5 py-2.5 rounded-xl border bg-slate-50 focus:bg-white transition outline-none ${
@@ -236,11 +236,11 @@ const VesselScheduleFormModal = ({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                MMSI / IMO ID Kapal <span className="text-rose-500">*</span>
+                Vessel MMSI / IMO ID <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
-                placeholder="Contoh: 563123456"
+                placeholder="e.g. 563123456"
                 value={formData.ship_ref_id}
                 onChange={(e) => setFormData({ ...formData, ship_ref_id: e.target.value })}
                 className={`w-full text-sm px-3.5 py-2.5 rounded-xl border bg-slate-50 focus:bg-white transition outline-none ${
@@ -255,11 +255,11 @@ const VesselScheduleFormModal = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Nomor Pelayaran (Voyage No.)
+                Voyage Number
               </label>
               <input
                 type="text"
-                placeholder="Contoh: BF-2026-081"
+                placeholder="e.g. BF-2026-081"
                 value={formData.voyage_number}
                 onChange={(e) => setFormData({ ...formData, voyage_number: e.target.value })}
                 className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-cyan-500 transition outline-none"
@@ -268,7 +268,7 @@ const VesselScheduleFormModal = ({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Toleransi Keterlambatan / Kecepatan
+                Delay / Early Arrival Tolerance
               </label>
               <div className="relative flex items-center">
                 <input
@@ -279,9 +279,9 @@ const VesselScheduleFormModal = ({
                   onChange={(e) => setFormData({ ...formData, tolerance_minutes: e.target.value })}
                   className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-cyan-500 transition outline-none"
                 />
-                <span className="absolute right-3.5 text-xs text-slate-400 pointer-events-none">Menit</span>
+                <span className="absolute right-3.5 text-xs text-slate-400 pointer-events-none">Minutes</span>
               </div>
-              <p className="text-[10px] text-slate-500 mt-1">Notifikasi otomatis terkirim jika deviasi melebihi batas ini.</p>
+              <p className="text-[10px] text-slate-500 mt-1">An automatic notification is sent if the deviation exceeds this limit.</p>
             </div>
           </div>
 
@@ -290,7 +290,7 @@ const VesselScheduleFormModal = ({
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
                 <Anchor size={14} className="text-teal-600" />
-                Pelabuhan Asal <span className="text-rose-500">*</span>
+                Origin Port <span className="text-rose-500">*</span>
               </label>
               <select
                 value={formData.origin_port_id}
@@ -299,7 +299,7 @@ const VesselScheduleFormModal = ({
                   errors.origin_port_id ? 'border-rose-400' : 'border-slate-300 focus:border-cyan-500'
                 }`}
               >
-                <option value="">-- Pilih Pelabuhan Asal --</option>
+                <option value="">-- Select Origin Port --</option>
                 {ports.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.country === 'singapore' ? '🇸🇬' : '🇮🇩'} {p.name} {p.unlocode ? `(${p.unlocode})` : ''}
@@ -312,7 +312,7 @@ const VesselScheduleFormModal = ({
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
                 <Navigation size={14} className="text-cyan-600" />
-                Pelabuhan Tujuan <span className="text-rose-500">*</span>
+                Destination Port <span className="text-rose-500">*</span>
               </label>
               <select
                 value={formData.destination_port_id}
@@ -321,7 +321,7 @@ const VesselScheduleFormModal = ({
                   errors.destination_port_id ? 'border-rose-400' : 'border-slate-300 focus:border-cyan-500'
                 }`}
               >
-                <option value="">-- Pilih Pelabuhan Tujuan --</option>
+                <option value="">-- Select Destination Port --</option>
                 {ports.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.country === 'singapore' ? '🇸🇬' : '🇮🇩'} {p.name} {p.unlocode ? `(${p.unlocode})` : ''}
@@ -337,7 +337,7 @@ const VesselScheduleFormModal = ({
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
                 <Calendar size={14} className="text-slate-500" />
-                Jadwal Waktu Keberangkatan <span className="text-rose-500">*</span>
+                Scheduled Departure Time <span className="text-rose-500">*</span>
               </label>
               <input
                 type="datetime-local"
@@ -353,7 +353,7 @@ const VesselScheduleFormModal = ({
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
                 <Clock size={14} className="text-slate-500" />
-                Jadwal Waktu Kedatangan <span className="text-rose-500">*</span>
+                Scheduled Arrival Time <span className="text-rose-500">*</span>
               </label>
               <input
                 type="datetime-local"
@@ -370,7 +370,7 @@ const VesselScheduleFormModal = ({
           {/* Row 5: Status */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Status Jadwal Kapal
+              Vessel Schedule Status
             </label>
             <select
               value={formData.status}
@@ -388,11 +388,11 @@ const VesselScheduleFormModal = ({
           {/* Row 6: Notes */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Catatan Operasional (Opsional)
+              Operational Notes (Optional)
             </label>
             <textarea
               rows={2}
-              placeholder="Catatan khusus muatan kontainer, informasi cuaca, instruksi bongkar muat..."
+              placeholder="Special container cargo notes, weather information, loading/unloading instructions..."
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               className="w-full text-sm px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-cyan-500 transition outline-none resize-none"
@@ -406,7 +406,7 @@ const VesselScheduleFormModal = ({
               onClick={onClose}
               className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
             >
-              Batal
+              Cancel
             </button>
             <button
               type="submit"
@@ -420,12 +420,12 @@ const VesselScheduleFormModal = ({
               {loading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Menyimpan...</span>
+                  <span>Saving...</span>
                 </>
               ) : (
                 <>
                   <Save size={16} />
-                  <span>{isEdit ? 'Simpan Perubahan' : 'Tambah Jadwal'}</span>
+                  <span>{isEdit ? 'Save Changes' : 'Add Schedule'}</span>
                 </>
               )}
             </button>

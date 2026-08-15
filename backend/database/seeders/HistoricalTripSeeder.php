@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Context\CompanyType;
+use App\Context\EventType;
+use App\Context\Source;
 use App\Context\StatusTrips;
 use App\Models\Company;
 use App\Models\Trip;
@@ -51,7 +53,7 @@ class HistoricalTripSeeder extends Seeder
                 $departedAt = Carbon::today()->subDays(7 + $i)->setTime($hour, 0);
                 $arrivedAt = $departedAt->copy()->addMinutes(self::ESTIMATED_DURATION_MIN + $delayMinutes);
 
-                Trip::create([
+                $trip = Trip::create([
                     'origin_company_id' => $internal->id,
                     'destination_company_id' => $partner->id,
                     'driver_id' => $driver->id,
@@ -60,6 +62,28 @@ class HistoricalTripSeeder extends Seeder
                     'actual_departure_at' => $departedAt,
                     'actual_arrival_at' => $arrivedAt,
                     'created_by' => $admin->id,
+                ]);
+
+                // Matching checkpoint pair — historical_sample_size (recommend()'s
+                // delay_penalty term) reads actual_departure_at/actual_arrival_at
+                // directly off the trip, not the checkpoints, so these aren't needed
+                // for scoring, but a trip with zero checkpoint history looks broken
+                // in the admin's Checkpoints tab regardless of how it's used elsewhere.
+                $trip->checkpoints()->createMany([
+                    [
+                        'event_type' => EventType::DEPARTED,
+                        'latitude' => $internal->latitude,
+                        'longitude' => $internal->longitude,
+                        'source' => Source::GPS,
+                        'recorded_at' => $departedAt,
+                    ],
+                    [
+                        'event_type' => EventType::ARRIVED_AT_DESTINATION,
+                        'latitude' => $partner->latitude,
+                        'longitude' => $partner->longitude,
+                        'source' => Source::GPS,
+                        'recorded_at' => $arrivedAt,
+                    ],
                 ]);
             }
         }

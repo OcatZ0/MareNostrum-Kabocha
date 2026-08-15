@@ -8,15 +8,15 @@ import { COLORS } from '../dashboard/dashboardTheme';
 import { importVesselSchedules } from '../../api/vesselSchedulesApi';
 
 const TEMPLATE_COLUMNS = [
-  { key: 'vessel_name', label: 'Nama Kapal', format: 'Teks (Contoh: Batam Fast 18)', required: true },
-  { key: 'ship_ref_id', label: 'MMSI / IMO ID', format: '9 digit MMSI / 7 digit IMO (Contoh: 563123456)', required: true },
-  { key: 'voyage_number', label: 'No. Pelayaran', format: 'Teks (Contoh: BF-2026-081)', required: false },
-  { key: 'origin_port', label: 'Pelabuhan Asal', format: 'Nama Resmi / UNLOCODE (Contoh: Batu Ampar Port / IDBUR)', required: true },
-  { key: 'destination_port', label: 'Pelabuhan Tujuan', format: 'Nama Resmi / UNLOCODE (Contoh: Port of Singapore (PSA) / SGSIN)', required: true },
-  { key: 'scheduled_departure_at', label: 'Waktu Berangkat', format: 'YYYY-MM-DD HH:MM:SS (Contoh: 2026-08-17 08:00:00)', required: true },
-  { key: 'scheduled_arrival_at', label: 'Waktu Tiba', format: 'YYYY-MM-DD HH:MM:SS (Contoh: 2026-08-17 10:00:00)', required: true },
-  { key: 'tolerance_minutes', label: 'Toleransi Menit', format: 'Angka menit (Default: 30)', required: false },
-  { key: 'notes', label: 'Catatan', format: 'Teks catatan operasional', required: false },
+  { key: 'vessel_name', label: 'Vessel Name', format: 'Text (e.g. Batam Fast 18)', required: true },
+  { key: 'ship_ref_id', label: 'MMSI / IMO ID', format: '9-digit MMSI / 7-digit IMO (e.g. 563123456)', required: true },
+  { key: 'voyage_number', label: 'Voyage No.', format: 'Text (e.g. BF-2026-081)', required: false },
+  { key: 'origin_port', label: 'Origin Port', format: 'Official Name / UNLOCODE (e.g. Batu Ampar Port / IDBUR)', required: true },
+  { key: 'destination_port', label: 'Destination Port', format: 'Official Name / UNLOCODE (e.g. Port of Singapore (PSA) / SGSIN)', required: true },
+  { key: 'scheduled_departure_at', label: 'Departure Time', format: 'YYYY-MM-DD HH:MM:SS (e.g. 2026-08-17 08:00:00)', required: true },
+  { key: 'scheduled_arrival_at', label: 'Arrival Time', format: 'YYYY-MM-DD HH:MM:SS (e.g. 2026-08-17 10:00:00)', required: true },
+  { key: 'tolerance_minutes', label: 'Tolerance Minutes', format: 'Number of minutes (Default: 30)', required: false },
+  { key: 'notes', label: 'Notes', format: 'Operational notes text', required: false },
 ];
 
 const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
@@ -62,12 +62,12 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
     const isValid = validExtensions.some((ext) => name.endsWith(ext));
 
     if (!isValid) {
-      setErrorMsg('Format file tidak didukung. Harap unggah file .xlsx, .xls, atau .csv');
+      setErrorMsg('Unsupported file format. Please upload a .xlsx, .xls, or .csv file.');
       return;
     }
 
     if (selectedFile.size > 10 * 1024 * 1024) {
-      setErrorMsg('Ukuran file melebihi batas maksimal 10MB.');
+      setErrorMsg('File size exceeds the maximum limit of 10MB.');
       return;
     }
 
@@ -81,7 +81,7 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
 
   const handleUpload = async () => {
     if (!file) {
-      setErrorMsg('Pilih file Excel atau CSV terlebih dahulu.');
+      setErrorMsg('Please select an Excel or CSV file first.');
       return;
     }
 
@@ -97,10 +97,10 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
       const resData = response.data?.data;
       setResult(resData);
       if (resData?.imported_count > 0 && onImportSuccess) {
-        onImportSuccess(`Berhasil mengimpor ${resData.imported_count} jadwal kapal.`);
+        onImportSuccess(`Successfully imported ${resData.imported_count} vessel schedules.`);
       }
     } catch (err) {
-      setErrorMsg(err.response?.data?.message || 'Gagal mengimpor file Excel/CSV.');
+      setErrorMsg(err.response?.data?.message || 'Failed to import Excel/CSV file.');
     } finally {
       setLoading(false);
     }
@@ -132,9 +132,9 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
               <FileSpreadsheet size={22} />
             </div>
             <div>
-              <h2 className="text-lg font-bold">Import Jadwal Kapal via Spreadsheet</h2>
+              <h2 className="text-lg font-bold">Import Vessel Schedules via Spreadsheet</h2>
               <p className="text-xs text-slate-300">
-                Unggah berkas Excel (.xlsx) atau CSV dengan format kolom rapi dan tidak menimpa
+                Upload an Excel (.xlsx) or CSV file with a clean, non-overlapping column format
               </p>
             </div>
           </div>
@@ -156,10 +156,10 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-800">
-                  Unduh Template Resmi Mare Nostrum
+                  Download Official Mare Nostrum Template
                 </p>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Template telah diatur lebar kolomnya agar tidak saling menimpa & dilengkapi daftar pelabuhan resmi.
+                  The template's column widths are set so they don't overlap, and it includes a list of official ports.
                 </p>
               </div>
             </div>
@@ -169,7 +169,7 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
                 onClick={() => handleDownloadTemplate('xlsx')}
                 type="button"
                 className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-600/20"
-                title="Format Excel dengan lebar kolom rapi dan sheet referensi pelabuhan"
+                title="Excel format with clean column widths and a port reference sheet"
               >
                 <Download size={13} />
                 <span>Excel (.XLSX)</span>
@@ -179,7 +179,7 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
                 onClick={() => handleDownloadTemplate('csv')}
                 type="button"
                 className="flex-1 sm:flex-none px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition flex items-center justify-center gap-1.5 shadow-sm"
-                title="Format CSV standar dengan encoding UTF-8 BOM"
+                title="Standard CSV format with UTF-8 BOM encoding"
               >
                 <Download size={13} />
                 <span>CSV</span>
@@ -196,10 +196,10 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
             >
               <span className="flex items-center gap-2">
                 <Table size={15} className="text-teal-600" />
-                <span>Panduan Struktur Kolom ({TEMPLATE_COLUMNS.length} Kolom)</span>
+                <span>Column Structure Guide ({TEMPLATE_COLUMNS.length} Columns)</span>
               </span>
               <span className="text-[11px] text-teal-600 font-bold">
-                {showSchemaHelp ? 'Tutup Panduan ▲' : 'Lihat Rincian Kolom ▼'}
+                {showSchemaHelp ? 'Close Guide ▲' : 'View Column Details ▼'}
               </span>
             </button>
 
@@ -208,9 +208,9 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
                 <table className="w-full text-left border-collapse text-[11px]">
                   <thead>
                     <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase">
-                      <th className="py-2 px-2.5">Header Kolom</th>
-                      <th className="py-2 px-2.5">Nama Field</th>
-                      <th className="py-2 px-2.5">Format / Contoh Nilai</th>
+                      <th className="py-2 px-2.5">Column Header</th>
+                      <th className="py-2 px-2.5">Field Name</th>
+                      <th className="py-2 px-2.5">Format / Example Value</th>
                       <th className="py-2 px-2.5 text-center">Status</th>
                     </tr>
                   </thead>
@@ -223,11 +223,11 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
                         <td className="py-2 px-2.5 text-center">
                           {col.required ? (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
-                              Wajib
+                              Required
                             </span>
                           ) : (
                             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
-                              Opsional
+                              Optional
                             </span>
                           )}
                         </td>
@@ -255,10 +255,10 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
                   <CheckCircle2 size={22} className="text-emerald-600 shrink-0" />
                   <div>
                     <p className="text-sm font-bold text-emerald-900">
-                      Proses Impor Selesai!
+                      Import Complete!
                     </p>
                     <p className="text-xs text-emerald-700">
-                      Total baris diproses: <b>{result.total_rows}</b> | Berhasil disimpan: <b>{result.imported_count}</b> | Dilewati: <b>{result.skipped_count}</b>
+                      Total rows processed: <b>{result.total_rows}</b> | Successfully saved: <b>{result.imported_count}</b> | Skipped: <b>{result.skipped_count}</b>
                     </p>
                   </div>
                 </div>
@@ -269,12 +269,12 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
                 <div className="border border-amber-200 rounded-xl bg-amber-50/50 p-4 space-y-2 max-h-48 overflow-y-auto">
                   <p className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
                     <AlertTriangle size={15} className="text-amber-600" />
-                    Baris yang Memiliki Kesalahan ({result.errors.length} baris):
+                    Rows With Errors ({result.errors.length} rows):
                   </p>
                   <div className="space-y-1.5">
                     {result.errors.map((errItem, idx) => (
                       <div key={idx} className="text-[11px] p-2 bg-white rounded-lg border border-amber-200/80 text-slate-700">
-                        <span className="font-semibold text-rose-600">Baris {errItem.row}:</span>{' '}
+                        <span className="font-semibold text-rose-600">Row {errItem.row}:</span>{' '}
                         {errItem.errors?.join(', ')}
                       </div>
                     ))}
@@ -324,16 +324,16 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
                   <div>
                     <p className="text-sm font-bold text-slate-800">{file.name}</p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      {(file.size / 1024).toFixed(1)} KB — Klik atau drag file lain untuk mengganti
+                      {(file.size / 1024).toFixed(1)} KB — Click or drag another file to replace it
                     </p>
                   </div>
                 ) : (
                   <div>
                     <p className="text-sm font-semibold text-slate-700">
-                      Tarik & lepas file Excel/CSV di sini, atau <span className="text-teal-600 underline">pilih berkas</span>
+                      Drag & drop an Excel/CSV file here, or <span className="text-teal-600 underline">choose a file</span>
                     </p>
                     <p className="text-xs text-slate-400 mt-1">
-                      Mendukung format .XLSX, .XLS, .CSV (Maksimal 10MB)
+                      Supports .XLSX, .XLS, .CSV formats (Maximum 10MB)
                     </p>
                   </div>
                 )}
@@ -349,7 +349,7 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
             onClick={result ? handleReset : onClose}
             className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200 transition"
           >
-            {result ? 'Impor File Lain' : 'Tutup'}
+            {result ? 'Import Another File' : 'Close'}
           </button>
 
           {!result ? (
@@ -366,12 +366,12 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
               {loading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Mengimpor Data...</span>
+                  <span>Importing Data...</span>
                 </>
               ) : (
                 <>
                   <FileSpreadsheet size={16} />
-                  <span>Mulai Impor Jadwal</span>
+                  <span>Start Schedule Import</span>
 
                 </>
               )}
@@ -382,7 +382,7 @@ const VesselScheduleImportModal = ({ open, onClose, onImportSuccess }) => {
               onClick={onClose}
               className="px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 transition flex items-center gap-1.5"
             >
-              <span>Selesai</span>
+              <span>Done</span>
               <ArrowRight size={14} />
             </button>
           )}

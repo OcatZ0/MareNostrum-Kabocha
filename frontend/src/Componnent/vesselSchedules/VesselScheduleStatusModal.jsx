@@ -7,14 +7,14 @@ import { COLORS } from '../dashboard/dashboardTheme';
 import { checkVesselScheduleStatus } from '../../api/vesselSchedulesApi';
 
 const STATUS_PILLS = {
-  on_time: { label: 'Tepat Waktu (On Time)', bg: '#ECFDF5', color: '#059669', border: '#A7F3D0' },
-  delayed: { label: 'Terlambat (Delayed)', bg: '#FEF2F2', color: '#DC2626', border: '#FECACA' },
-  early: { label: 'Kedatangan Cepat (Early Arrival)', bg: '#EFF6FF', color: '#2563EB', border: '#BFDBFE' },
-  berthing: { label: 'Proses Sandar (Berthing)', bg: '#FFFBEB', color: '#D97706', border: '#FDE68A' },
-  arrived: { label: 'Tiba di Dermaga (Arrived)', bg: '#F0FDF4', color: '#16A34A', border: '#BBF7D0' },
-  scheduled: { label: 'Terjadwal (Scheduled)', bg: '#F8FAFC', color: '#64748B', border: '#E2E8F0' },
-  departed: { label: 'Sedang Berlayar (Departed)', bg: '#F0FDFA', color: '#0D9488', border: '#99F6E4' },
-  cancelled: { label: 'Dibatalkan (Cancelled)', bg: '#F1F5F9', color: '#475569', border: '#CBD5E1' },
+  on_time: { label: 'On Time', bg: '#ECFDF5', color: '#059669', border: '#A7F3D0' },
+  delayed: { label: 'Delayed', bg: '#FEF2F2', color: '#DC2626', border: '#FECACA' },
+  early: { label: 'Early Arrival', bg: '#EFF6FF', color: '#2563EB', border: '#BFDBFE' },
+  berthing: { label: 'Berthing', bg: '#FFFBEB', color: '#D97706', border: '#FDE68A' },
+  arrived: { label: 'Arrived', bg: '#F0FDF4', color: '#16A34A', border: '#BBF7D0' },
+  scheduled: { label: 'Scheduled', bg: '#F8FAFC', color: '#64748B', border: '#E2E8F0' },
+  departed: { label: 'Departed', bg: '#F0FDFA', color: '#0D9488', border: '#99F6E4' },
+  cancelled: { label: 'Cancelled', bg: '#F1F5F9', color: '#475569', border: '#CBD5E1' },
 };
 
 const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated }) => {
@@ -65,7 +65,7 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
         onStatusUpdated(res.data?.data?.schedule);
       }
     } catch (err) {
-      setErrorMsg(err.response?.data?.message || 'Gagal mengevaluasi status dan jarak kapal.');
+      setErrorMsg(err.response?.data?.message || 'Failed to evaluate vessel status and distance.');
     } finally {
       setLoading(false);
     }
@@ -121,9 +121,9 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
           {/* Route & Ports Strip */}
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
             <div>
-              <p className="text-[11px] text-slate-400 font-semibold uppercase">Pelabuhan Asal</p>
+              <p className="text-[11px] text-slate-400 font-semibold uppercase">Origin Port</p>
               <p className="text-sm font-bold text-slate-800">
-                {schedule.origin_port?.name || 'Pelabuhan Asal'}
+                {schedule.origin_port?.name || 'Origin Port'}
               </p>
               <p className="text-[10px] text-slate-500">{schedule.origin_port?.unlocode || ''}</p>
             </div>
@@ -131,7 +131,7 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
             <div className="flex flex-col items-center px-4">
               <div className="flex items-center gap-1.5 text-xs text-teal-600 font-semibold">
                 <Navigation size={14} className="rotate-90" />
-                <span>Selat Batam - Singapura</span>
+                <span>Batam - Singapore Strait</span>
               </div>
               <div className="w-24 h-0.5 bg-slate-200 my-1 relative">
                 <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-teal-500" />
@@ -139,9 +139,9 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
             </div>
 
             <div className="text-right">
-              <p className="text-[11px] text-slate-400 font-semibold uppercase">Pelabuhan Tujuan</p>
+              <p className="text-[11px] text-slate-400 font-semibold uppercase">Destination Port</p>
               <p className="text-sm font-bold text-slate-800">
-                {schedule.destination_port?.name || 'Pelabuhan Tujuan'}
+                {schedule.destination_port?.name || 'Destination Port'}
               </p>
               <p className="text-[10px] text-slate-500">{schedule.destination_port?.unlocode || ''}</p>
             </div>
@@ -150,7 +150,7 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
           {/* Metric Cards Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Sisa Jarak (KM)</p>
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Remaining Distance (KM)</p>
               <p className="text-lg font-black text-slate-800 mt-1">
                 {distanceKm !== '-' ? `${distanceKm} km` : '-'}
               </p>
@@ -160,7 +160,7 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
             </div>
 
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Kecepatan</p>
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Speed</p>
               <p className="text-lg font-black text-cyan-700 mt-1">
                 {schedule.current_speed_knots ? `${schedule.current_speed_knots} Knots` : '-'}
               </p>
@@ -168,7 +168,7 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
             </div>
 
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Deviasi Waktu</p>
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Time Deviation</p>
               <p
                 className={`text-lg font-black mt-1 ${
                   varianceMin > tolerance
@@ -178,13 +178,13 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
                     : 'text-emerald-600'
                 }`}
               >
-                {varianceMin > 0 ? `+${varianceMin} mnt` : `${varianceMin} mnt`}
+                {varianceMin > 0 ? `+${varianceMin} min` : `${varianceMin} min`}
               </p>
-              <p className="text-[10px] text-slate-400">Toleransi: ±{tolerance} m</p>
+              <p className="text-[10px] text-slate-400">Tolerance: ±{tolerance} min</p>
             </div>
 
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Status Evaluasi</p>
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Evaluation Status</p>
               <span
                 className="inline-flex items-center justify-center text-[11px] font-bold px-2 py-1 rounded-lg border text-center mt-1"
                 style={{
@@ -219,15 +219,15 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
               <div className="text-xs space-y-1">
                 <p className="font-bold">
                   {analysisResult.is_delayed
-                    ? `⚠️ Terdeteksi Keterlambatan: Melebihi Toleransi (+${analysisResult.variance_minutes} Menit)`
+                    ? `⚠️ Delay Detected: Exceeds Tolerance (+${analysisResult.variance_minutes} Minutes)`
                     : analysisResult.is_early
-                    ? `⚡ Terdeteksi Kedatangan Lebih Cepat (${Math.abs(analysisResult.variance_minutes)} Menit Lebih Awal)`
-                    : ' Jadwal Terpantau Tepat Waktu (Dalam Rentang Toleransi)'}
+                    ? `⚡ Early Arrival Detected (${Math.abs(analysisResult.variance_minutes)} Minutes Ahead of Schedule)`
+                    : ' Schedule On Time (Within Tolerance Range)'}
                 </p>
                 <p className="leading-relaxed opacity-90">
                   {analysisResult.notification_sent
-                    ? `Notifikasi otomatis (${analysisResult.notification_type}) berhasil dipicu dan dikirimkan ke Admin.`
-                    : 'Kondisi pelayaran saat ini terpantau stabil sesuai jadwal.'}
+                    ? `An automatic notification (${analysisResult.notification_type}) was triggered and sent to the Admin.`
+                    : 'The current voyage is stable and on schedule.'}
                 </p>
               </div>
             </div>
@@ -244,9 +244,9 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
             <div className="flex items-center justify-between">
               <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                 <MapPin size={14} className="text-teal-600" />
-                Telemetri Posisi Kapal / Simulasi Radar
+                Vessel Position Telemetry / Radar Simulation
               </p>
-              <span className="text-[10px] text-slate-500">Kosongkan untuk otomatis ambil AIS</span>
+              <span className="text-[10px] text-slate-500">Leave blank to fetch AIS automatically</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -255,7 +255,7 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
                 <input
                   type="number"
                   step="any"
-                  placeholder="Contoh: 1.2050"
+                  placeholder="e.g. 1.2050"
                   value={telemetry.latitude}
                   onChange={(e) => setTelemetry({ ...telemetry, latitude: e.target.value })}
                   className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-white outline-none focus:border-cyan-500"
@@ -267,7 +267,7 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
                 <input
                   type="number"
                   step="any"
-                  placeholder="Contoh: 103.8800"
+                  placeholder="e.g. 103.8800"
                   value={telemetry.longitude}
                   onChange={(e) => setTelemetry({ ...telemetry, longitude: e.target.value })}
                   className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-white outline-none focus:border-cyan-500"
@@ -275,11 +275,11 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Kecepatan (Knots)</label>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Speed (Knots)</label>
                 <input
                   type="number"
                   step="any"
-                  placeholder="Contoh: 18.5"
+                  placeholder="e.g. 18.5"
                   value={telemetry.speed_knots}
                   onChange={(e) => setTelemetry({ ...telemetry, speed_knots: e.target.value })}
                   className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-white outline-none focus:border-cyan-500"
@@ -296,7 +296,7 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
               />
               <span className="flex items-center gap-1">
                 <Bell size={13} className="text-teal-600" />
-                Kirimkan notifikasi in-app otomatis jika telat atau datang lebih cepat dari toleransi
+                Automatically send an in-app notification if the vessel is delayed or early beyond tolerance
               </span>
             </label>
           </div>
@@ -309,7 +309,7 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
             onClick={onClose}
             className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200 transition"
           >
-            Tutup
+            Close
           </button>
 
           <button
@@ -325,12 +325,12 @@ const VesselScheduleStatusModal = ({ open, onClose, schedule, onStatusUpdated })
             {loading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Mengevaluasi Status...</span>
+                <span>Evaluating Status...</span>
               </>
             ) : (
               <>
                 <RefreshCw size={14} />
-                <span>Cek & Hitung Ketepatan Waktu</span>
+                <span>Check & Calculate Punctuality</span>
               </>
             )}
           </button>

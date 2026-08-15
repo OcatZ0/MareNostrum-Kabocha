@@ -14,10 +14,10 @@ const VesselScheduleDeleteModal = ({ open, onClose, schedule, onDeleted }) => {
 
     try {
       await deleteVesselSchedule(schedule.id);
-      onDeleted('Jadwal kapal berhasil dihapus.');
+      onDeleted('Vessel schedule deleted successfully.');
       onClose();
     } catch (err) {
-      setErrorMsg(err.response?.data?.message || 'Gagal menghapus jadwal kapal.');
+      setErrorMsg(err.response?.data?.message || 'Failed to delete vessel schedule.');
     } finally {
       setLoading(false);
     }
@@ -36,12 +36,12 @@ const VesselScheduleDeleteModal = ({ open, onClose, schedule, onDeleted }) => {
             </div>
             <div className="flex-1">
               <h3 className="text-base font-bold text-slate-800">
-                Hapus Jadwal Kapal?
+                Delete Vessel Schedule?
               </h3>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Anda akan menghapus jadwal pelayaran untuk kapal{' '}
+                You are about to delete the schedule for vessel{' '}
                 <span className="font-bold text-slate-700">{schedule.vessel_name}</span>{' '}
-                ({schedule.voyage_number || schedule.ship_ref_id}). Tindakan ini tidak dapat dibatalkan.
+                ({schedule.voyage_number || schedule.ship_ref_id}). This action cannot be undone.
               </p>
             </div>
             <button
@@ -61,10 +61,10 @@ const VesselScheduleDeleteModal = ({ open, onClose, schedule, onDeleted }) => {
 
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-1">
             <p className="text-slate-500">
-              Rute: <b className="text-slate-700">{schedule.origin_port?.name}</b> ➔ <b className="text-slate-700">{schedule.destination_port?.name}</b>
+              Route: <b className="text-slate-700">{schedule.origin_port?.name}</b> ➔ <b className="text-slate-700">{schedule.destination_port?.name}</b>
             </p>
             <p className="text-slate-500">
-              Waktu Tiba: <span className="font-mono text-slate-700">{new Date(schedule.scheduled_arrival_at).toLocaleString('id-ID')}</span>
+              Arrival Time: <span className="font-mono text-slate-700">{new Date(schedule.scheduled_arrival_at).toLocaleString('id-ID')}</span>
             </p>
           </div>
 
@@ -74,7 +74,7 @@ const VesselScheduleDeleteModal = ({ open, onClose, schedule, onDeleted }) => {
               onClick={onClose}
               className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
             >
-              Batal
+              Cancel
             </button>
             <button
               type="button"
@@ -85,12 +85,12 @@ const VesselScheduleDeleteModal = ({ open, onClose, schedule, onDeleted }) => {
               {loading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Menghapus...</span>
+                  <span>Deleting...</span>
                 </>
               ) : (
                 <>
                   <Trash2 size={15} />
-                  <span>Hapus Jadwal</span>
+                  <span>Delete Schedule</span>
                 </>
               )}
             </button>

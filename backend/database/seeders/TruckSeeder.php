@@ -43,5 +43,32 @@ class TruckSeeder extends Seeder
                 'status' => Status::ACTIVE,
             ]
         );
+
+        // Electric truck — exercises the emissions calculator's low end and gives the
+        // fleet filter something to actually filter for fuel_type=electric.
+        Truck::updateOrCreate(
+            ['plate_number' => 'BP 1004 XY'],
+            [
+                'brand' => 'BYD',
+                'model' => 'T5',
+                'year' => 2024,
+                'fuel_type' => FuelType::ELECTRIC,
+                'status' => Status::ACTIVE,
+            ]
+        );
+
+        // Deliberately left unassigned to any demo trip (DemoTripSeeder) — a
+        // maintenance-status truck should look genuinely out of service, not just
+        // labeled that way while still hauling cargo.
+        Truck::updateOrCreate(
+            ['plate_number' => 'BP 1005 XY'],
+            [
+                'brand' => 'Hino',
+                'model' => 'Dutro 130 HD',
+                'year' => 2020,
+                'fuel_type' => FuelType::DIESEL,
+                'status' => Status::MAINTENANCE,
+            ]
+        );
     }
 }
