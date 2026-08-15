@@ -17,6 +17,8 @@ use OpenApi\Attributes as OA;
     bearerFormat: 'Sanctum personal access token',
     description: 'Send as: Authorization: Bearer {token}'
 )]
+#[OA\Tag(name: 'Auth', description: 'Authentication and session management')]
+#[OA\Tag(name: 'Users', description: 'User and driver management')]
 #[OA\Tag(name: 'Companies', description: 'Company and partner management')]
 #[OA\Tag(name: 'Ports', description: 'Port and terminal management')]
 #[OA\Tag(name: 'Trucks', description: 'Truck fleet management')]

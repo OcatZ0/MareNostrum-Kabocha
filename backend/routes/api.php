@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\EmissionFactorController;
 use App\Http\Controllers\NotificationController;
@@ -8,19 +9,24 @@ use App\Http\Controllers\PortController;
 use App\Http\Controllers\TripCheckpointController;
 use App\Http\Controllers\TripController;
 use App\Http\Controllers\TruckController;
+use App\Http\Controllers\UserController;
 use App\Http\Middleware\BypassAuthForTesting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-// TEMPORARY: auth:sanctum swapped for BypassAuthForTesting until POST /api/login
-// exists (PRD Bagian 14, Backend 1). Revert to 'auth:sanctum' once it's built —
-// see app/Http/Middleware/BypassAuthForTesting.php for details.
-
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware(BypassAuthForTesting::class);
+// Authentication
+Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware(BypassAuthForTesting::class)->group(function () {
+    // Auth & User Profile
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+    Route::post('/logout', [AuthController::class, 'logout']);
+
+    // Users & Drivers Management
+    Route::apiResource('users', UserController::class);
+
     // Companies
     Route::apiResource('companies', CompanyController::class);
 
