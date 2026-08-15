@@ -1,0 +1,103 @@
+import React from 'react';
+import { MoreVertical, Truck, Ship, MapPin, PackageCheck, CheckCircle2 } from 'lucide-react';
+import { COLORS } from './dashboardTheme';
+
+const DEFAULT_TRIP = {
+  id: 'TRIP-2026-0842',
+  origin: 'Company A, Batam',
+  destination: 'Jurong Port, Singapore',
+  status: 'Ship at sea',
+};
+
+const DEFAULT_HISTORY = [
+  { icon: PackageCheck, label: 'Picked up at Company A', time: 'Aug 14, 08:05' },
+  { icon: Truck, label: 'Arrived at Batam Center Port', time: 'Aug 14, 08:52' },
+  { icon: Ship, label: 'Ship departed for Singapore', time: 'Aug 14, 10:15' },
+];
+
+const LiveTrackingPanel = ({ trip = DEFAULT_TRIP, history = DEFAULT_HISTORY }) => {
+  return (
+    <div className="bg-white rounded-xl border border-slate-100 p-5 sm:p-6 h-full flex flex-col">
+      <div className="flex items-start justify-between mb-1">
+        <div>
+          <h3 className="text-base font-semibold text-slate-800">Live Tracking</h3>
+          <p className="text-sm text-slate-400 mt-0.5">{trip.id}</p>
+        </div>
+        <button className="text-slate-300 hover:text-slate-500">
+          <MoreVertical size={18} />
+        </button>
+      </div>
+
+      {/* stylized route visual — replaces a generic map embed with the brand's own signature */}
+      <div
+        className="relative mt-4 rounded-lg overflow-hidden px-5 py-8"
+        style={{
+          background: `linear-gradient(160deg, ${COLORS.navy} 0%, ${COLORS.navyDark} 55%, ${COLORS.teal} 100%)`,
+        }}
+      >
+        <span
+          className="absolute top-3 right-3 text-[11px] font-semibold px-2 py-1 rounded-full text-white"
+          style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+        >
+          {trip.status}
+        </span>
+
+        <div className="relative h-px w-full mt-6" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `repeating-linear-gradient(to right, ${COLORS.aqua} 0 6px, transparent 6px 14px)`,
+              height: '1px',
+            }}
+          />
+          <div className="absolute -top-2" style={{ left: '62%', transform: 'translateX(-50%)' }}>
+            <Ship size={16} color={COLORS.green} fill={COLORS.green} />
+          </div>
+        </div>
+
+        <div className="flex justify-between mt-3 text-[11px]" style={{ color: '#B9D3E0' }}>
+          <span className="flex items-center gap-1.5">
+            <MapPin size={11} />
+            {trip.origin}
+          </span>
+          <span className="flex items-center gap-1.5">
+            {trip.destination}
+            <MapPin size={11} />
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-5 flex-1">
+        <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-3">
+          Checkpoint history
+        </p>
+        <ul className="space-y-4">
+          {history.map(({ icon: Icon, label, time }, i) => (
+            <li key={i} className="flex items-start gap-3">
+              <span
+                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                style={{ backgroundColor: `${COLORS.aqua}14` }}
+              >
+                <Icon size={14} color={COLORS.teal} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm text-slate-700 font-medium leading-tight">{label}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{time}</p>
+              </div>
+            </li>
+          ))}
+          <li className="flex items-start gap-3 opacity-40">
+            <span className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-slate-100">
+              <CheckCircle2 size={14} className="text-slate-400" />
+            </span>
+            <p className="text-sm text-slate-500 font-medium leading-tight pt-1.5">
+              Awaiting arrival confirmation…
+            </p>
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+};
+
+export default LiveTrackingPanel;

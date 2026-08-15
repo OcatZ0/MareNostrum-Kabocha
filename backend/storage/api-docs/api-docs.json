@@ -12,6 +12,178 @@
         }
     ],
     "paths": {
+        "/trips/{id}/checkpoints": {
+            "get": {
+                "tags": [
+                    "Trips"
+                ],
+                "summary": "List a trip's checkpoint history",
+                "description": "Admin can view any trip's checkpoints. Driver can only view their own assigned trip's. Full history in departure order, not meant to be polled, use GET /trips/{id}/position for a live single current point instead.",
+                "operationId": "b8640f4d5c9b58924248944e69e10b59",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "OK"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TripCheckpoint"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden, trip not assigned to this driver"
+                    },
+                    "404": {
+                        "description": "Trip not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Trips"
+                ],
+                "summary": "Record a driver GPS ping, departure, or arrival confirmation",
+                "description": "Driver only, and only the trip's own assigned driver. event_type drives 3 different behaviors: gps_ping is a lightweight periodic position update while in transit (no status change, expected to be called every few seconds per PRD Bagian 8.3 watchPosition, kept minimal on purpose); departed starts a leg without necessarily changing status: first leg (assigned -> in_transit_origin), a domestic return leg (arrived -> in_transit_destination, when origin is the internal company and destination a partner, PRD Bagian 5.1), or a cross-border truck's return leg (status stays at_origin_port, that field tracks the ship not the truck); arrived_at_destination/arrived_at_port/arrived_final/truck_returned confirm arrival and are validated against the Haversine distance (PRD Bagian 18) to the expected target point, only accepted within ARRIVAL_RADIUS_METERS, a location_validation_failed notification fires otherwise (PRD Bagian 19) and nothing is recorded. truck_returned sets truck_returned_at only (not status/actual_arrival_at, those are the ship's). Which arrival event_type is valid depends on the trip's current status and whether it's cross-border, sending the wrong one for the current state is rejected.",
+                "operationId": "737e58c19b8b63b469b32c5652348ae2",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "event_type",
+                                    "latitude",
+                                    "longitude"
+                                ],
+                                "properties": {
+                                    "event_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "departed",
+                                            "gps_ping",
+                                            "arrived_at_destination",
+                                            "arrived_at_port",
+                                            "arrived_final",
+                                            "truck_returned"
+                                        ]
+                                    },
+                                    "latitude": {
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "longitude": {
+                                        "type": "number",
+                                        "format": "float"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Kedatangan tervalidasi"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "checkpoint": {
+                                                    "oneOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/TripCheckpoint"
+                                                        }
+                                                    ],
+                                                    "nullable": true
+                                                },
+                                                "trip_status": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden, not this trip's driver"
+                    },
+                    "404": {
+                        "description": "Trip not found"
+                    },
+                    "422": {
+                        "description": "Validation error, wrong event_type for the trip's current status, or arrival outside the allowed radius"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/trips": {
             "get": {
                 "tags": [
@@ -284,7 +456,7 @@
                     "Trips"
                 ],
                 "summary": "Update a trip's origin/destination",
-                "description": "Admin only. Only allowed while the trip is still in draft status — once assigned, use the dedicated /assign, /recommend, /ship endpoints instead. Same combination rules as creating a trip, including origin_company_id/destination_company_id never being the same company. Changing the combo clears any previously computed recommended_slots/route_geometry/distance_km/estimated_co2_kg/estimated_duration_min (those were calculated for the old route — call /recommend again), and clears ship_ref_id if the new combo is no longer cross-border.",
+                "description": "Admin only. Only allowed while the trip is still in draft status — once assigned, use the dedicated /assign, /recommend, /ship endpoints instead. Same combination rules as creating a trip, including origin_company_id/destination_company_id never being the same company. Changing the combo clears any previously computed recommended_slots/distance_km/estimated_co2_kg/estimated_duration_min (those were calculated for the old route — call /recommend again), and clears ship_ref_id if the new combo is no longer cross-border.",
                 "operationId": "6135e941d2681d021e4e80660477ea37",
                 "parameters": [
                     {
@@ -395,7 +567,7 @@
                     "Trips"
                 ],
                 "summary": "Generate 3 departure time recommendations",
-                "description": "Admin only, draft trips only. Searches 3 ranges on the trip's truck route (origin to destination_port_id/destination_company_id — NEVER ship_destination_port_id, the ship leg isn't a TomTom-routable road trip): 06:00-12:00, 12:00-18:00, and 18:00-05:00 (next day, deliberately reaching into night hours). Each range is searched coarse-to-fine — hourly via TomTom Calculate Route (Bagian 8.1) first, then refined +/-45min in 15-min steps around the best hour — and its single best-scoring departure time becomes that range's recommended slot. Scoring (Bagian 17): score = 100 - traffic_penalty - delay_penalty - night_penalty. A slot in 22:00-05:00 is never picked as the primary recommendation, only kept as an alternative. All ranges/hours are in the trip's own local timezone: Asia/Jakarta (WIB) for a Batam-side company, Asia/Singapore (SGT, 1hr ahead) for a Singapore-side one — resolved from whichever company is on the trip. Roughly 35-40 TomTom calls per execution (cached 15min each) — this is an expensive endpoint, avoid calling it in a loop. Saves recommended_slots, and copies distance_km/route_geometry/estimated_duration_min from the winning slot onto the trip.",
+                "description": "Admin only, draft trips only. Searches 3 ranges on the trip's truck route (origin to destination_port_id/destination_company_id — NEVER ship_destination_port_id, the ship leg isn't a TomTom-routable road trip): 06:00-12:00, 12:00-18:00, and 18:00-05:00 (next day, deliberately reaching into night hours). Each range is searched coarse-to-fine — hourly via TomTom Calculate Route (Bagian 8.1) first, then refined +/-45min in 15-min steps around the best hour — and its single best-scoring departure time becomes that range's recommended slot. Scoring (Bagian 17): score = 100 - traffic_penalty - delay_penalty - night_penalty. A slot in 22:00-05:00 is never picked as the primary recommendation, only kept as an alternative. All ranges/hours are in the trip's own local timezone: Asia/Jakarta (WIB) for a Batam-side company, Asia/Singapore (SGT, 1hr ahead) for a Singapore-side one — resolved from whichever company is on the trip. Roughly 35-40 TomTom calls per execution (cached 15min each) — this is an expensive endpoint, avoid calling it in a loop. Saves recommended_slots, and copies distance_km/estimated_duration_min from the winning slot onto the trip.",
                 "operationId": "72ee90d9536e6b36a4acc09e5786b80a",
                 "parameters": [
                     {
@@ -562,10 +734,255 @@
                     }
                 ]
             }
+        },
+        "/trips/{id}/simulate": {
+            "post": {
+                "tags": [
+                    "Trips"
+                ],
+                "summary": "Simulate a custom departure time against the trip's nearest recommended slot",
+                "description": "Admin only, draft trips only, requires /recommend to have been called first since this compares against recommended_slots. Scores departure_at exactly like /recommend scores its own candidates (PRD Bagian 17: traffic_penalty from a live TomTom Calculate Route call, delay_penalty from route history, night_penalty), then diffs it against whichever recommended_slots entry is closest in time. Read-only, nothing is persisted to the trip, call /assign separately to actually commit to a departure time.",
+                "operationId": "13ea74cec6a7c65da1727295a72f967d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "departure_at"
+                                ],
+                                "properties": {
+                                    "departure_at": {
+                                        "description": "Any future timestamp, not restricted to one of recommended_slots.",
+                                        "type": "string",
+                                        "format": "date-time"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Simulasi selesai"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "simulated": {
+                                                    "description": "Same shape as one recommended_slots entry.",
+                                                    "type": "object"
+                                                },
+                                                "nearest_recommended": {
+                                                    "description": "The closest-in-time recommended_slots entry being compared against.",
+                                                    "type": "object"
+                                                },
+                                                "diff": {
+                                                    "properties": {
+                                                        "score": {
+                                                            "description": "simulated.score - nearest_recommended.score",
+                                                            "type": "number"
+                                                        },
+                                                        "travel_time_seconds": {
+                                                            "description": "simulated - nearest_recommended, negative means the simulated slot is faster",
+                                                            "type": "integer"
+                                                        },
+                                                        "distance_km": {
+                                                            "description": "simulated - nearest_recommended",
+                                                            "type": "number"
+                                                        },
+                                                        "minutes_from_nearest_recommended": {
+                                                            "description": "Positive means departure_at is later than nearest_recommended, negative means earlier",
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden, admin only"
+                    },
+                    "404": {
+                        "description": "Trip not found"
+                    },
+                    "422": {
+                        "description": "Validation error, trip is not draft, or /recommend has not been called yet"
+                    },
+                    "502": {
+                        "description": "TomTom API request failed"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/trips/{id}/ship": {
+            "post": {
+                "tags": [
+                    "Trips"
+                ],
+                "summary": "Set or update the vessel reference id for a cross-border trip",
+                "description": "Admin only. Only valid on cross-border trips (ship_destination_port_id set, PRD Bagian 5.1 step 6); rejects trips without a ship leg. ship_ref_id is the MMSI or IMO number of the vessel used for the Batam-Singapore crossing, later used to poll VesselAPI Port Events (Bagian 8.2, via /ship-status). Can be called again to correct the value (PRD Bagian 4 nice-to-have #11) as long as the trip is not yet completed or cancelled, unlike /assign it is not restricted to draft status.",
+                "operationId": "32a457070f0a5c7dae991b9fb0b0b6c1",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "ship_ref_id"
+                                ],
+                                "properties": {
+                                    "ship_ref_id": {
+                                        "description": "MMSI (9 digits) or IMO number (7 digits, optionally prefixed \"IMO\").",
+                                        "type": "string",
+                                        "example": "563123456"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Ship reference id disimpan"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Trip"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden, admin only"
+                    },
+                    "404": {
+                        "description": "Trip not found"
+                    },
+                    "422": {
+                        "description": "Validation error, trip is not cross-border, or trip is already completed/cancelled"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
         }
     },
     "components": {
         "schemas": {
+            "TripCheckpoint": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "trip_id": {
+                        "type": "integer"
+                    },
+                    "event_type": {
+                        "type": "string",
+                        "enum": [
+                            "departed",
+                            "gps_ping",
+                            "arrived_at_destination",
+                            "arrived_at_port",
+                            "arrived_final",
+                            "ship_departed",
+                            "ship_arrived",
+                            "truck_returned"
+                        ]
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": [
+                            "gps",
+                            "manual",
+                            "api"
+                        ]
+                    },
+                    "recorded_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
             "TripEndpoint": {
                 "description": "An origin or destination point — either a company or a port.",
                 "properties": {
@@ -581,6 +998,15 @@
                     },
                     "name": {
                         "type": "string"
+                    },
+                    "latitude": {
+                        "description": "Needed by the frontend to call TomTom RoutingModule itself, backend no longer stores/returns route geometry (Bagian 8.6).",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "float"
                     }
                 },
                 "type": "object"
@@ -618,10 +1044,6 @@
                         "nullable": true
                     },
                     "recommended_slots": {
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "route_geometry": {
                         "type": "object",
                         "nullable": true
                     },
@@ -666,6 +1088,12 @@
                         "nullable": true
                     },
                     "actual_arrival_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "truck_returned_at": {
+                        "description": "Cross-border only: when the truck (not the ship) made it back to origin.",
                         "type": "string",
                         "format": "date-time",
                         "nullable": true

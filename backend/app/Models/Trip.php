@@ -18,7 +18,6 @@ class Trip extends Model
         'driver_id',
         'ship_ref_id',
         'recommended_slots',
-        'route_geometry',
         'chosen_departure_at',
         'status',
         'distance_km',
@@ -26,6 +25,7 @@ class Trip extends Model
         'estimated_duration_min',
         'actual_departure_at',
         'actual_arrival_at',
+        'truck_returned_at',
         'created_by',
     ];
 
@@ -33,10 +33,10 @@ class Trip extends Model
     {
         return [
             'recommended_slots' => 'array',
-            'route_geometry' => 'array',
             'chosen_departure_at' => 'datetime',
             'actual_departure_at' => 'datetime',
             'actual_arrival_at' => 'datetime',
+            'truck_returned_at' => 'datetime',
         ];
     }
 

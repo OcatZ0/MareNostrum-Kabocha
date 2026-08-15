@@ -25,7 +25,6 @@ return new class extends Migration
 
             $table->string('ship_ref_id')->nullable();
             $table->jsonb('recommended_slots')->nullable();
-            $table->jsonb('route_geometry')->nullable();
             $table->timestamp('chosen_departure_at')->nullable();
 
             $table->enum('status', [
@@ -46,6 +45,10 @@ return new class extends Migration
             $table->integer('estimated_duration_min')->nullable();
             $table->timestamp('actual_departure_at')->nullable();
             $table->timestamp('actual_arrival_at')->nullable();
+            // Cross-border only: when the truck (not the ship) makes it back to origin
+            // after dropping cargo at the port. Independent of `status`, which tracks the
+            // ship/cargo side (on_ship/at_destination_port/completed) not the truck.
+            $table->timestamp('truck_returned_at')->nullable();
 
             $table->foreignId('created_by')->constrained('users');
 

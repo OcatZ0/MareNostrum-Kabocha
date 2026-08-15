@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\TripCheckpointController;
 use App\Http\Controllers\TripController;
 use App\Http\Middleware\BypassAuthForTesting;
 use Illuminate\Http\Request;
@@ -20,4 +21,8 @@ Route::middleware(BypassAuthForTesting::class)->group(function () {
     Route::put('/trips/{trip}', [TripController::class, 'update']);
     Route::post('/trips/{trip}/recommend', [TripController::class, 'recommend']);
     Route::post('/trips/{trip}/assign', [TripController::class, 'assign']);
+    Route::post('/trips/{trip}/simulate', [TripController::class, 'simulate']);
+    Route::post('/trips/{trip}/ship', [TripController::class, 'ship']);
+    Route::post('/trips/{trip}/checkpoints', [TripCheckpointController::class, 'store']);
+    Route::get('/trips/{trip}/checkpoints', [TripCheckpointController::class, 'index']);
 });
