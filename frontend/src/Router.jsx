@@ -3,6 +3,7 @@ import DefaultLayout from "./Layout/DefaultLayout";
 import GuestLayout from "./Layout/GuestLayout";
 import Login from "./Pages/Login";
 import LandingPage from "./Pages/LandingPage";
+import Dashboard from "./Pages/Dashboard";
 
 const router = createBrowserRouter([
   {
@@ -18,7 +19,7 @@ const router = createBrowserRouter([
         element: <LandingPage />,
       },
       {
-        path: "login",
+        path: "/login",
         element: <Login />,
       },
     ],
@@ -29,7 +30,11 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/" replace />,
+        element: <Dashboard />,
+      },
+      {
+        path: "dashboard",
+        element: <Dashboard />,
       },
     ],
   },
