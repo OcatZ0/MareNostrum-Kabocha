@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\TripCheckpointController;
 use App\Http\Controllers\TripController;
 use App\Http\Middleware\BypassAuthForTesting;
@@ -15,6 +16,10 @@ Route::get('/user', function (Request $request) {
 })->middleware(BypassAuthForTesting::class);
 
 Route::middleware(BypassAuthForTesting::class)->group(function () {
+    // Companies
+    Route::apiResource('companies', CompanyController::class);
+
+    // Trips
     Route::get('/trips', [TripController::class, 'index']);
     Route::post('/trips', [TripController::class, 'store']);
     Route::get('/trips/{trip}', [TripController::class, 'show']);
@@ -26,3 +31,4 @@ Route::middleware(BypassAuthForTesting::class)->group(function () {
     Route::post('/trips/{trip}/checkpoints', [TripCheckpointController::class, 'store']);
     Route::get('/trips/{trip}/checkpoints', [TripCheckpointController::class, 'index']);
 });
+
