@@ -68,6 +68,10 @@ export const setShipRef = (id, payload) =>
 export const getCheckpoints = (tripId) =>
   axiosClient.get(`/api/trips/${tripId}/checkpoints`);
 
+/** GET /api/trips/:id/position — single current point, meant to be polled */
+export const getPosition = (tripId) =>
+  axiosClient.get(`/api/trips/${tripId}/position`);
+
 /**
  * POST /api/trips/:id/checkpoints  (driver only)
  * payload: { event_type, latitude, longitude }

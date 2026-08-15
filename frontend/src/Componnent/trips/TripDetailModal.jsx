@@ -8,10 +8,37 @@ import {
 import { COLORS, STATUS_STYLES, CHECKPOINT_ICONS } from '../dashboard/dashboardTheme';
 import {
   getTrip, updateTrip, recommendTrip, assignTrip,
-  simulateTrip, setShipRef, getCheckpoints,
+  simulateTrip, setShipRef, getCheckpoints, getPosition,
 } from '../../api/tripsApi';
 import axiosClient from '../../axios';
 import { useRouteComboForm, CompanyDropdown, PortDropdown, DropdownPortal, LockIcon, PORTS } from './routeCombo';
+import { fetchRoutePath } from '../../utils/tomtomRoute';
+import { getUser } from '../../api/usersApi';
+import { getTruck } from '../../api/trucksApi';
+
+const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY || '';
+// Simulate (driver dashboard) is the only thing that currently moves a trip
+// — it writes a gps_ping every 1s over a fixed 10s run, not real GPS — so
+// this polls at the same 1s cadence rather than the PRD's suggested 15-30s,
+// or the admin would almost never see it actually move.
+const POSITION_POLL_MS = 1000;
+
+const pinSvg = (color) => `
+  <svg width="26" height="34" viewBox="0 0 34 44" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 1px 3px rgba(0,0,0,0.35))">
+    <path d="M17 0C7.6 0 0 7.6 0 17c0 12.75 17 27 17 27s17-14.25 17-27C34 7.6 26.4 0 17 0z" fill="${color}"/>
+    <circle cx="17" cy="17" r="7" fill="white"/>
+  </svg>`;
+
+// Straight-line distance in meters — used only to turn a live GPS point into
+// a rough "% of the way there" figure, not for anything precision-sensitive.
+const haversineMeters = (lat1, lng1, lat2, lng2) => {
+  const R = 6371000;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
 
 /* ── helpers ─────────────────────────────────────────────────── */
 const ss = (status) =>
@@ -66,8 +93,12 @@ const Spinner = () => (
 const TabBtn = ({ active, onClick, children }) => (
   <button
     onClick={onClick}
-    className="px-3 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap"
-    style={active ? { backgroundColor: `${COLORS.aqua}14`, color: COLORS.navy } : { color: '#64748B' }}
+    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap border ${
+      active ? 'shadow-sm' : 'hover:bg-slate-50 hover:border-slate-300 hover:text-slate-700'
+    }`}
+    style={active
+      ? { backgroundColor: COLORS.teal, color: 'white', borderColor: COLORS.teal }
+      : { color: '#64748B', borderColor: '#E2E8F0', backgroundColor: 'white' }}
   >
     {children}
   </button>
@@ -239,7 +270,46 @@ const PROGRESS = {
 };
 
 const RouteVisual = ({ trip }) => {
-  const pct    = PROGRESS[trip.status] ?? 50;
+  const isMoving = ['in_transit_origin', 'in_transit_destination'].includes(trip.status);
+
+  // Return leg (in_transit_destination) runs destination -> origin, not
+  // origin -> destination — mirrors TripCheckpointController::recordArrival's
+  // own target selection for that status.
+  const from = trip.status === 'in_transit_destination' ? trip.destination : trip.origin;
+  const to   = trip.status === 'in_transit_destination' ? trip.origin      : trip.destination;
+
+  const [livePct, setLivePct] = useState(null);
+  const pollRef = useRef(null);
+
+  useEffect(() => {
+    clearInterval(pollRef.current);
+    setLivePct(null);
+    if (!isMoving || !from?.latitude || !to?.latitude) return;
+
+    const totalMeters = haversineMeters(from.latitude, from.longitude, to.latitude, to.longitude);
+    if (!totalMeters) return;
+
+    const poll = async () => {
+      try {
+        const res = await getPosition(trip.id);
+        const pos = res.data?.data;
+        if (!pos) return;
+        const travelled = haversineMeters(from.latitude, from.longitude, pos.lat, pos.lng);
+        setLivePct(Math.min(100, Math.max(0, Math.round((travelled / totalMeters) * 100))));
+      } catch {
+        // No position recorded yet — keep showing the status-based estimate below.
+      }
+    };
+
+    poll();
+    pollRef.current = setInterval(poll, POSITION_POLL_MS);
+    return () => clearInterval(pollRef.current);
+  }, [trip.id, trip.status, isMoving, from?.latitude, from?.longitude, to?.latitude, to?.longitude]);
+
+  // Real distance-travelled percentage while in transit and a live position
+  // exists; otherwise fall back to the static per-status estimate (there's
+  // nothing to measure yet before departure, or after arrival).
+  const pct    = livePct ?? (PROGRESS[trip.status] ?? 50);
   const isCross = !!trip.ship_destination_port;
   const Icon   = isCross && pct >= 50 ? Ship : Truck;
   return (
@@ -247,6 +317,15 @@ const RouteVisual = ({ trip }) => {
       className="relative rounded-xl px-5 py-5 overflow-hidden"
       style={{ background: `linear-gradient(135deg, ${COLORS.navyDark} 0%, ${COLORS.teal} 100%)` }}
     >
+      {livePct !== null && (
+        <span
+          className="absolute top-2.5 right-3 flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full text-white"
+          style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          Live · {pct}%
+        </span>
+      )}
       <div className="relative h-px w-full" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
         <div
           className="absolute inset-0"
@@ -268,60 +347,86 @@ const RouteVisual = ({ trip }) => {
 };
 
 /* ── INFO tab ─────────────────────────────────────────────────── */
-const InfoTab = ({ trip }) => (
-  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-    <Section title="Route" icon={Route}>
-      <Row label="Origin"      value={`${trip.origin?.name} (${trip.origin?.type})`} />
-      <Row label="Destination" value={`${trip.destination?.name} (${trip.destination?.type})`} />
-      {trip.ship_destination_port && (
-        <Row label="Ship Destination" value={trip.ship_destination_port.name} />
-      )}
-      <Row label="Distance"     value={trip.distance_km ? `${trip.distance_km} km` : null} />
-      <Row label="Est. Duration" value={fmtDur(trip.estimated_duration_min)} />
-      <Row label="Est. CO₂"     value={trip.estimated_co2_kg ? `${Number(trip.estimated_co2_kg).toFixed(2)} kg` : null} />
-      {trip.ship_ref_id && <Row label="Vessel Ref." value={trip.ship_ref_id} mono />}
-    </Section>
+const InfoTab = ({ trip }) => {
+  const [driverName, setDriverName] = useState(null);
+  const [truckLabel, setTruckLabel] = useState(null);
 
-    <Section title="Schedule & Assignment" icon={Calendar}>
-      <Row label="Departure (planned)" value={fmt(trip.chosen_departure_at)} />
-      <Row label="Departure (actual)"  value={fmt(trip.actual_departure_at)} />
-      <Row label="Arrival (actual)"    value={fmt(trip.actual_arrival_at)} />
-      {trip.ship_destination_port && (
-        <Row label="Truck returned" value={fmt(trip.truck_returned_at)} />
-      )}
-      <Row label="Driver ID" value={trip.driver_id ?? null} />
-      <Row label="Truck ID"  value={trip.truck_id  ?? null} />
-    </Section>
+  useEffect(() => {
+    setDriverName(null);
+    if (trip.driver_id) {
+      getUser(trip.driver_id)
+        .then((res) => setDriverName(res.data?.data?.name ?? null))
+        .catch(() => setDriverName(null));
+    }
+  }, [trip.driver_id]);
 
-    {Array.isArray(trip.recommended_slots) && trip.recommended_slots.length > 0 && (
-      <div className="sm:col-span-2">
-        <Section title="Recommended Slots" icon={Clock}>
-          <div className="space-y-2">
-            {trip.recommended_slots.map((slot, i) => (
-              <div
-                key={i}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-3 rounded-lg border text-xs"
-                style={{
-                  borderColor:       slot.is_recommended ? COLORS.aqua : '#E2E8F0',
-                  backgroundColor:   slot.is_recommended ? `${COLORS.aqua}0D` : 'white',
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  {slot.is_recommended && <CheckCircle2 size={12} color={COLORS.green} />}
-                  <span className="font-medium text-slate-700">{slot.reason}</span>
+  useEffect(() => {
+    setTruckLabel(null);
+    if (trip.truck_id) {
+      getTruck(trip.truck_id)
+        .then((res) => {
+          const t = res.data?.data;
+          setTruckLabel(t ? `${t.plate_number} (${t.brand})` : null);
+        })
+        .catch(() => setTruckLabel(null));
+    }
+  }, [trip.truck_id]);
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <Section title="Route" icon={Route}>
+        <Row label="Origin"      value={`${trip.origin?.name} (${trip.origin?.type})`} />
+        <Row label="Destination" value={`${trip.destination?.name} (${trip.destination?.type})`} />
+        {trip.ship_destination_port && (
+          <Row label="Ship Destination" value={trip.ship_destination_port.name} />
+        )}
+        <Row label="Distance"     value={trip.distance_km ? `${trip.distance_km} km` : null} />
+        <Row label="Est. Duration" value={fmtDur(trip.estimated_duration_min)} />
+        <Row label="Est. CO₂"     value={trip.estimated_co2_kg ? `${Number(trip.estimated_co2_kg).toFixed(2)} kg` : null} />
+        {trip.ship_ref_id && <Row label="Vessel Ref." value={trip.ship_ref_id} mono />}
+      </Section>
+
+      <Section title="Schedule & Assignment" icon={Calendar}>
+        <Row label="Departure (planned)" value={fmt(trip.chosen_departure_at)} />
+        <Row label="Departure (actual)"  value={fmt(trip.actual_departure_at)} />
+        <Row label="Arrival (actual)"    value={fmt(trip.actual_arrival_at)} />
+        {trip.ship_destination_port && (
+          <Row label="Truck returned" value={fmt(trip.truck_returned_at)} />
+        )}
+        <Row label="Driver" value={trip.driver_id ? (driverName ?? `ID ${trip.driver_id}`) : null} />
+        <Row label="Truck"  value={trip.truck_id  ? (truckLabel ?? `ID ${trip.truck_id}`)  : null} />
+      </Section>
+
+      {Array.isArray(trip.recommended_slots) && trip.recommended_slots.length > 0 && (
+        <div className="sm:col-span-2">
+          <Section title="Recommended Slots" icon={Clock}>
+            <div className="space-y-2">
+              {trip.recommended_slots.map((slot, i) => (
+                <div
+                  key={i}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-3 rounded-lg border text-xs"
+                  style={{
+                    borderColor:       slot.is_recommended ? COLORS.aqua : '#E2E8F0',
+                    backgroundColor:   slot.is_recommended ? `${COLORS.aqua}0D` : 'white',
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    {slot.is_recommended && <CheckCircle2 size={12} color={COLORS.green} />}
+                    <span className="font-medium text-slate-700">{slot.reason}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-slate-400 shrink-0">
+                    <span>Score: <strong className="text-slate-700">{slot.score}</strong></span>
+                    {slot.distance_km && <span>{slot.distance_km} km</span>}
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-slate-400 shrink-0">
-                  <span>Score: <strong className="text-slate-700">{slot.score}</strong></span>
-                  {slot.distance_km && <span>{slot.distance_km} km</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Section>
-      </div>
-    )}
-  </div>
-);
+              ))}
+            </div>
+          </Section>
+        </div>
+      )}
+    </div>
+  );
+};
 
 /* ── UPDATE ROUTE tab ─────────────────────────────────────────── */
 const COMBO_LABELS = { domestic: 'Domestic', cross_border: 'Cross-border', port_to_company: 'Port → Company' };
@@ -1064,6 +1169,156 @@ const ShipTab = ({ trip, onUpdated }) => {
   );
 };
 
+/* ── live position map — embedded in Checkpoints tab, scoped to whichever
+   trip's modal is currently open (not a single dashboard-wide "active
+   trip") ──────────────────────────────────────────────────────── */
+const TripLiveMap = ({ trip }) => {
+  const mapElRef       = useRef(null);
+  const mapRef         = useRef(null);
+  const liveMarkerRef  = useRef(null);
+  const sdkLoadingRef  = useRef(null);
+  const pollRef        = useRef(null);
+  const [mapReady, setMapReady]         = useState(false);
+  const [mapError, setMapError]         = useState(null);
+  const [livePosition, setLivePosition] = useState(null);
+
+  useEffect(() => {
+    if (sdkLoadingRef.current) return;
+    sdkLoadingRef.current = true;
+
+    if (!TOMTOM_API_KEY) { setMapError('TomTom API key not set'); return; }
+    if (window.tt) { setMapReady(true); return; }
+
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps.css';
+    document.head.appendChild(link);
+
+    const script = document.createElement('script');
+    script.src = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps-web.min.js';
+    script.onload  = () => setMapReady(true);
+    script.onerror = () => setMapError('Failed to load map SDK');
+    document.body.appendChild(script);
+  }, []);
+
+  useEffect(() => {
+    if (!mapReady || !mapElRef.current || mapRef.current || !window.tt) return;
+    try {
+      mapRef.current = window.tt.map({
+        key: TOMTOM_API_KEY,
+        container: mapElRef.current,
+        center: [104.0305, 1.1301],
+        zoom: 11,
+      });
+    } catch (err) {
+      setMapError(err.message);
+    }
+  }, [mapReady]);
+
+  // origin/destination pins for this specific trip
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !trip) return;
+    const map = mapRef.current;
+
+    document.querySelectorAll('.mapboxgl-marker').forEach((m) => m.remove());
+    liveMarkerRef.current = null;
+    setLivePosition(null);
+
+    const originLat = trip.origin?.latitude, originLng = trip.origin?.longitude;
+    const destLat    = trip.destination?.latitude, destLng = trip.destination?.longitude;
+    if (!originLat || !originLng || !destLat || !destLng) return;
+
+    const markerA = document.createElement('div');
+    markerA.innerHTML = pinSvg('#10b981');
+    new window.tt.Marker({ element: markerA, anchor: 'bottom' }).setLngLat([originLng, originLat]).addTo(map);
+
+    const markerB = document.createElement('div');
+    markerB.innerHTML = pinSvg('#1e40af');
+    new window.tt.Marker({ element: markerB, anchor: 'bottom' }).setLngLat([destLng, destLat]).addTo(map);
+
+    const bounds = new window.tt.LngLatBounds();
+    bounds.extend([originLng, originLat]);
+    bounds.extend([destLng, destLat]);
+    map.fitBounds(bounds, { padding: 40 });
+
+    if (map.getLayer('route-layer')) map.removeLayer('route-layer');
+    if (map.getSource('route-src'))  map.removeSource('route-src');
+
+    fetchRoutePath(originLat, originLng, destLat, destLng)
+      .then((coords) => {
+        if (!mapRef.current) return;
+        map.addSource('route-src', {
+          type: 'geojson',
+          data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } },
+        });
+        map.addLayer({
+          id: 'route-layer',
+          type: 'line',
+          source: 'route-src',
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': COLORS.teal, 'line-width': 4 },
+        });
+      })
+      .catch(() => {
+        // No route line is a cosmetic loss only — the pins/live marker still work.
+      });
+  }, [trip?.id, mapReady]);
+
+  // poll this trip's live position every 1s
+  useEffect(() => {
+    clearInterval(pollRef.current);
+    if (!trip?.id || !mapReady || ['completed', 'cancelled'].includes(trip.status)) return;
+
+    const poll = async () => {
+      try {
+        const res = await getPosition(trip.id);
+        const pos = res.data?.data;
+        if (!pos || !mapRef.current) return;
+
+        setLivePosition(pos);
+        if (!liveMarkerRef.current) {
+          const el = document.createElement('div');
+          el.style.cssText = `width:16px;height:16px;border-radius:50%;background:${COLORS.aqua};border:3px solid white;box-shadow:0 1px 5px rgba(0,0,0,0.45);`;
+          liveMarkerRef.current = new window.tt.Marker({ element: el }).setLngLat([pos.lng, pos.lat]).addTo(mapRef.current);
+        } else {
+          liveMarkerRef.current.setLngLat([pos.lng, pos.lat]);
+        }
+      } catch {
+        // No position recorded for this trip yet — fine, wait for the next tick.
+      }
+    };
+
+    poll();
+    pollRef.current = setInterval(poll, POSITION_POLL_MS);
+    return () => clearInterval(pollRef.current);
+  }, [trip?.id, trip?.status, mapReady]);
+
+  return (
+    <div className="relative rounded-lg overflow-hidden bg-slate-100" style={{ height: 200 }}>
+      <div ref={mapElRef} className="w-full h-full" />
+      {!mapReady && !mapError && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Loader2 size={18} className="animate-spin" style={{ color: COLORS.teal }} />
+        </div>
+      )}
+      {mapError && (
+        <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-red-500">
+          {mapError}
+        </div>
+      )}
+      {livePosition && (
+        <span
+          className="absolute bottom-3 left-3 flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-full text-white"
+          style={{ backgroundColor: 'rgba(15,23,42,0.6)' }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          Live · {livePosition.source === 'api' ? 'Vessel' : 'GPS'} · {fmt(livePosition.recorded_at)}
+        </span>
+      )}
+    </div>
+  );
+};
+
 /* ── CHECKPOINTS tab ─────────────────────────────────────────── */
 const CheckpointsTab = ({ trip }) => {
   const [checkpoints, setCheckpoints] = useState([]);
@@ -1071,24 +1326,38 @@ const CheckpointsTab = ({ trip }) => {
   const [error, setError]             = useState(null);
   const [showAll, setShowAll]         = useState(false);
 
-  const load = () => {
-    setLoading(true); setError(null);
+  // silent=true is used for the background poll below — a manual refresh
+  // (or first load) shows the spinner/error, a poll tick just quietly swaps
+  // the list in so it doesn't flicker every second.
+  const load = useCallback((silent = false) => {
+    if (!silent) { setLoading(true); setError(null); }
     getCheckpoints(trip.id)
       .then((res) => setCheckpoints(res.data?.data ?? []))
-      .catch((err) => setError(err?.response?.data?.message ?? 'Failed to load checkpoints.'))
-      .finally(() => setLoading(false));
-  };
+      .catch((err) => { if (!silent) setError(err?.response?.data?.message ?? 'Failed to load checkpoints.'); })
+      .finally(() => { if (!silent) setLoading(false); });
+  }, [trip.id]);
 
-  useEffect(() => { load(); }, [trip.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [load]);
+
+  // Poll every 1s, same cadence as the live map above — Simulate is the only
+  // thing currently generating checkpoints (gps_ping every 1s over a fixed
+  // 10s run), so this is how the list actually keeps up with it.
+  useEffect(() => {
+    if (['completed', 'cancelled'].includes(trip.status)) return;
+    const id = setInterval(() => load(true), POSITION_POLL_MS);
+    return () => clearInterval(id);
+  }, [trip.id, trip.status, load]);
 
   const visible = showAll ? checkpoints : checkpoints.slice(0, 6);
 
   return (
     <div className="space-y-3">
+      <TripLiveMap trip={trip} />
+
       <div className="flex items-center justify-between">
         <p className="text-xs text-slate-500">{checkpoints.length} checkpoint{checkpoints.length !== 1 ? 's' : ''} recorded</p>
         <button
-          onClick={load}
+          onClick={() => load()}
           className="flex items-center gap-1 text-xs font-medium transition"
           style={{ color: COLORS.teal }}
         >
