@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\PortController;
 use App\Http\Controllers\TripCheckpointController;
 use App\Http\Controllers\TripController;
 use App\Http\Middleware\BypassAuthForTesting;
@@ -18,6 +19,9 @@ Route::get('/user', function (Request $request) {
 Route::middleware(BypassAuthForTesting::class)->group(function () {
     // Companies
     Route::apiResource('companies', CompanyController::class);
+
+    // Ports
+    Route::apiResource('ports', PortController::class);
 
     // Trips
     Route::get('/trips', [TripController::class, 'index']);
