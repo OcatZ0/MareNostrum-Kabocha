@@ -280,7 +280,7 @@ const Login = () => {
             Sign in to your account
           </h2>
           <p className="login-form-item text-sm text-slate-500 mt-1">
-            Enter your admin or driver credentials to continue.
+            Enter your admin or driver account to continue.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-7 space-y-4">
@@ -369,7 +369,7 @@ const Login = () => {
           </form>
 
           <p className="login-form-item mt-8 text-xs text-slate-400 leading-relaxed">
-            System access is restricted to registered personnel (Admin & Driver). Contact your administrator if you do not have login credentials.
+            System access is restricted to registered personnel (Admin & Driver). Contact your administrator if you don't have login credentials.
           </p>
         </div>
       </div>
