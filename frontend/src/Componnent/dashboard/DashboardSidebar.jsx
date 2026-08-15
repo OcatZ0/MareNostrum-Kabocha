@@ -50,33 +50,18 @@ const NAV_ITEMS = [
   },
 ];
 
-const DashboardSidebar = ({ open = false, onClose = () => {} }) => {
-  const [unreadCount, setUnreadCount] = useState(0);
+const DashboardSidebar = ({
+  open = false,
+  onClose = () => {},
+  unreadCountProp = null,
+}) => {
+  const [unreadCount, setUnreadCount] = useState(unreadCountProp ?? 0);
 
-  /* Poll unread notification count every 30 seconds */
   useEffect(() => {
-    const load = () => {
-      getNotifications({
-        per_page: 1,
-        unread: true,
-      })
-        .then((res) => {
-          setUnreadCount(res.data?.unread_count ?? 0);
-        })
-        .catch(() => {
-          // Ignore notification polling errors
-        });
-    };
-
-    // Load immediately
-    load();
-
-    // Poll every 30 seconds
-    const id = setInterval(load, 30_000);
-
-    // Cleanup interval when component is unmounted
-    return () => clearInterval(id);
-  }, []);
+    if (unreadCountProp !== null && unreadCountProp !== undefined) {
+      setUnreadCount(unreadCountProp);
+    }
+  }, [unreadCountProp]);
 
   return (
     <>

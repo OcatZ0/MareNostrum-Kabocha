@@ -78,3 +78,13 @@ export const getPosition = (tripId) =>
  */
 export const storeCheckpoint = (tripId, payload) =>
   axiosClient.post(`/api/trips/${tripId}/checkpoints`, payload);
+
+/* ── tracking & status ───────────────────────────────────────── */
+
+/** GET /api/trips/:id/position */
+export const getTripPosition = (tripId) =>
+  axiosClient.get(`/api/trips/${tripId}/position`);
+
+/** GET /api/trips/:id/ship-status */
+export const getTripShipStatus = (tripId) =>
+  axiosClient.get(`/api/trips/${tripId}/ship-status`);

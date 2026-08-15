@@ -31,132 +31,151 @@ class AnalyticsController extends Controller
     public function dashboard(Request $request): JsonResponse
     {
         $period = $request->query('period', 'all');
-        $query = Trip::query();
+        $cacheKey = "analytics_dashboard_{$period}";
 
-        if ($period === 'today') {
-            $query->whereDate('created_at', Carbon::today());
-        } elseif ($period === 'this_week') {
-            $query->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
-        } elseif ($period === 'this_month') {
-            $query->whereMonth('created_at', Carbon::now()->month)->whereYear('created_at', Carbon::now()->year);
-        }
+        $data = \Illuminate\Support\Facades\Cache::remember($cacheKey, 15, function () use ($period) {
+            $query = Trip::query();
 
-        $totalTrips = (clone $query)->count();
-        $completedTrips = (clone $query)->whereIn('status', [StatusTrips::COMPLETED, StatusTrips::ARRIVED])->count();
-        $inTransitTrips = (clone $query)->whereIn('status', [
-            StatusTrips::IN_TRANSIT_ORIGIN,
-            StatusTrips::AT_ORIGIN_PORT,
-            StatusTrips::ON_SHIP,
-            StatusTrips::AT_DESTINATION_PORT,
-            StatusTrips::IN_TRANSIT_DESTINATION,
-        ])->count();
-        $assignedTrips = (clone $query)->where('status', StatusTrips::ASSIGNED)->count();
-        $draftTrips = (clone $query)->where('status', StatusTrips::DRAFT)->count();
-        $cancelledTrips = (clone $query)->where('status', StatusTrips::CANCELLED)->count();
-
-        $totalDistanceKm = (float) (clone $query)->sum('distance_km');
-        $totalCo2Kg = (float) (clone $query)->sum('estimated_co2_kg');
-
-        // Calculate average delay and recommendation accuracy for completed trips
-        $completedQueryTrips = (clone $query)
-            ->whereIn('status', [StatusTrips::COMPLETED, StatusTrips::ARRIVED])
-            ->whereNotNull('actual_departure_at')
-            ->whereNotNull('actual_arrival_at')
-            ->whereNotNull('estimated_duration_min')
-            ->get();
-
-        $delays = [];
-        $accurateCount = 0;
-
-        foreach ($completedQueryTrips as $trip) {
-            $actualDurationMin = round(($trip->actual_arrival_at->timestamp - $trip->actual_departure_at->timestamp) / 60);
-            $delay = $actualDurationMin - $trip->estimated_duration_min;
-            $delays[] = $delay;
-
-            // Accurate if delay is within 15 minutes
-            if (abs($delay) <= 15) {
-                $accurateCount++;
-            }
-        }
-
-        $averageDelayMinutes = count($delays) > 0 ? round(array_sum($delays) / count($delays), 1) : 0;
-        $accuracyPercentage = count($completedQueryTrips) > 0 ? round(($accurateCount / count($completedQueryTrips)) * 100, 2) : 100;
-
-        // Group emissions by truck brand/category
-        $trucks = Truck::all();
-        $categoryEmissions = [
-            'light' => ['total_co2_kg' => 0.0, 'trips_count' => 0],
-            'medium' => ['total_co2_kg' => 0.0, 'trips_count' => 0],
-            'heavy' => ['total_co2_kg' => 0.0, 'trips_count' => 0],
-        ];
-
-        $tripsWithTruck = (clone $query)->whereNotNull('truck_id')->whereNotNull('estimated_co2_kg')->get();
-        foreach ($tripsWithTruck as $trip) {
-            $truck = $trucks->find($trip->truck_id);
-            if (!$truck) continue;
-
-            $brandLower = strtolower($truck->brand . ' ' . ($truck->model ?? ''));
-            if (str_contains($brandLower, 'light') || str_contains($brandLower, 'dutro') || str_contains($brandLower, 'canter') || str_contains($brandLower, 'elf')) {
-                $cat = 'light';
-            } elseif (str_contains($brandLower, 'heavy') || str_contains($brandLower, 'giga') || str_contains($brandLower, 'fighter') || str_contains($brandLower, 'tronton')) {
-                $cat = 'heavy';
-            } else {
-                $cat = 'medium';
+            if ($period === 'today') {
+                $query->whereDate('created_at', Carbon::today());
+            } elseif ($period === 'this_week') {
+                $query->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
+            } elseif ($period === 'this_month') {
+                $query->whereMonth('created_at', Carbon::now()->month)->whereYear('created_at', Carbon::now()->year);
             }
 
-            $categoryEmissions[$cat]['total_co2_kg'] += (float) $trip->estimated_co2_kg;
-            $categoryEmissions[$cat]['trips_count']++;
-        }
+            // 1. Single aggregate query for all counts & sums (drastically reduces remote DB round-trips)
+            $summaryStats = (clone $query)->selectRaw("
+                COUNT(*) as total_trips,
+                COUNT(CASE WHEN status IN ('completed', 'arrived') THEN 1 END) as completed_trips,
+                COUNT(CASE WHEN status IN ('in_transit_origin', 'at_origin_port', 'on_ship', 'at_destination_port', 'in_transit_destination') THEN 1 END) as in_transit_trips,
+                COUNT(CASE WHEN status = 'assigned' THEN 1 END) as assigned_trips,
+                COUNT(CASE WHEN status = 'draft' THEN 1 END) as draft_trips,
+                COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_trips,
+                COALESCE(SUM(distance_km), 0) as total_distance_km,
+                COALESCE(SUM(estimated_co2_kg), 0) as total_co2_kg
+            ")->first();
 
-        foreach ($categoryEmissions as $cat => $val) {
-            $categoryEmissions[$cat]['total_co2_kg'] = round($val['total_co2_kg'], 2);
-        }
+            $totalTrips = (int) ($summaryStats->total_trips ?? 0);
+            $completedTrips = (int) ($summaryStats->completed_trips ?? 0);
+            $inTransitTrips = (int) ($summaryStats->in_transit_trips ?? 0);
+            $assignedTrips = (int) ($summaryStats->assigned_trips ?? 0);
+            $draftTrips = (int) ($summaryStats->draft_trips ?? 0);
+            $cancelledTrips = (int) ($summaryStats->cancelled_trips ?? 0);
+            $totalDistanceKm = (float) ($summaryStats->total_distance_km ?? 0);
+            $totalCo2Kg = (float) ($summaryStats->total_co2_kg ?? 0);
 
-        // Top emitting trucks
-        $topTrucks = Trip::selectRaw('truck_id, SUM(estimated_co2_kg) as total_co2, COUNT(*) as trips_count')
-            ->whereNotNull('truck_id')
-            ->groupBy('truck_id')
-            ->orderByDesc('total_co2')
-            ->take(5)
-            ->get()
-            ->map(function ($row) use ($trucks) {
-                $t = $trucks->find($row->truck_id);
-                return [
-                    'truck_id' => $row->truck_id,
-                    'plate_number' => $t?->plate_number,
-                    'brand' => $t?->brand,
-                    'model' => $t?->model,
-                    'total_co2_kg' => round((float) $row->total_co2, 2),
-                    'trips_count' => (int) $row->trips_count,
-                ];
-            });
+            // 2. Calculate average delay and recommendation accuracy for completed trips
+            $completedQueryTrips = (clone $query)
+                ->whereIn('status', [StatusTrips::COMPLETED, StatusTrips::ARRIVED])
+                ->whereNotNull('actual_departure_at')
+                ->whereNotNull('actual_arrival_at')
+                ->whereNotNull('estimated_duration_min')
+                ->select(['id', 'status', 'actual_departure_at', 'actual_arrival_at', 'estimated_duration_min'])
+                ->get();
 
-        // Recent trips
-        $recentTrips = (clone $query)
-            ->with(['originCompany', 'originPort', 'destinationCompany', 'destinationPort', 'truck', 'driver'])
-            ->latest('id')
-            ->take(5)
-            ->get();
+            $delays = [];
+            $accurateCount = 0;
 
-        return $this->success([
-            'period' => $period,
-            'summary' => [
-                'total_trips' => $totalTrips,
-                'completed_trips' => $completedTrips,
-                'in_transit_trips' => $inTransitTrips,
-                'assigned_trips' => $assignedTrips,
-                'draft_trips' => $draftTrips,
-                'cancelled_trips' => $cancelledTrips,
-                'total_distance_km' => round($totalDistanceKm, 2),
-                'total_co2_kg' => round($totalCo2Kg, 2),
-                'average_delay_minutes' => $averageDelayMinutes,
-                'recommendation_accuracy_percentage' => $accuracyPercentage,
-            ],
-            'emissions_by_truck_category' => $categoryEmissions,
-            'top_emitting_trucks' => $topTrucks,
-            'recent_trips' => TripResource::collection($recentTrips),
-        ], 'Dashboard analytics summary retrieved successfully.');
+            foreach ($completedQueryTrips as $trip) {
+                $actualDurationMin = round(($trip->actual_arrival_at->timestamp - $trip->actual_departure_at->timestamp) / 60);
+                $delay = $actualDurationMin - $trip->estimated_duration_min;
+                $delays[] = $delay;
+
+                // Accurate if delay is within 15 minutes
+                if (abs($delay) <= 15) {
+                    $accurateCount++;
+                }
+            }
+
+            $averageDelayMinutes = count($delays) > 0 ? round(array_sum($delays) / count($delays), 1) : 0;
+            $accuracyPercentage = count($completedQueryTrips) > 0 ? round(($accurateCount / count($completedQueryTrips)) * 100, 2) : 100;
+
+            // 3. Group emissions by truck brand/category efficiently
+            $categoryEmissions = [
+                'light' => ['total_co2_kg' => 0.0, 'trips_count' => 0],
+                'medium' => ['total_co2_kg' => 0.0, 'trips_count' => 0],
+                'heavy' => ['total_co2_kg' => 0.0, 'trips_count' => 0],
+            ];
+
+            $tripsWithTruck = (clone $query)
+                ->whereNotNull('truck_id')
+                ->whereNotNull('estimated_co2_kg')
+                ->with(['truck:id,brand,model,plate_number'])
+                ->select(['id', 'truck_id', 'estimated_co2_kg'])
+                ->get();
+
+            foreach ($tripsWithTruck as $trip) {
+                $truck = $trip->truck;
+                if (!$truck) continue;
+
+                $brandLower = strtolower($truck->brand . ' ' . ($truck->model ?? ''));
+                if (str_contains($brandLower, 'light') || str_contains($brandLower, 'dutro') || str_contains($brandLower, 'canter') || str_contains($brandLower, 'elf')) {
+                    $cat = 'light';
+                } elseif (str_contains($brandLower, 'heavy') || str_contains($brandLower, 'giga') || str_contains($brandLower, 'fighter') || str_contains($brandLower, 'tronton')) {
+                    $cat = 'heavy';
+                } else {
+                    $cat = 'medium';
+                }
+
+                $categoryEmissions[$cat]['total_co2_kg'] += (float) $trip->estimated_co2_kg;
+                $categoryEmissions[$cat]['trips_count']++;
+            }
+
+            foreach ($categoryEmissions as $cat => $val) {
+                $categoryEmissions[$cat]['total_co2_kg'] = round($val['total_co2_kg'], 2);
+            }
+
+            // 4. Top emitting trucks with joined truck info
+            $topTrucks = Trip::selectRaw('truck_id, SUM(estimated_co2_kg) as total_co2, COUNT(*) as trips_count')
+                ->whereNotNull('truck_id')
+                ->groupBy('truck_id')
+                ->orderByDesc('total_co2')
+                ->with(['truck:id,plate_number,brand,model'])
+                ->take(5)
+                ->get()
+                ->map(function ($row) {
+                    return [
+                        'truck_id' => $row->truck_id,
+                        'plate_number' => $row->truck?->plate_number,
+                        'brand' => $row->truck?->brand,
+                        'model' => $row->truck?->model,
+                        'total_co2_kg' => round((float) $row->total_co2, 2),
+                        'trips_count' => (int) $row->trips_count,
+                    ];
+                });
+
+            // 5. Recent trips
+            $recentTrips = (clone $query)
+                ->with(['originCompany', 'originPort', 'destinationCompany', 'destinationPort', 'truck', 'driver'])
+                ->latest('id')
+                ->take(6)
+                ->get();
+
+            return [
+                'period' => $period,
+                'summary' => [
+                    'total_trips' => $totalTrips,
+                    'completed_trips' => $completedTrips,
+                    'in_transit_trips' => $inTransitTrips,
+                    'assigned_trips' => $assignedTrips,
+                    'draft_trips' => $draftTrips,
+                    'cancelled_trips' => $cancelledTrips,
+                    'total_distance_km' => round($totalDistanceKm, 2),
+                    'total_co2_kg' => round($totalCo2Kg, 2),
+                    'average_delay_minutes' => $averageDelayMinutes,
+                    'recommendation_accuracy_percentage' => $accuracyPercentage,
+                ],
+                'emissions_by_truck_category' => $categoryEmissions,
+                'top_emitting_trucks' => $topTrucks,
+                'recent_trips' => TripResource::collection($recentTrips)->resolve(),
+            ];
+        });
+
+        return $this->success($data, 'Dashboard analytics summary retrieved successfully.');
     }
+
+
 
     #[OA\Get(
         path: '/analytics/trips',

@@ -1,10 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Truck, Ship, MapPin, PackageCheck, CheckCircle2, Loader2 } from 'lucide-react';
-import { COLORS } from './dashboardTheme';
+import {
+  Truck,
+  Ship,
+  MapPin,
+  PackageCheck,
+  CheckCircle2,
+  ExternalLink,
+  RefreshCw,
+  User,
+  Loader2,
+} from 'lucide-react';
+import { COLORS, STATUS_STYLES } from './dashboardTheme';
 import { getPosition } from '../../api/tripsApi';
 import { fetchRoutePath } from '../../utils/tomtomRoute';
 
 const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY || '';
+
 // Right now the only thing that ever moves a trip's position is the driver
 // dashboard's Simulate feature, which writes a gps_ping every 1s over a
 // fixed 10s run (not real GPS) — polling at the PRD's suggested 15-30s would
@@ -18,12 +29,6 @@ const DEFAULT_TRIP = {
   destination: 'Jurong Port, Singapore',
   status: 'Ship at sea',
 };
-
-const DEFAULT_HISTORY = [
-  { icon: PackageCheck, label: 'Picked up at Company A', time: 'Aug 14, 08:05' },
-  { icon: Truck, label: 'Arrived at Batam Center Port', time: 'Aug 14, 08:52' },
-  { icon: Ship, label: 'Ship departed for Singapore', time: 'Aug 14, 10:15' },
-];
 
 const fmtTime = (iso) => {
   if (!iso) return '';
@@ -47,21 +52,35 @@ const pinSvg = (color) => `
     <circle cx="17" cy="17" r="7" fill="white"/>
   </svg>`;
 
-const LiveTrackingPanel = ({ trip = null, checkpoints = [] }) => {
+const LiveTrackingPanel = ({
+  trip = null,
+  activeTrips = [],
+  checkpoints = [],
+  onSelectTrip = () => {},
+  onViewDetails = () => {},
+  onRefresh = () => {},
+  refreshing = false,
+}) => {
   const currentTrip = trip || DEFAULT_TRIP;
-  const tripId = currentTrip.id
+  const tripId = currentTrip?.id
     ? (typeof currentTrip.id === 'string' && currentTrip.id.startsWith('TRIP') ? currentTrip.id : `TRIP-${currentTrip.id}`)
-    : 'TRIP-LIVE';
+    : 'NO ACTIVE TRIP';
 
-  const originName = currentTrip.origin?.name || currentTrip.origin || 'Origin Terminal';
-  const destName = currentTrip.destination?.name || currentTrip.destination || 'Destination Port';
-  const rawStatus = currentTrip.status || 'Active';
+  const originName = currentTrip?.origin?.name || currentTrip?.origin || 'Origin Terminal';
+  const destName = currentTrip?.destination?.name || currentTrip?.destination || 'Destination Port';
+  const rawStatus = currentTrip?.status || 'idle';
   const isShipRoute = Boolean(
-    currentTrip.ship_ref_id ||
-    currentTrip.destination_port_id ||
-    currentTrip.origin_port_id ||
+    currentTrip?.ship_ref_id ||
+    currentTrip?.destination_port_id ||
+    currentTrip?.origin_port_id ||
     rawStatus === 'on_ship'
   );
+
+  const statusInfo = STATUS_STYLES[rawStatus] || {
+    label: rawStatus.replace(/_/g, ' '),
+    bg: '#F1F5F9',
+    color: '#64748B',
+  };
 
   // Derive history items
   let historyItems = [];
@@ -70,37 +89,34 @@ const LiveTrackingPanel = ({ trip = null, checkpoints = [] }) => {
       icon: cp.event_type?.includes('port') ? Ship : (cp.event_type?.includes('destination') || cp.event_type?.includes('arrival') ? PackageCheck : Truck),
       label: cp.event_type?.replace(/_/g, ' ') || 'Checkpoint Ping',
       time: fmtTime(cp.created_at || cp.recorded_at),
+      description: cp.notes || (cp.latitude && cp.longitude ? `GPS: ${Number(cp.latitude).toFixed(4)}, ${Number(cp.longitude).toFixed(4)}` : ''),
     }));
-  } else if (trip) {
-    // Generate history from trip timestamps if available
-    if (trip.created_at) {
+  } else if (currentTrip) {
+    if (currentTrip.created_at) {
       historyItems.push({
         icon: PackageCheck,
-        label: `Trip created at ${originName}`,
-        time: fmtTime(trip.created_at),
+        label: `Trip initialized`,
+        time: fmtTime(currentTrip.created_at),
       });
     }
-    if (trip.actual_departure_at || trip.chosen_departure_at) {
+    if (currentTrip.actual_departure_at || currentTrip.chosen_departure_at) {
       historyItems.push({
         icon: isShipRoute ? Ship : Truck,
-        label: `Departed towards ${destName}`,
-        time: fmtTime(trip.actual_departure_at || trip.chosen_departure_at),
+        label: `Departed origin (${originName})`,
+        time: fmtTime(currentTrip.actual_departure_at || currentTrip.chosen_departure_at),
       });
     }
-    if (trip.actual_arrival_at) {
+    if (currentTrip.actual_arrival_at) {
       historyItems.push({
-        icon: PackageCheck,
-        label: `Arrived at ${destName}`,
-        time: fmtTime(trip.actual_arrival_at),
+        icon: CheckCircle2,
+        label: `Arrived at destination (${destName})`,
+        time: fmtTime(currentTrip.actual_arrival_at),
       });
     }
-  }
-
-  if (historyItems.length === 0) {
-    historyItems = DEFAULT_HISTORY;
   }
 
   const isCompleted = rawStatus === 'completed' || rawStatus === 'arrived';
+  const isInTransit = ['in_transit_origin', 'in_transit_destination', 'on_ship', 'at_origin_port', 'at_destination_port'].includes(rawStatus);
 
   /* ── live map ─────────────────────────────────────────────── */
   const mapElRef = useRef(null);
@@ -234,91 +250,186 @@ const LiveTrackingPanel = ({ trip = null, checkpoints = [] }) => {
   }, [trip?.id, trip?.status, mapReady]);
 
   return (
-    <div className="bg-white rounded-xl border-2 border-slate-200 p-5 sm:p-6 h-full flex flex-col shadow-sm">
-      <div className="flex items-start justify-between mb-1">
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold text-slate-800">Live Tracking</h3>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+    <div className="bg-white rounded-xl border-2 border-slate-200 p-5 sm:p-6 h-full flex flex-col justify-between shadow-sm">
+      <div>
+        {/* Panel Header */}
+        <div className="flex items-start justify-between gap-2 mb-2.5">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-semibold text-slate-800">Live Operations</h3>
+              {isInTransit && (
+                <span className="flex h-2.5 w-2.5 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5 font-mono">{tripId}</p>
           </div>
-          <p className="text-sm text-slate-400 mt-0.5">{tripId}</p>
-        </div>
-      </div>
 
-      {/* live map */}
-      <div className="relative mt-4 rounded-lg overflow-hidden bg-slate-100" style={{ height: 180 }}>
-        <div ref={mapElRef} className="w-full h-full" />
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={onRefresh}
+              disabled={refreshing}
+              title="Refresh tracking data"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 transition"
+            >
+              <RefreshCw size={13} className={refreshing ? 'animate-spin text-teal-600' : ''} />
+            </button>
 
-        {!mapReady && !mapError && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Loader2 size={20} className="animate-spin" style={{ color: COLORS.teal }} />
-          </div>
-        )}
-        {mapError && (
-          <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-red-500">
-            {mapError}
-          </div>
-        )}
-
-        <span
-          className="absolute top-3 right-3 text-[11px] font-semibold px-2 py-1 rounded-full text-white capitalize"
-          style={{ backgroundColor: 'rgba(15,23,42,0.6)' }}
-        >
-          {rawStatus.replace(/_/g, ' ')}
-        </span>
-
-        {livePosition && (
-          <span
-            className="absolute bottom-3 left-3 flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-full text-white"
-            style={{ backgroundColor: 'rgba(15,23,42,0.6)' }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Live · {livePosition.source === 'api' ? 'Vessel' : 'GPS'}
-          </span>
-        )}
-      </div>
-
-      <div className="flex justify-between mt-2.5 text-[11px] text-slate-400">
-        <span className="flex items-center gap-1.5 truncate max-w-[48%]">
-          <MapPin size={11} className="shrink-0" />
-          <span className="truncate">{originName}</span>
-        </span>
-        <span className="flex items-center gap-1.5 truncate max-w-[48%] justify-end">
-          <span className="truncate">{destName}</span>
-          <MapPin size={11} className="shrink-0" />
-        </span>
-      </div>
-
-      <div className="mt-5 flex-1">
-        <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-3">
-          Checkpoint history
-        </p>
-        <ul className="space-y-4">
-          {historyItems.map(({ icon: Icon, label, time }, i) => (
-            <li key={i} className="flex items-start gap-3">
-              <span
-                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-                style={{ backgroundColor: `${COLORS.aqua}14` }}
+            {currentTrip && (
+              <button
+                onClick={() => onViewDetails(currentTrip)}
+                title="Open full trip detail"
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition"
               >
-                <Icon size={14} color={COLORS.teal} />
-              </span>
-              <div className="min-w-0">
-                <p className="text-sm text-slate-700 font-medium leading-tight capitalize">{label}</p>
-                {time && <p className="text-xs text-slate-400 mt-0.5">{time}</p>}
-              </div>
-            </li>
-          ))}
-          {!isCompleted && (
-            <li className="flex items-start gap-3 opacity-40">
-              <span className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-slate-100">
-                <CheckCircle2 size={14} className="text-slate-400" />
-              </span>
-              <p className="text-sm text-slate-500 font-medium leading-tight pt-1.5">
-                Awaiting arrival confirmation…
-              </p>
-            </li>
+                Details
+                <ExternalLink size={11} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Multiple Active Trips Switcher (if available) */}
+        {activeTrips && activeTrips.length > 1 && (
+          <div className="mb-2.5">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
+              <span className="text-[11px] text-slate-400 font-medium shrink-0 mr-1">Active:</span>
+              {activeTrips.slice(0, 4).map((t) => {
+                const isSelected = t.id === currentTrip?.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => onSelectTrip(t)}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition shrink-0 ${
+                      isSelected
+                        ? 'bg-slate-800 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    #{t.id} ({t.origin?.name?.split(' ')[0] || 'Origin'} → {t.destination?.name?.split(' ')[0] || 'Dest'})
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Live TomTom Map */}
+        <div className="relative rounded-lg overflow-hidden bg-slate-100 border border-slate-200" style={{ height: 135 }}>
+          <div ref={mapElRef} className="w-full h-full" />
+
+          {!mapReady && !mapError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-50/80">
+              <Loader2 size={18} className="animate-spin" style={{ color: COLORS.teal }} />
+            </div>
           )}
-        </ul>
+          {mapError && (
+            <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-red-500 bg-slate-50">
+              {mapError}
+            </div>
+          )}
+
+          <span
+            className="absolute top-2.5 right-2.5 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white capitalize shadow-xs"
+            style={{ backgroundColor: 'rgba(15,23,42,0.75)' }}
+          >
+            {statusInfo.label}
+          </span>
+
+          {livePosition && (
+            <span
+              className="absolute bottom-2.5 left-2.5 flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white shadow-xs"
+              style={{ backgroundColor: 'rgba(15,23,42,0.75)' }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live · {livePosition.source === 'api' ? 'Vessel' : 'GPS'}
+            </span>
+          )}
+        </div>
+
+        {/* Origin & Destination Labels */}
+        <div className="flex justify-between items-center mt-2 text-[11px] text-slate-600 font-medium">
+          <span className="flex items-center gap-1 truncate max-w-[47%]">
+            <MapPin size={11} className="shrink-0 text-emerald-600" />
+            <span className="truncate text-slate-700">{originName}</span>
+          </span>
+          <span className="text-slate-300 font-normal">→</span>
+          <span className="flex items-center gap-1 truncate max-w-[47%] justify-end">
+            <span className="truncate text-slate-700">{destName}</span>
+            <MapPin size={11} className="shrink-0 text-blue-600" />
+          </span>
+        </div>
+
+        {/* Truck & Driver Info Footer (if available) */}
+        {(currentTrip?.truck || currentTrip?.driver) && (
+          <div className="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+            {currentTrip.truck && (
+              <span className="flex items-center gap-1 truncate max-w-[48%]">
+                <Truck size={11} className="text-teal-600 shrink-0" />
+                <span className="font-mono text-slate-600 font-medium truncate">
+                  {currentTrip.truck.plate_number || currentTrip.truck.plate || 'Vehicle'}
+                </span>
+                {currentTrip.truck.model && <span className="text-slate-400 truncate">({currentTrip.truck.model})</span>}
+              </span>
+            )}
+            {currentTrip.driver && (
+              <span className="flex items-center gap-1 truncate max-w-[48%] justify-end">
+                <User size={11} className="text-slate-400 shrink-0" />
+                <span className="text-slate-600 font-medium truncate">
+                  {currentTrip.driver.name || currentTrip.driver.username}
+                </span>
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Checkpoint history */}
+      <div className="mt-2.5 pt-2 border-t border-slate-100 flex-1 flex flex-col min-h-0">
+        <div className="flex items-center justify-between mb-1.5">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+            Operational Checkpoints
+          </p>
+          <span className="text-[10px] text-slate-400 font-normal">
+            {historyItems.length} recorded
+          </span>
+        </div>
+
+        <div className="flex-1 overflow-y-auto max-h-24 pr-1 space-y-2 text-xs">
+          {historyItems.length === 0 ? (
+            <p className="text-xs text-slate-400 py-2 text-center">No checkpoints logged yet.</p>
+          ) : (
+            historyItems.map(({ icon: Icon, label, time, description }, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <span
+                  className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 shadow-2xs mt-0.5"
+                  style={{ backgroundColor: `${COLORS.aqua}1A` }}
+                >
+                  <Icon size={11} color={COLORS.teal} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="text-[11px] text-slate-700 font-semibold leading-tight capitalize truncate">{label}</p>
+                    {time && <span className="text-[9px] text-slate-400 shrink-0">{time}</span>}
+                  </div>
+                  {description && <p className="text-[10px] text-slate-400 mt-0.5 truncate">{description}</p>}
+                </div>
+              </div>
+            ))
+          )}
+
+          {!isCompleted && currentTrip && (
+            <div className="flex items-center gap-2 opacity-60 pt-0.5">
+              <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 bg-slate-100 border border-slate-200">
+                <CheckCircle2 size={11} className="text-slate-400" />
+              </span>
+              <p className="text-[10px] text-slate-500 font-medium truncate">
+                Awaiting next checkpoint…
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
