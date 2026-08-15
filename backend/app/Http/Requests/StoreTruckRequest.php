@@ -22,8 +22,18 @@ class StoreTruckRequest extends FormRequest
             'brand' => ['required', 'string', 'max:100'],
             'model' => ['nullable', 'string', 'max:100'],
             'year' => ['required', 'integer', 'min:1990', 'max:' . (date('Y') + 1)],
-            'fuel_type' => ['required', 'string', Rule::in([FuelType::DIESEL, FuelType::PETROL, FuelType::GASOLINE, FuelType::ELECTRIC])],
+            'fuel_type' => ['required', 'string', Rule::in([FuelType::DIESEL, FuelType::GASOLINE, FuelType::ELECTRIC])],
             'status' => ['nullable', 'string', Rule::in([Status::ACTIVE, Status::MAINTENANCE])],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'plate_number.unique' => 'Nomor plat ini sudah terdaftar.',
+            'fuel_type.in' => 'Tipe bahan bakar harus bernilai diesel, gasoline, atau electric.',
+            'status.in' => 'Status truk harus bernilai active atau maintenance.',
+            'year.min' => 'Tahun truk minimal 1990.',
         ];
     }
 }

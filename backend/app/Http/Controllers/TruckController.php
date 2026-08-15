@@ -25,7 +25,7 @@ class TruckController extends Controller
         tags: ['Trucks'],
         parameters: [
             new OA\Parameter(name: 'status', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: [Status::ACTIVE, Status::MAINTENANCE])),
-            new OA\Parameter(name: 'fuel_type', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: [FuelType::DIESEL, FuelType::PETROL, FuelType::GASOLINE, FuelType::ELECTRIC])),
+            new OA\Parameter(name: 'fuel_type', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: [FuelType::DIESEL, FuelType::GASOLINE, FuelType::ELECTRIC])),
             new OA\Parameter(name: 'search', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 15)),
         ],
@@ -75,8 +75,8 @@ class TruckController extends Controller
                     new OA\Property(property: 'brand', type: 'string', example: 'Hino'),
                     new OA\Property(property: 'model', type: 'string', example: 'Dutro 130 HD'),
                     new OA\Property(property: 'year', type: 'integer', example: 2022),
-                    new OA\Property(property: 'fuel_type', type: 'string', enum: ['diesel', 'petrol', 'electric'], example: 'diesel'),
-                    new OA\Property(property: 'status', type: 'string', enum: ['active', 'maintenance'], example: 'active'),
+                    new OA\Property(property: 'fuel_type', type: 'string', enum: [FuelType::DIESEL, FuelType::GASOLINE, FuelType::ELECTRIC], example: FuelType::DIESEL),
+                    new OA\Property(property: 'status', type: 'string', enum: [Status::ACTIVE, Status::MAINTENANCE], example: Status::ACTIVE),
                 ]
             )
         ),
