@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, Ship, Anchor } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff, Ship, Anchor, ArrowLeft, ArrowRight, ShieldCheck, Compass } from 'lucide-react';
+import gsap from 'gsap';
 import logo from '../Assets/logo.png';
+
 const COLORS = {
   navy: '#1A365D',
   teal: '#2A6F8A',
@@ -10,11 +13,97 @@ const COLORS = {
 };
 
 const Login = () => {
+  const containerRef = useRef(null);
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // 1. Entrance animation timeline
+      const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+
+      tl.from('.login-left-panel', {
+        x: -80,
+        opacity: 0,
+        duration: 0.95,
+      })
+        .from(
+          '.login-compass-ring',
+          {
+            scale: 0.6,
+            opacity: 0,
+            rotation: -45,
+            duration: 1.2,
+            ease: 'back.out(1.2)',
+          },
+          '-=0.7'
+        )
+        .from(
+          '.login-left-brand',
+          {
+            y: -25,
+            opacity: 0,
+            duration: 0.7,
+          },
+          '-=0.8'
+        )
+        .from(
+          '.login-left-text',
+          {
+            y: 30,
+            opacity: 0,
+            stagger: 0.12,
+            duration: 0.75,
+          },
+          '-=0.6'
+        )
+        .from(
+          '.login-route-bar',
+          {
+            scaleX: 0,
+            opacity: 0,
+            transformOrigin: 'left center',
+            duration: 0.8,
+          },
+          '-=0.5'
+        )
+        .from(
+          '.login-right-panel',
+          {
+            x: 60,
+            opacity: 0,
+            duration: 0.9,
+          },
+          '-=0.85'
+        )
+        .from(
+          '.login-back-btn',
+          {
+            x: -20,
+            opacity: 0,
+            duration: 0.6,
+          },
+          '-=0.6'
+        )
+        .from(
+          '.login-form-item',
+          {
+            y: 24,
+            opacity: 0,
+            stagger: 0.08,
+            duration: 0.6,
+            ease: 'power2.out',
+          },
+          '-=0.5'
+        );
+    }, containerRef);
+
+    return () => ctx.revert();
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -25,7 +114,8 @@ const Login = () => {
 
   return (
     <div
-      className="min-h-screen w-full flex items-stretch font-sans"
+      ref={containerRef}
+      className="min-h-screen w-full flex items-stretch font-sans overflow-hidden"
       style={{ backgroundColor: COLORS.bg }}
     >
       <style>{`
@@ -44,14 +134,14 @@ const Login = () => {
 
       {/* ===== Left brand panel — hidden on mobile ===== */}
       <div
-        className="hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col justify-between px-14 py-12"
+        className="login-left-panel hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col justify-between px-14 py-12"
         style={{
           background: `linear-gradient(160deg, ${COLORS.navy} 0%, #123049 55%, ${COLORS.teal} 100%)`,
         }}
       >
         {/* decorative compass ring */}
         <svg
-          className="absolute -right-24 -top-24 opacity-[0.08]"
+          className="login-compass-ring absolute -right-24 -top-24 opacity-[0.09] pointer-events-none"
           width="480"
           height="480"
           viewBox="0 0 480 480"
@@ -77,10 +167,10 @@ const Login = () => {
         </svg>
 
         {/* logo mark + wordmark */}
-        <div className="relative z-10 flex items-center gap-3">
+        <div className="login-left-brand relative z-10 flex items-center gap-3">
           <div
-            className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
-            style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)' }}
+            className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 shadow-lg"
+            style={{ backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)' }}
           >
             <img src={logo} alt="Mare Nostrum Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
@@ -89,7 +179,7 @@ const Login = () => {
               MARE NOSTRUM
             </p>
             <p
-              className="text-xs italic mt-1 leading-none"
+              className="text-xs italic mt-1 leading-none font-mono"
               style={{ color: COLORS.aqua }}
             >
               Our sea, our trade
@@ -99,19 +189,19 @@ const Login = () => {
 
         {/* headline */}
         <div className="relative z-10 max-w-md">
-          <h1 className="text-white text-4xl font-semibold leading-tight tracking-tight">
+          <h1 className="login-left-text text-white text-4xl font-semibold leading-tight tracking-tight">
             One line of sight,
             <br />
             from Batam to Singapore.
           </h1>
-          <p className="mt-4 text-sm leading-relaxed" style={{ color: '#B9D3E0' }}>
+          <p className="login-left-text mt-4 text-sm leading-relaxed" style={{ color: '#B9D3E0' }}>
             Plan, schedule, and track cross-city and cross-border shipments
             end-to-end — trucks on land, ships at sea.
           </p>
         </div>
 
         {/* route signature: Batam -> Singapura */}
-        <div className="relative z-10">
+        <div className="login-route-bar relative z-10">
           <div className="relative h-px w-full" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
             <div
               className="absolute inset-0"
@@ -125,12 +215,12 @@ const Login = () => {
             </div>
           </div>
           <div className="flex justify-between mt-3 text-xs" style={{ color: '#B9D3E0' }}>
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5 font-mono">
               <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS.aqua }} />
-              Batam
+              Batam (Warehouse)
             </span>
-            <span className="flex items-center gap-1.5">
-              Singapore
+            <span className="flex items-center gap-1.5 font-mono">
+              Singapore (Berth)
               <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS.green }} />
             </span>
           </div>
@@ -138,35 +228,47 @@ const Login = () => {
       </div>
 
       {/* ===== Right form panel ===== */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12 sm:px-10">
+      <div className="login-right-panel w-full lg:w-1/2 flex items-center justify-center px-6 py-12 sm:px-10 relative">
         <div className="w-full max-w-sm">
+          {/* Back to landing page button */}
+          <div className="login-back-btn mb-6">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-slate-500 hover:text-slate-800 transition py-1.5 px-3 rounded-full hover:bg-slate-100 border border-slate-200"
+            >
+              <ArrowLeft size={13} /> Kembali ke Beranda
+            </Link>
+          </div>
+
           {/* compact brand header for mobile */}
-          <div className="flex lg:hidden items-center gap-2.5 mb-10">
+          <div className="login-form-item flex lg:hidden items-center gap-2.5 mb-8">
             <div
-              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm"
               style={{ backgroundColor: `${COLORS.navy}14` }}
             >
-              <Anchor size={17} color={COLORS.navy} strokeWidth={2} />
+              <img src={logo} alt="Mare Nostrum Logo" style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
             </div>
             <div>
               <p className="font-semibold tracking-[0.2em] text-xs leading-none" style={{ color: COLORS.navy }}>
                 MARE NOSTRUM
               </p>
-              <p className="text-xs italic mt-1 leading-none" style={{ color: COLORS.teal }}>
+              <p className="text-xs italic mt-1 leading-none font-mono" style={{ color: COLORS.teal }}>
                 Our sea, our trade
               </p>
             </div>
           </div>
 
-          <h2 className="text-2xl font-semibold" style={{ color: COLORS.navy }}>
+          <h2 className="login-form-item text-2xl font-semibold tracking-tight" style={{ color: COLORS.navy }}>
             Sign in to your account
           </h2>
-          
+          <p className="login-form-item text-sm text-slate-500 mt-1">
+            Masukkan akun admin atau driver Anda untuk melanjutkan.
+          </p>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-            <div>
+          <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+            <div className="login-form-item">
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
-                Email
+                Username / Email
               </label>
               <div className="relative">
                 <Mail
@@ -175,12 +277,12 @@ const Login = () => {
                 />
                 <input
                   id="email"
-                  type="email"
+                  type="text"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nama@marenostrum.id"
-                  className="w-full pl-11 pr-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:ring-2 focus:border-transparent"
+                  placeholder="admin atau driver@marenostrum.id"
+                  className="w-full pl-11 pr-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:ring-2 focus:border-transparent shadow-sm"
                   style={{ '--tw-ring-color': COLORS.aqua }}
                   onFocus={(e) => (e.target.style.boxShadow = `0 0 0 2px ${COLORS.aqua}`)}
                   onBlur={(e) => (e.target.style.boxShadow = 'none')}
@@ -188,7 +290,7 @@ const Login = () => {
               </div>
             </div>
 
-            <div>
+            <div className="login-form-item">
               <div className="flex items-center justify-between mb-1.5">
                 <label htmlFor="password" className="block text-sm font-medium text-slate-700">
                   Password
@@ -213,7 +315,7 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-11 pr-11 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 outline-none transition"
+                  className="w-full pl-11 pr-11 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 outline-none transition shadow-sm"
                   onFocus={(e) => (e.target.style.boxShadow = `0 0 0 2px ${COLORS.aqua}`)}
                   onBlur={(e) => (e.target.style.boxShadow = 'none')}
                 />
@@ -228,32 +330,39 @@ const Login = () => {
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-slate-600 select-none">
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300"
-                style={{ accentColor: COLORS.teal }}
-              />
-              Remember me on this device
-            </label>
+            <div className="login-form-item">
+              <label className="flex items-center gap-2 text-sm text-slate-600 select-none cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300"
+                  style={{ accentColor: COLORS.teal }}
+                />
+                Remember me on this device
+              </label>
+            </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full py-2.5 rounded-lg text-white text-sm font-semibold transition disabled:opacity-70"
-              style={{
-                background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})`,
-              }}
-            >
-              {submitting ? 'Checking…' : 'Sign in'}
-            </button>
+            <div className="login-form-item pt-1">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full py-2.5 rounded-lg text-white text-sm font-semibold transition disabled:opacity-70 shadow-md hover:brightness-105 active:scale-[0.99] flex items-center justify-center gap-2"
+                style={{
+                  background: `linear-gradient(135deg, ${COLORS.navy}, ${COLORS.teal})`,
+                }}
+              >
+                {submitting ? 'Authenticating…' : (
+                  <>
+                    Sign in <ArrowRight size={15} />
+                  </>
+                )}
+              </button>
+            </div>
           </form>
 
-          <p className="mt-8 text-xs text-slate-400 leading-relaxed">
-            System access is restricted to registered Company A personnel.
-            Contact your admin if you don't have an account yet.
+          <p className="login-form-item mt-8 text-xs text-slate-400 leading-relaxed">
+            Akses sistem dibatasi untuk personel terdaftar (Admin & Driver). Hubungi administrator jika Anda belum memiliki kredensial login.
           </p>
         </div>
       </div>
