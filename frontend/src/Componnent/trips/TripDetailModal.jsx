@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X, Route, MapPin, Truck, Calendar, Ship, Clock,
   CheckCircle2, AlertCircle, RefreshCw, Navigation,
   ChevronDown, ChevronUp, Edit2, Anchor, Zap, BarChart2,
+  Search, Check, Loader2, User,
 } from 'lucide-react';
 import { COLORS, STATUS_STYLES, CHECKPOINT_ICONS } from '../dashboard/dashboardTheme';
 import {
   getTrip, updateTrip, recommendTrip, assignTrip,
   simulateTrip, setShipRef, getCheckpoints,
 } from '../../api/tripsApi';
+import axiosClient from '../../axios';
+import { useRouteComboForm, CompanyDropdown, PortDropdown, DropdownPortal, LockIcon, PORTS } from './routeCombo';
 
 /* ── helpers ─────────────────────────────────────────────────── */
 const ss = (status) =>
@@ -321,39 +324,82 @@ const InfoTab = ({ trip }) => (
 );
 
 /* ── UPDATE ROUTE tab ─────────────────────────────────────────── */
-const COMBO_TYPES = [
-  { key: 'domestic',        label: 'Domestic',        fields: ['origin_company_id', 'destination_company_id'] },
-  { key: 'cross_border',    label: 'Cross-border',    fields: ['origin_company_id', 'destination_port_id', 'ship_destination_port_id'] },
-  { key: 'port_to_company', label: 'Port → Company',  fields: ['origin_port_id', 'destination_company_id'] },
-];
-const FIELD_LABELS = {
-  origin_company_id:        'Origin Company ID',
-  destination_company_id:   'Destination Company ID',
-  origin_port_id:           'Origin Port ID',
-  destination_port_id:      'Destination Port ID (Truck)',
-  ship_destination_port_id: 'Ship Destination Port ID',
+const COMBO_LABELS = { domestic: 'Domestic', cross_border: 'Cross-border', port_to_company: 'Port → Company' };
+
+// Figure out which combo an already-created trip is using, from its
+// origin/destination point types (TripResource's {type: 'company'|'port', ...}).
+const inferCombo = (trip) => {
+  if (trip.origin?.type === 'company' && trip.destination?.type === 'port') return 'cross_border';
+  if (trip.origin?.type === 'port' && trip.destination?.type === 'company') return 'port_to_company';
+  return 'domestic';
+};
+
+const inferFormData = (trip, combo) => {
+  if (combo === 'cross_border') {
+    return {
+      origin_company_id: trip.origin?.id,
+      destination_port_id: trip.destination?.id,
+      ship_destination_port_id: trip.ship_destination_port?.id,
+    };
+  }
+  if (combo === 'port_to_company') {
+    return { origin_port_id: trip.origin?.id, destination_company_id: trip.destination?.id };
+  }
+  return { origin_company_id: trip.origin?.id, destination_company_id: trip.destination?.id };
 };
 
 const UpdateTab = ({ trip, onUpdated }) => {
-  const [comboType, setComboType] = useState('domestic');
-  const [form, setForm]           = useState({});
-  const [errors, setErrors]       = useState({});
+  const initialCombo = inferCombo(trip);
+  const {
+    comboType, setComboType, activeCombo,
+    formData, metaData, errors, setErrors, setMetaData,
+    handleFieldChange, getAllowedRegion, getDisabledIds, validate,
+  } = useRouteComboForm(initialCombo, inferFormData(trip, initialCombo));
+
   const [submitting, setSubmitting] = useState(false);
-  const [apiError, setApiError]   = useState(null);
-  const activeCombo = COMBO_TYPES.find((c) => c.key === comboType);
+  const [apiError, setApiError]     = useState(null);
+
+  // Resolve metaData (region etc.) for the trip's current origin/destination so
+  // cross-field validation is correct even if the user only touches one field —
+  // without this, validate() would compare an unresolved origin region against a
+  // resolved destination region and misfire a false "different region" error.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const next = {};
+      const companyIds = activeCombo.fields.filter((f) => f.type === 'company').map((f) => formData[f.key]).filter(Boolean);
+      let companies = [];
+      if (companyIds.length) {
+        try {
+          const res = await axiosClient.get('/api/companies', { params: { per_page: 100 } });
+          companies = res.data?.data ?? [];
+        } catch (_) { /* leave region unresolved — non-fatal, see comment above */ }
+      }
+      activeCombo.fields.forEach(({ key, type }) => {
+        const id = formData[key];
+        if (!id) return;
+        if (type === 'company') {
+          const c = companies.find((x) => x.id === id);
+          if (c) next[key] = { id, region: (c.city ?? '').toLowerCase().includes('singap') ? 'singapore' : 'batam', city: c.city, name: c.name };
+        } else {
+          const p = PORTS.find((x) => x.id === id);
+          if (p) next[key] = { id, region: p.region, name: p.name };
+        }
+      });
+      if (!cancelled) setMetaData((prev) => ({ ...next, ...prev }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip.id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const errs = {};
-    activeCombo.fields.forEach((f) => {
-      if (!form[f] || isNaN(Number(form[f])) || Number(form[f]) < 1)
-        errs[f] = 'A valid numeric ID is required';
-    });
+    const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
     setSubmitting(true); setApiError(null);
     const payload = {};
-    activeCombo.fields.forEach((f) => { payload[f] = Number(form[f]); });
+    activeCombo.fields.forEach(({ key }) => { payload[key] = Number(formData[key]); });
     try {
       const res = await updateTrip(trip.id, payload);
       onUpdated(res.data?.data);
@@ -376,11 +422,11 @@ const UpdateTab = ({ trip, onUpdated }) => {
         Changing the route will clear any existing recommendations.
       </p>
       <div className="grid grid-cols-3 gap-2">
-        {COMBO_TYPES.map(({ key, label }) => (
+        {Object.entries(COMBO_LABELS).map(([key, label]) => (
           <button
             key={key}
             type="button"
-            onClick={() => { setComboType(key); setForm({}); setErrors({}); }}
+            onClick={() => setComboType(key)}
             className="px-2 py-2 rounded-lg border text-xs font-semibold text-center transition"
             style={{
               borderColor:     comboType === key ? COLORS.aqua : '#E2E8F0',
@@ -392,18 +438,28 @@ const UpdateTab = ({ trip, onUpdated }) => {
           </button>
         ))}
       </div>
-      {activeCombo.fields.map((f) => (
-        <div key={f}>
-          <label className="block text-xs font-medium text-slate-600 mb-1">{FIELD_LABELS[f]}</label>
-          <input
-            type="number" min={1} value={form[f] ?? ''}
-            onChange={(e) => { setForm((p) => ({ ...p, [f]: e.target.value })); setErrors((p) => ({ ...p, [f]: null })); }}
-            className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition"
-            style={{ borderColor: errors[f] ? '#EF4444' : '#E2E8F0' }}
+      {activeCombo.fields.map(({ key, type, label, placeholder }, i) => {
+        const isPrevEmpty  = activeCombo.fields.slice(0, i).some(({ key: k }) => !formData[k]);
+        const allowedRegion = getAllowedRegion(key);
+        const blockedIds    = getDisabledIds(key);
+        return type === 'company' ? (
+          <CompanyDropdown
+            key={key} label={label} placeholder={placeholder}
+            value={formData[key] ?? null}
+            onSelectMeta={(meta) => handleFieldChange(key, meta.id, meta)}
+            error={errors[key]} disabled={isPrevEmpty}
+            allowedRegion={allowedRegion} disabledIds={blockedIds}
           />
-          {errors[f] && <p className="mt-1 text-xs text-red-500">{errors[f]}</p>}
-        </div>
-      ))}
+        ) : (
+          <PortDropdown
+            key={key} label={label} placeholder={placeholder}
+            value={formData[key] ?? null}
+            onSelectMeta={(meta) => handleFieldChange(key, meta.id, meta)}
+            error={errors[key]} disabled={isPrevEmpty}
+            allowedRegion={allowedRegion} disabledIds={blockedIds}
+          />
+        );
+      })}
       <ApiError msg={apiError} />
       <div className="flex justify-end">
         <button
@@ -419,8 +475,14 @@ const UpdateTab = ({ trip, onUpdated }) => {
 };
 
 /* ── RECOMMEND tab ────────────────────────────────────────────── */
+const todayStr = () => new Date().toISOString().split('T')[0];
+
 const RecommendTab = ({ trip, onUpdated }) => {
-  const [date, setDate]           = useState('');
+  // Defaults to today so the field is never blank when the tab opens — the
+  // backend's own default (when no date is sent at all) is tomorrow, but this
+  // just pre-fills a starting value for the admin to see/adjust. Nothing is
+  // submitted until the button below is clicked, no auto-launch to the API.
+  const [date, setDate]           = useState(todayStr());
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError]   = useState(null);
 
@@ -442,12 +504,10 @@ const RecommendTab = ({ trip, onUpdated }) => {
         (06:00–12:00, 12:00–18:00, 18:00–05:00). This may take ~10–30 seconds.
       </div>
       <div>
-        <label className="block text-xs font-medium text-slate-600 mb-1">
-          Date <span className="text-slate-400">(optional — defaults to tomorrow)</span>
-        </label>
+        <label className="block text-xs font-medium text-slate-600 mb-1">Date</label>
         <input
           type="date" value={date} onChange={(e) => setDate(e.target.value)}
-          min={new Date().toISOString().split('T')[0]}
+          min={todayStr()}
           className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none transition"
           onFocus={(e) => (e.target.style.boxShadow = `0 0 0 2px ${COLORS.aqua}40`)}
           onBlur={(e)  => (e.target.style.boxShadow = 'none')}
@@ -575,6 +635,257 @@ const SimulateTab = ({ trip }) => {
   );
 };
 
+/* ── truck/driver dropdowns (Assign tab only — search + list, no region
+   filtering, so kept local rather than pulled into the shared routeCombo
+   module) ────────────────────────────────────────────────────── */
+const TruckDropdown = ({ label, placeholder, value, onSelectMeta, error }) => {
+  const [open, setOpen]       = useState(false);
+  const [query, setQuery]     = useState('');
+  const [options, setOptions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [fetched, setFetched] = useState(false);
+  const [selected, setSelected] = useState(null);
+
+  const triggerRef   = useRef(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      const panel = document.getElementById('truck-dp-' + label);
+      if (containerRef.current && !containerRef.current.contains(e.target) && !(panel && panel.contains(e.target))) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open, label]);
+
+  const fetchTrucks = useCallback(async (search = '') => {
+    setLoading(true);
+    try {
+      const res = await axiosClient.get('/api/trucks', { params: { status: 'active', per_page: 100, ...(search ? { search } : {}) } });
+      setOptions(res.data?.data ?? []);
+    } catch (_) { setOptions([]); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => fetchTrucks(query), 300);
+    return () => clearTimeout(t);
+  }, [query, open, fetchTrucks]);
+
+  useEffect(() => {
+    if (value && !selected && !fetched) {
+      setFetched(true);
+      (async () => {
+        try {
+          const res = await axiosClient.get('/api/trucks', { params: { per_page: 100 } });
+          const match = (res.data?.data ?? []).find((t) => t.id === value);
+          if (match) setSelected(match);
+        } catch (_) {}
+      })();
+    }
+  }, [value, selected, fetched]);
+
+  const handleOpen = () => {
+    setOpen(true);
+    if (!fetched) { setFetched(true); fetchTrucks(''); }
+  };
+
+  const handleSelect = (truck) => {
+    onSelectMeta?.(truck);
+    setSelected(truck);
+    setOpen(false);
+    setQuery('');
+  };
+
+  return (
+    <div ref={containerRef}>
+      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      <button ref={triggerRef} type="button" onClick={handleOpen}
+        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm text-left transition-all duration-150 ${
+          error ? 'bg-white border-red-300 ring-2 ring-red-100'
+          : open ? 'bg-white border-slate-400 ring-2 ring-slate-100'
+          : 'bg-white border-slate-200 hover:border-slate-300'
+        }`}>
+        <span className={selected ? 'text-slate-800 font-medium flex items-center gap-2 min-w-0' : 'text-slate-400'}>
+          {selected ? (
+            <>
+              <span className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: `${COLORS.teal}14` }}>
+                <Truck size={11} color={COLORS.teal} />
+              </span>
+              <span className="truncate">{selected.plate_number}</span>
+              <span className="text-xs text-slate-400 shrink-0">{selected.brand}</span>
+            </>
+          ) : placeholder}
+        </span>
+        <ChevronDown size={15} className={`shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''} text-slate-400`} />
+      </button>
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+
+      <DropdownPortal triggerRef={triggerRef} open={open}>
+        <div id={`truck-dp-${label}`} className="bg-white rounded-xl border border-slate-200 shadow-2xl overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-slate-100">
+            <Search size={14} className="text-slate-400 shrink-0" />
+            <input autoFocus type="text" value={query} onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search plate, brand, model…"
+              className="flex-1 text-sm text-slate-700 placeholder:text-slate-400 outline-none bg-transparent" />
+            {loading && <Loader2 size={13} className="animate-spin text-slate-400 shrink-0" />}
+          </div>
+          <ul className="max-h-48 overflow-y-auto">
+            {!loading && options.length === 0 && (
+              <li className="px-4 py-3 text-sm text-slate-400 text-center">No active trucks found</li>
+            )}
+            {options.map((truck) => (
+              <li key={truck.id}>
+                <button type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => handleSelect(truck)}
+                  className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left hover:bg-slate-50 transition-colors">
+                  <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${COLORS.teal}14` }}>
+                    <Truck size={13} color={COLORS.teal} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-slate-800 truncate">{truck.plate_number}</p>
+                    <p className="text-xs text-slate-400 truncate">{truck.brand}{truck.model ? ` · ${truck.model}` : ''} · {truck.fuel_type}</p>
+                  </div>
+                  {value === truck.id && <Check size={14} color={COLORS.green} className="shrink-0" />}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </DropdownPortal>
+    </div>
+  );
+};
+
+const DriverDropdown = ({ label, placeholder, value, onSelectMeta, error }) => {
+  const [open, setOpen]       = useState(false);
+  const [query, setQuery]     = useState('');
+  const [options, setOptions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [fetched, setFetched] = useState(false);
+  const [selected, setSelected] = useState(null);
+
+  const triggerRef   = useRef(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      const panel = document.getElementById('driver-dp-' + label);
+      if (containerRef.current && !containerRef.current.contains(e.target) && !(panel && panel.contains(e.target))) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open, label]);
+
+  const fetchDrivers = useCallback(async (search = '') => {
+    setLoading(true);
+    try {
+      const res = await axiosClient.get('/api/users', { params: { role: 'driver', per_page: 100, ...(search ? { search } : {}) } });
+      setOptions(res.data?.data ?? []);
+    } catch (_) { setOptions([]); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => fetchDrivers(query), 300);
+    return () => clearTimeout(t);
+  }, [query, open, fetchDrivers]);
+
+  useEffect(() => {
+    if (value && !selected && !fetched) {
+      setFetched(true);
+      (async () => {
+        try {
+          const res = await axiosClient.get('/api/users', { params: { role: 'driver', per_page: 100 } });
+          const match = (res.data?.data ?? []).find((u) => u.id === value);
+          if (match) setSelected(match);
+        } catch (_) {}
+      })();
+    }
+  }, [value, selected, fetched]);
+
+  const handleOpen = () => {
+    setOpen(true);
+    if (!fetched) { setFetched(true); fetchDrivers(''); }
+  };
+
+  const handleSelect = (driver) => {
+    onSelectMeta?.(driver);
+    setSelected(driver);
+    setOpen(false);
+    setQuery('');
+  };
+
+  return (
+    <div ref={containerRef}>
+      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      <button ref={triggerRef} type="button" onClick={handleOpen}
+        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm text-left transition-all duration-150 ${
+          error ? 'bg-white border-red-300 ring-2 ring-red-100'
+          : open ? 'bg-white border-slate-400 ring-2 ring-slate-100'
+          : 'bg-white border-slate-200 hover:border-slate-300'
+        }`}>
+        <span className={selected ? 'text-slate-800 font-medium flex items-center gap-2 min-w-0' : 'text-slate-400'}>
+          {selected ? (
+            <>
+              <span className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: `${COLORS.aqua}14` }}>
+                <User size={11} color={COLORS.aqua} />
+              </span>
+              <span className="truncate">{selected.name}</span>
+              {selected.phone && <span className="text-xs text-slate-400 shrink-0">{selected.phone}</span>}
+            </>
+          ) : placeholder}
+        </span>
+        <ChevronDown size={15} className={`shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''} text-slate-400`} />
+      </button>
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+
+      <DropdownPortal triggerRef={triggerRef} open={open}>
+        <div id={`driver-dp-${label}`} className="bg-white rounded-xl border border-slate-200 shadow-2xl overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-slate-100">
+            <Search size={14} className="text-slate-400 shrink-0" />
+            <input autoFocus type="text" value={query} onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name, username, phone…"
+              className="flex-1 text-sm text-slate-700 placeholder:text-slate-400 outline-none bg-transparent" />
+            {loading && <Loader2 size={13} className="animate-spin text-slate-400 shrink-0" />}
+          </div>
+          <ul className="max-h-48 overflow-y-auto">
+            {!loading && options.length === 0 && (
+              <li className="px-4 py-3 text-sm text-slate-400 text-center">No drivers found</li>
+            )}
+            {options.map((driver) => (
+              <li key={driver.id}>
+                <button type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => handleSelect(driver)}
+                  className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left hover:bg-slate-50 transition-colors">
+                  <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${COLORS.aqua}14` }}>
+                    <User size={13} color={COLORS.aqua} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-slate-800 truncate">{driver.name}</p>
+                    <p className="text-xs text-slate-400 truncate">@{driver.username}{driver.phone ? ` · ${driver.phone}` : ''}</p>
+                  </div>
+                  {value === driver.id && <Check size={14} color={COLORS.green} className="shrink-0" />}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </DropdownPortal>
+    </div>
+  );
+};
+
 /* ── ASSIGN tab ───────────────────────────────────────────────── */
 const AssignTab = ({ trip, onUpdated }) => {
   const [form, setForm]           = useState({ truck_id: '', driver_id: '', chosen_departure_at: '' });
@@ -660,21 +971,18 @@ const AssignTab = ({ trip, onUpdated }) => {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {[
-          { field: 'truck_id',  label: 'Truck ID' },
-          { field: 'driver_id', label: 'Driver ID (role: driver)' },
-        ].map(({ field, label }) => (
-          <div key={field}>
-            <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
-            <input
-              type="number" min={1} value={form[field]}
-              onChange={(e) => { setForm((p) => ({ ...p, [field]: e.target.value })); setErrors((p) => ({ ...p, [field]: null })); }}
-              className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
-              style={{ borderColor: errors[field] ? '#EF4444' : '#E2E8F0' }}
-            />
-            {errors[field] && <p className="mt-1 text-xs text-red-500">{errors[field]}</p>}
-          </div>
-        ))}
+        <TruckDropdown
+          label="Truck" placeholder="Select an active truck"
+          value={form.truck_id || null}
+          onSelectMeta={(truck) => { setForm((p) => ({ ...p, truck_id: truck.id })); setErrors((p) => ({ ...p, truck_id: null })); }}
+          error={errors.truck_id}
+        />
+        <DriverDropdown
+          label="Driver" placeholder="Select a driver"
+          value={form.driver_id || null}
+          onSelectMeta={(driver) => { setForm((p) => ({ ...p, driver_id: driver.id })); setErrors((p) => ({ ...p, driver_id: null })); }}
+          error={errors.driver_id}
+        />
       </div>
 
       <ApiError msg={apiError} />
