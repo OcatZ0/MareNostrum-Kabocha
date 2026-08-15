@@ -12,50 +12,227 @@
         }
     ],
     "paths": {
-        "/companies": {
+        "/api/companies": {
             "get": {
                 "tags": [
                     "Companies"
                 ],
-                "summary": "List all companies",
-                "description": "Master data — every company (internal and partner, both Batam and Singapore side). Small, bounded dataset (not paginated), meant for populating a dropdown/select when creating a trip (PRD Bagian 5.1) or plotting on a map.",
-                "operationId": "8af1177352a157e9228c00f023616d87",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "OK"
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/components/schemas/Company"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
+                "summary": "Get paginated list of companies",
+                "operationId": "54f966c056050f9db4fff6ee5a45a76a",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "internal",
+                                "partner"
+                            ]
                         }
                     },
-                    "401": {
-                        "description": "Unauthenticated"
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of companies retrieved successfully."
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "Create a new company",
+                "operationId": "00e2db7b0f71c32b377f4dfc4dd685a8",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "type",
+                                    "city",
+                                    "latitude",
+                                    "longitude"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Company B Logistics"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "example": "partner",
+                                        "enum": [
+                                            "internal",
+                                            "partner"
+                                        ]
+                                    },
+                                    "city": {
+                                        "type": "string",
+                                        "example": "Batam"
+                                    },
+                                    "address": {
+                                        "type": "string",
+                                        "example": "Kawasan Industri Mukakuning"
+                                    },
+                                    "latitude": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 1.08234
+                                    },
+                                    "longitude": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 104.03214
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
                     }
                 },
-                "security": [
-                    {
-                        "sanctum": []
+                "responses": {
+                    "201": {
+                        "description": "Company created successfully."
+                    },
+                    "422": {
+                        "description": "Validation error."
                     }
-                ]
+                }
+            }
+        },
+        "/api/companies/{company}": {
+            "get": {
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "Get single company details",
+                "operationId": "dbcfdfb0281353ca1b00a67c0b0c2308",
+                "parameters": [
+                    {
+                        "name": "company",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Company details retrieved successfully."
+                    },
+                    "404": {
+                        "description": "Company not found."
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "Update existing company details",
+                "operationId": "17ee846405381b70d408b7532b44601a",
+                "parameters": [
+                    {
+                        "name": "company",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Company B Logistics Updated"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "internal",
+                                            "partner"
+                                        ]
+                                    },
+                                    "city": {
+                                        "type": "string"
+                                    },
+                                    "address": {
+                                        "type": "string"
+                                    },
+                                    "latitude": {
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "longitude": {
+                                        "type": "number",
+                                        "format": "float"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Company updated successfully."
+                    },
+                    "422": {
+                        "description": "Validation error."
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "Delete a company",
+                "operationId": "815006ac9bb0fb97b1cad53b1a620652",
+                "parameters": [
+                    {
+                        "name": "company",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Company deleted successfully."
+                    },
+                    "422": {
+                        "description": "Cannot delete company referenced in trips."
+                    }
+                }
             }
         },
         "/trips/{id}/checkpoints": {
@@ -1142,6 +1319,7 @@
     "components": {
         "schemas": {
             "Company": {
+                "description": "Company record details.",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -1149,7 +1327,7 @@
                     },
                     "name": {
                         "type": "string",
-                        "example": "Batamindo Industrial Park"
+                        "example": "Company A Logistics"
                     },
                     "type": {
                         "type": "string",
@@ -1165,17 +1343,28 @@
                     },
                     "address": {
                         "type": "string",
+                        "example": "Kawasan Industri Batam Center",
                         "nullable": true
                     },
                     "latitude": {
                         "type": "number",
                         "format": "float",
-                        "example": 1.065171
+                        "example": 1.1234567
                     },
                     "longitude": {
                         "type": "number",
                         "format": "float",
-                        "example": 104.028693
+                        "example": 104.0123456
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
                     }
                 },
                 "type": "object"
@@ -1368,12 +1557,12 @@
     },
     "tags": [
         {
-            "name": "Trips",
-            "description": "Trip planning, assignment and tracking"
+            "name": "Companies",
+            "description": "Company and partner management"
         },
         {
-            "name": "Companies",
-            "description": "Company master data (internal + partner)"
+            "name": "Trips",
+            "description": "Trip planning, assignment and tracking"
         }
     ]
 }
