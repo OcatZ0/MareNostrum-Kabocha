@@ -215,7 +215,7 @@ const DashboardTopbar = ({ onMenuClick = () => {} }) => {
   };
 
   return (
-    <header className="flex items-center justify-between gap-4 px-4 sm:px-6 py-4 bg-white border-b border-slate-100">
+    <header className="sticky top-0 z-30 flex items-center justify-between gap-4 px-4 sm:px-6 py-4 bg-white border-b border-slate-100">
       
       {/* ========================================================
           LEFT SIDE

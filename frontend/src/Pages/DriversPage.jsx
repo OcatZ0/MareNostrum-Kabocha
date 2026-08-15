@@ -88,7 +88,7 @@ const DriversPage = () => {
     <div className="min-h-screen flex" style={{ backgroundColor: COLORS.bg }}>
       <style>{ANIM}</style>
       <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col lg:pl-64">
         <DashboardTopbar onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 px-4 sm:px-6 py-6 space-y-5">
 

@@ -82,13 +82,11 @@ const CompanyFormModal = ({ mode, company, onClose, onSaved }) => {
     };
 
     try {
-      if (isEdit) {
-        await updateCompany(company.id, payload);
-      } else {
-        await createCompany(payload);
-      }
+      let saved;
+      if (isEdit) { const r = await updateCompany(company.id, payload); saved = r.data?.data; }
+      else        { const r = await createCompany(payload);              saved = r.data?.data; }
       setSuccess(true);
-      setTimeout(() => onSaved(), 600);
+      setTimeout(() => onSaved(saved ?? payload), 600);
     } catch (err) {
       const d = err?.response?.data;
       if (d?.errors) {

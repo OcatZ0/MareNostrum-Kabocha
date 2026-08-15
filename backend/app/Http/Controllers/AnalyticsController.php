@@ -243,12 +243,15 @@ class AnalyticsController extends Controller
             ];
         });
 
-        return $this->success(
-            new \Illuminate\Http\Resources\Json\AnonymousResourceCollection(
-                $transformedItems,
-                $paginator
-            ),
-            'Detail analitik trip berhasil diambil.'
-        );
+        return response()->json([
+            'success' => true,
+            'message' => 'Detail analitik trip berhasil diambil.',
+            'data' => $transformedItems,
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'total' => $paginator->total(),
+                'per_page' => $paginator->perPage(),
+            ],
+        ], 200);
     }
 }
