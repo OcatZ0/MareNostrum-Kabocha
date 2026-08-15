@@ -8,7 +8,19 @@ import { COLORS } from './dashboardTheme';
  * delta     - e.g. "+12%"
  * deltaGood - true renders the delta pill in green, false in a neutral amber
  */
-const StatCard = ({ icon: Icon, label, value, delta, deltaGood = true }) => {
+const StatCard = ({ icon: Icon, label, value, delta, deltaGood = true, loading = false }) => {
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl border-2 border-slate-200 p-5 flex items-center gap-4 shadow-sm animate-pulse">
+        <div className="w-12 h-12 rounded-xl bg-slate-100 shrink-0" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="h-6 bg-slate-200 rounded w-20" />
+          <div className="h-3.5 bg-slate-100 rounded w-28" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl border-2 border-slate-200 p-5 flex items-center gap-4 shadow-sm">
       <div

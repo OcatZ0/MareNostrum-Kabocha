@@ -36,10 +36,18 @@ const FleetStatus = ({ trucks = [], loading = false }) => {
         </div>
 
         {loading && displayTrucks.length === 0 ? (
-          <div className="py-8 text-center text-xs text-slate-400">
-            <div className="w-5 h-5 mx-auto border-2 border-slate-200 border-t-teal-600 rounded-full animate-spin mb-2" />
-            Loading fleet data...
-          </div>
+          <ul className="divide-y divide-slate-100 animate-pulse">
+            {[1, 2, 3, 4].map((k) => (
+              <li key={k} className="flex items-center gap-3 py-3 px-2 -mx-2">
+                <div className="w-9 h-9 rounded-lg bg-slate-100 shrink-0" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="h-3.5 bg-slate-200 rounded w-24" />
+                  <div className="h-2.5 bg-slate-100 rounded w-36" />
+                </div>
+                <div className="w-14 h-4 bg-slate-100 rounded-full shrink-0" />
+              </li>
+            ))}
+          </ul>
         ) : displayTrucks.length === 0 ? (
           <div className="py-8 text-center text-xs text-slate-400">No fleet vehicles recorded.</div>
         ) : (
