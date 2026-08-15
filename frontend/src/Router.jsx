@@ -4,6 +4,7 @@ import GuestLayout from "./Layout/GuestLayout";
 import Login from "./Pages/Login";
 import LandingPage from "./Pages/LandingPage";
 import Dashboard from "./Pages/Dashboard";
+import TripsPage from "./Pages/TripsPage";
 
 const router = createBrowserRouter([
   {
@@ -35,6 +36,10 @@ const router = createBrowserRouter([
       {
         path: "dashboard",
         element: <Dashboard />,
+      },
+      {
+        path: "trips",
+        element: <TripsPage />,
       },
     ],
   },
