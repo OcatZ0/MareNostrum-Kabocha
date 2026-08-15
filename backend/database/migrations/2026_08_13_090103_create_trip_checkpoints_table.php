@@ -23,6 +23,7 @@ return new class extends Migration
                 'ship_departed',
                 'ship_arrived',
                 'arrived_final',
+                'truck_returned',
             ]);
 
             $table->decimal('latitude', 10, 7)->nullable();
