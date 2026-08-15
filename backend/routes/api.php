@@ -1,0 +1,23 @@
+<?php
+
+use App\Http\Controllers\TripController;
+use App\Http\Middleware\BypassAuthForTesting;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+
+// TEMPORARY: auth:sanctum swapped for BypassAuthForTesting until POST /api/login
+// exists (PRD Bagian 14, Backend 1). Revert to 'auth:sanctum' once it's built —
+// see app/Http/Middleware/BypassAuthForTesting.php for details.
+
+Route::get('/user', function (Request $request) {
+    return $request->user();
+})->middleware(BypassAuthForTesting::class);
+
+Route::middleware(BypassAuthForTesting::class)->group(function () {
+    Route::get('/trips', [TripController::class, 'index']);
+    Route::post('/trips', [TripController::class, 'store']);
+    Route::get('/trips/{trip}', [TripController::class, 'show']);
+    Route::put('/trips/{trip}', [TripController::class, 'update']);
+    Route::post('/trips/{trip}/recommend', [TripController::class, 'recommend']);
+    Route::post('/trips/{trip}/assign', [TripController::class, 'assign']);
+});
