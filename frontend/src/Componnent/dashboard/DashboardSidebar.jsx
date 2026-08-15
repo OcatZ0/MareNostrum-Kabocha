@@ -35,7 +35,7 @@ const NAV_ITEMS = [
   {
     label: 'Drivers',
     icon: Users,
-    to: '/app/driversPage',
+    to: '/app/drivers',
   },
   {
     label: 'Companies & Ports',

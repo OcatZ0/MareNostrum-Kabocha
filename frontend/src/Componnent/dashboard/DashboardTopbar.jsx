@@ -6,21 +6,36 @@ import {
   ChevronDown,
   CheckCheck,
   ArrowRight,
+  LogOut,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { COLORS } from './dashboardTheme';
 import { getNotifications } from '../../api/notificationsApi';
+import axiosClient from '../../axios';
+import { useStateContext } from '../../Contexts/Context';
+
+const initials = (name) => {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  return parts.length > 1
+    ? (parts[0][0] + parts[1][0]).toUpperCase()
+    : parts[0].slice(0, 2).toUpperCase();
+};
 
 /** onMenuClick - opens the mobile sidebar drawer */
 const DashboardTopbar = ({ onMenuClick = () => {} }) => {
   const navigate = useNavigate();
+  const { currentUser, setToken, setCurrentUser } = useStateContext();
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const notificationRef = useRef(null);
+  const profileRef = useRef(null);
 
   /* ============================================================
      LOAD NOTIFICATIONS
@@ -129,6 +144,48 @@ const DashboardTopbar = ({ onMenuClick = () => {} }) => {
       );
     };
   }, [showNotifications]);
+
+  /* ============================================================
+     CLOSE PROFILE MENU WHEN CLICKING OUTSIDE
+  ============================================================ */
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(event.target)
+      ) {
+        setShowProfileMenu(false);
+      }
+    };
+
+    if (showProfileMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileMenu]);
+
+  /* ============================================================
+     LOGOUT
+  ============================================================ */
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await axiosClient.post('/api/logout');
+    } catch (error) {
+      // Token may already be invalid/expired — still proceed to clear
+      // local state and send the user back to the login screen.
+      console.error('Logout request failed:', error);
+    } finally {
+      setToken(null);
+      setCurrentUser(null);
+      localStorage.removeItem('user_name');
+      navigate('/login', { replace: true });
+    }
+  };
 
   /* ============================================================
      FORMAT NOTIFICATION TIME
@@ -592,45 +649,101 @@ const DashboardTopbar = ({ onMenuClick = () => {} }) => {
         {/* ======================================================
             USER PROFILE
         ======================================================= */}
-        <div className="flex items-center gap-2">
-          
-          <div
-            className="
-              w-9 h-9
-              rounded-full
-              flex
-              items-center
-              justify-center
-              text-white
-              text-xs
-              font-semibold
-              shrink-0
-            "
-            style={{
-              background: `linear-gradient(
-                135deg,
-                ${COLORS.teal},
-                ${COLORS.aqua}
-              )`,
-            }}
+        <div ref={profileRef} className="relative">
+          <button
+            onClick={() => setShowProfileMenu((prev) => !prev)}
+            className="flex items-center gap-2"
           >
-            RP
-          </div>
+            <div
+              className="
+                w-9 h-9
+                rounded-full
+                flex
+                items-center
+                justify-center
+                text-white
+                text-xs
+                font-semibold
+                shrink-0
+              "
+              style={{
+                background: `linear-gradient(
+                  135deg,
+                  ${COLORS.teal},
+                  ${COLORS.aqua}
+                )`,
+              }}
+            >
+              {initials(currentUser?.name)}
+            </div>
 
-          <div className="hidden sm:block leading-tight">
-            <p className="text-sm font-semibold text-slate-800">
-              Rangga Putra
-            </p>
+            <div className="hidden sm:block leading-tight text-left">
+              <p className="text-sm font-semibold text-slate-800">
+                {currentUser?.name || 'User'}
+              </p>
 
-            <p className="text-xs text-slate-400">
-              Admin · Company A
-            </p>
-          </div>
+              <p className="text-xs text-slate-400 capitalize">
+                {currentUser?.role || '—'} · Company A
+              </p>
+            </div>
 
-          <ChevronDown
-            size={14}
-            className="hidden sm:block text-slate-400"
-          />
+            <ChevronDown
+              size={14}
+              className={`hidden sm:block text-slate-400 transition-transform ${showProfileMenu ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {/* ====================================================
+              PROFILE DROPDOWN
+          ===================================================== */}
+          {showProfileMenu && (
+            <div
+              className="
+                absolute
+                right-0
+                top-12
+                z-[100]
+                w-52
+                bg-white
+                rounded-xl
+                border-2
+                border-slate-200
+                shadow-xl
+                overflow-hidden
+              "
+            >
+              <div className="px-4 py-3 border-b-2 border-slate-100">
+                <p className="text-sm font-semibold text-slate-800 truncate">
+                  {currentUser?.name || 'User'}
+                </p>
+                <p className="text-xs text-slate-400 truncate">
+                  @{currentUser?.username || '—'}
+                </p>
+              </div>
+
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="
+                  w-full
+                  flex
+                  items-center
+                  gap-2
+                  px-4
+                  py-3
+                  text-sm
+                  font-medium
+                  text-red-600
+                  hover:bg-red-50
+                  transition
+                  disabled:opacity-60
+                "
+              >
+                <LogOut size={16} />
+                {loggingOut ? 'Logging out…' : 'Logout'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
