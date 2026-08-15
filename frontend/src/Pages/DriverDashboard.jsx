@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { MapPin, Navigation, Truck, Clock, LogOut, Menu, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { MapPin, Navigation, Truck, Clock, LogOut, Menu, X, AlertCircle, Loader2 } from 'lucide-react';
 import { getTrips } from '../api/tripsApi';
 import { COLORS, STATUS_STYLES } from '../Componnent/dashboard/dashboardTheme';
 
-/* ── Styles ──────────────────────────────────────────────────── */
+const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY || '';
+
 const ANIM = `
   @keyframes fade-in { from{opacity:0} to{opacity:1} }
   @keyframes slide-in-left { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
   @keyframes slide-in-right { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:translateX(0)} }
 `;
 
-/* ── Helpers ─────────────────────────────────────────────────── */
 const statusStyle = (status) =>
   STATUS_STYLES[status] ?? { label: status, bg: '#F1F5F9', color: '#64748B' };
 
@@ -29,18 +29,16 @@ const fmtDur = (min) => {
   return h ? `${h}h ${m}m` : `${m}m`;
 };
 
-/* ── Trip Card ───────────────────────────────────────────────– */
+/* ── Trip Card Component ─────────────────────────────────────── */
 const TripCard = ({ trip, selected, onClick }) => {
   const s = statusStyle(trip.status);
-  const from = trip.origin?.name ?? trip.origin_company?.name ?? '—';
-  const to = trip.destination?.name ?? trip.destination_company?.name ?? '—';
+  const from = trip.origin?.name ?? 'Origin';
+  const to = trip.destination?.name ?? 'Destination';
 
   return (
     <div
       onClick={onClick}
-      className={`p-4 rounded-lg cursor-pointer transition-all border-2 ${
-        selected ? 'border-opacity-100' : 'border-opacity-0'
-      }`}
+      className={`p-4 rounded-lg cursor-pointer transition-all border-2`}
       style={{
         backgroundColor: selected ? `${COLORS.teal}10` : '#f8f9fa',
         borderColor: selected ? COLORS.teal : 'transparent',
@@ -49,148 +47,202 @@ const TripCard = ({ trip, selected, onClick }) => {
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
           <h3 className="font-semibold text-slate-900 text-sm">Trip #{trip.id}</h3>
-          <p className="text-xs text-slate-500">Status: {s.label}</p>
+          <p className="text-xs text-slate-500">{s.label}</p>
         </div>
-        <span
-          className="text-xs font-bold px-2 py-1 rounded-full"
-          style={{ backgroundColor: s.bg, color: s.color }}>
+        <span className="text-xs font-bold px-2 py-1 rounded-full" style={{ backgroundColor: s.bg, color: s.color }}>
           {s.label}
         </span>
       </div>
-
       <div className="space-y-2 text-xs">
         <div className="flex items-center gap-2">
           <MapPin size={14} style={{ color: COLORS.teal }} />
-          <span className="text-slate-600">
-            <strong>From:</strong> {from}
-          </span>
+          <span className="text-slate-600"><strong>From:</strong> {from}</span>
         </div>
         <div className="flex items-center gap-2">
           <Navigation size={14} style={{ color: COLORS.teal }} />
-          <span className="text-slate-600">
-            <strong>To:</strong> {to}
-          </span>
+          <span className="text-slate-600"><strong>To:</strong> {to}</span>
         </div>
-        {trip.truck && (
-          <div className="flex items-center gap-2">
-            <Truck size={14} style={{ color: COLORS.teal }} />
-            <span className="text-slate-600">
-              <strong>Truck:</strong> {trip.truck.license_plate}
-            </span>
-          </div>
-        )}
-        {trip.estimated_duration_min && (
-          <div className="flex items-center gap-2">
-            <Clock size={14} style={{ color: COLORS.teal }} />
-            <span className="text-slate-600">
-              <strong>Duration:</strong> {fmtDur(trip.estimated_duration_min)}
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );
 };
 
-/* ── Simple SVG Map Component ────────────────────────────────– */
+/* ── Map Component ───────────────────────────────────────────── */
 const MapView = ({ trip }) => {
+  const mapElRef = useRef(null);
+  const mapRef = useRef(null);
+  const sdkLoadingRef = useRef(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState(null);
+
+  // Load SDK once
+  useEffect(() => {
+    if (sdkLoadingRef.current) return;
+    sdkLoadingRef.current = true;
+
+    if (!TOMTOM_API_KEY || TOMTOM_API_KEY === 'MASUKKAN_API_KEY_TOMTOM') {
+      setMapError('TomTom API key not set. Add VITE_TOMTOM_API_KEY to .env.local');
+      return;
+    }
+
+    console.log('Loading TomTom SDK...');
+
+    // Load CSS
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps.css';
+    document.head.appendChild(link);
+
+    // Load JS
+    const script = document.createElement('script');
+    script.src = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps-web.min.js';
+    script.onload = () => {
+      console.log('✓ TomTom SDK loaded');
+      setMapReady(true);
+    };
+    script.onerror = () => {
+      console.error('✗ TomTom SDK load failed');
+      setMapError('Failed to load TomTom SDK');
+    };
+    document.body.appendChild(script);
+  }, []);
+
+  // Init map when SDK ready
+  useEffect(() => {
+    if (!mapReady || !mapElRef.current || mapRef.current) return;
+    if (!window.tt) {
+      setMapError('TomTom SDK not available');
+      return;
+    }
+
+    console.log('Initializing map...');
+    try {
+      mapRef.current = window.tt.map({
+        key: TOMTOM_API_KEY,
+        container: mapElRef.current,
+        center: [104.0305, 1.1301],
+        zoom: 12,
+      });
+      mapRef.current.addControl(new window.tt.NavigationControl());
+      console.log('✓ Map ready');
+    } catch (err) {
+      console.error('Map init error:', err);
+      setMapError(err.message);
+    }
+  }, [mapReady]);
+
+  // Draw route when trip changes
+  useEffect(() => {
+    if (!trip || !mapRef.current || !mapReady) return;
+
+    const map = mapRef.current;
+
+    // Extract coordinates
+    const originLat = trip.origin?.latitude;
+    const originLng = trip.origin?.longitude;
+    const destLat = trip.destination?.latitude;
+    const destLng = trip.destination?.longitude;
+
+    console.log('Trip:', trip.id, 'Origin:', [originLng, originLat], 'Dest:', [destLng, destLat]);
+
+    if (!originLat || !originLng || !destLat || !destLng) {
+      setMapError('Trip missing coordinates');
+      return;
+    }
+
+    // Clear old markers and route
+    document.querySelectorAll('.mapboxgl-marker').forEach(m => m.remove());
+    if (map.getLayer('route-layer')) map.removeLayer('route-layer');
+    if (map.getSource('route-src')) map.removeSource('route-src');
+
+    const from = trip.origin?.name || 'Origin';
+    const to = trip.destination?.name || 'Destination';
+
+    // Add markers
+    const markerA = document.createElement('div');
+    markerA.style.cssText = `width:30px; height:30px; background:#10b981; border:3px solid white; border-radius:50%; box-shadow:0 2px 8px rgba(0,0,0,0.3);`;
+    new window.tt.Marker({ element: markerA })
+      .setLngLat([originLng, originLat])
+      .setPopup(new window.tt.Popup().setHTML(`<strong>${from}</strong>`))
+      .addTo(map);
+
+    const markerB = document.createElement('div');
+    markerB.style.cssText = `width:30px; height:30px; background:#1e40af; border:3px solid white; border-radius:50%; box-shadow:0 2px 8px rgba(0,0,0,0.3);`;
+    new window.tt.Marker({ element: markerB })
+      .setLngLat([destLng, destLat])
+      .setPopup(new window.tt.Popup().setHTML(`<strong>${to}</strong>`))
+      .addTo(map);
+
+    // Calculate route
+    const originStr = `${originLat},${originLng}`;
+    const destStr = `${destLat},${destLng}`;
+    const url = `https://api.tomtom.com/routing/1/calculateRoute/${originStr}:${destStr}/json?traffic=true&routeType=fastest&travelMode=car&key=${TOMTOM_API_KEY}`;
+
+    console.log('Fetching route...');
+
+    fetch(url)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.routes?.[0]) throw new Error('No route found');
+
+        const route = data.routes[0];
+        const coords = route.legs[0].points.map(p => [p.longitude, p.latitude]);
+
+        // Add route line
+        map.addSource('route-src', {
+          type: 'geojson',
+          data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } },
+        });
+        map.addLayer({
+          id: 'route-layer',
+          type: 'line',
+          source: 'route-src',
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': COLORS.teal, 'line-width': 6 },
+        });
+
+        // Zoom to route
+        const bounds = new window.tt.LngLatBounds();
+        coords.forEach(c => bounds.extend(c));
+        map.fitBounds(bounds, { padding: 100 });
+
+        console.log('✓ Route drawn');
+        setMapError(null);
+      })
+      .catch(err => {
+        console.error('Route error:', err);
+        setMapError(err.message);
+      });
+  }, [trip, mapReady]);
+
   if (!trip) {
     return (
       <div className="w-full h-full bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
         <div className="text-center">
           <MapPin size={48} className="mx-auto mb-3 opacity-30" style={{ color: COLORS.teal }} />
-          <p className="text-slate-500 text-sm">Select a trip to view route</p>
+          <p className="text-slate-500">Select a trip to view map</p>
         </div>
       </div>
     );
   }
 
-  const from = trip.origin?.name ?? trip.origin_company?.name ?? 'Origin';
-  const to = trip.destination?.name ?? trip.destination_company?.name ?? 'Destination';
-
   return (
-    <div className="w-full h-full bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col items-center justify-center p-6">
-      <style>{`
-        @keyframes pulse-dot { 
-          0%, 100% { r: 6; } 
-          50% { r: 8; } 
-        }
-        .pulse-marker { animation: pulse-dot 2s infinite; }
-      `}</style>
-
-      <svg viewBox="0 0 500 500" className="w-full h-full max-w-lg max-h-lg mb-8">
-        {/* Grid background */}
-        <defs>
-          <pattern id="grid-map" width="50" height="50" patternUnits="userSpaceOnUse">
-            <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#d1d5db" strokeWidth="0.5" />
-          </pattern>
-          <linearGradient id="routeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style={{ stopColor: COLORS.teal, stopOpacity: 0.4 }} />
-            <stop offset="100%" style={{ stopColor: COLORS.navy, stopOpacity: 0.4 }} />
-          </linearGradient>
-        </defs>
-
-        {/* Background grid */}
-        <rect width="500" height="500" fill="url(#grid-map)" />
-
-        {/* Route line with animation */}
-        <line 
-          x1="100" y1="100" x2="400" y2="400" 
-          stroke={COLORS.teal} 
-          strokeWidth="4" 
-          opacity="0.6"
-          strokeDasharray="500"
-          style={{
-            animation: 'dash 2s linear infinite',
-          }}
-        />
-        
-        {/* Animated dashes */}
-        <style>{`
-          @keyframes dash {
-            to { stroke-dashoffset: 500; }
-          }
-        `}</style>
-
-        {/* Origin marker (pulsing) */}
-        <g>
-          <circle cx="100" cy="100" r="12" fill={COLORS.teal} opacity="0.2" />
-          <circle cx="100" cy="100" r="8" fill={COLORS.teal} />
-          <circle cx="100" cy="100" r="6" fill="white" strokeWidth="2" stroke={COLORS.teal} />
-          <circle className="pulse-marker" cx="100" cy="100" fill="none" strokeWidth="2" stroke={COLORS.teal} opacity="0.6" />
-        </g>
-
-        {/* Destination marker (pulsing) */}
-        <g>
-          <circle cx="400" cy="400" r="12" fill={COLORS.navy} opacity="0.2" />
-          <circle cx="400" cy="400" r="8" fill={COLORS.navy} />
-          <circle cx="400" cy="400" r="6" fill="white" strokeWidth="2" stroke={COLORS.navy} />
-          <circle className="pulse-marker" cx="400" cy="400" fill="none" strokeWidth="2" stroke={COLORS.navy} opacity="0.6" />
-        </g>
-
-        {/* Distance indicator */}
-        <text x="250" y="245" textAnchor="middle" fontSize="16" fontWeight="bold" fill={COLORS.teal} opacity="0.5">
-          {trip.distance_km ? `${trip.distance_km} km` : '~424 km'}
-        </text>
-      </svg>
-
-      {/* Legend */}
-      <div className="grid grid-cols-2 gap-8 text-sm bg-white/60 backdrop-blur rounded-lg p-6 max-w-md">
-        <div className="flex items-center gap-3">
-          <div className="w-5 h-5 rounded-full" style={{ backgroundColor: COLORS.teal }}></div>
+    <div className="w-full h-full relative">
+      {!mapReady && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-50">
+          <Loader2 className="animate-spin" size={32} style={{ color: COLORS.teal }} />
+        </div>
+      )}
+      {mapError && (
+        <div className="absolute top-4 left-4 z-50 bg-red-50 border border-red-300 rounded-lg p-4 max-w-xs flex gap-3">
+          <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-semibold text-slate-900">{from}</p>
-            <p className="text-xs text-slate-500">Origin</p>
+            <p className="font-medium text-red-900">Map Error</p>
+            <p className="text-sm text-red-700">{mapError}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="w-5 h-5 rounded-full" style={{ backgroundColor: COLORS.navy }}></div>
-          <div>
-            <p className="font-semibold text-slate-900">{to}</p>
-            <p className="text-xs text-slate-500">Destination</p>
-          </div>
-        </div>
-      </div>
+      )}
+      <div ref={mapElRef} className="w-full h-full" />
     </div>
   );
 };
@@ -214,6 +266,7 @@ const DriverDashboard = () => {
       setError(null);
       const res = await getTrips({ per_page: 100 });
       const driverTrips = res.data?.data || [];
+      console.log('Loaded trips:', driverTrips.length);
       setTrips(driverTrips);
       if (driverTrips.length > 0) {
         setSelectedTrip(driverTrips[0]);
@@ -236,26 +289,17 @@ const DriverDashboard = () => {
       <style>{ANIM}</style>
 
       {/* Sidebar */}
-      <div
-        className={`fixed inset-y-0 left-0 z-40 w-80 bg-white shadow-lg transform transition-transform duration-300 lg:relative lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}>
+      <div className={`fixed inset-y-0 left-0 z-40 w-80 bg-white shadow-lg transform transition-transform duration-300 lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-full flex flex-col">
           <div className="px-6 py-6 border-b border-slate-200">
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-bold" style={{ color: COLORS.navy }}>
-                ⚓ MareNostrum
-              </h1>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="lg:hidden p-2 hover:bg-slate-100 rounded-lg">
+              <h1 className="text-2xl font-bold" style={{ color: COLORS.navy }}>⚓ MareNostrum</h1>
+              <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 hover:bg-slate-100 rounded-lg">
                 <X size={20} />
               </button>
             </div>
             <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-              <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
-                style={{ backgroundColor: COLORS.teal }}>
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold" style={{ backgroundColor: COLORS.teal }}>
                 {driverName[0]?.toUpperCase()}
               </div>
               <div className="flex-1">
@@ -266,22 +310,16 @@ const DriverDashboard = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto px-6 py-4">
-            <h2 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">
-              My Trips ({trips.length})
-            </h2>
+            <h2 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">My Trips ({trips.length})</h2>
 
             {loading && (
               <div className="flex items-center justify-center py-8">
-                <div
-                  className="w-6 h-6 border-2 rounded-full animate-spin"
-                  style={{ borderColor: `${COLORS.teal}40`, borderTopColor: COLORS.teal }}></div>
+                <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: `${COLORS.teal}40`, borderTopColor: COLORS.teal }}></div>
               </div>
             )}
 
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
-                {error}
-              </div>
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">{error}</div>
             )}
 
             {!loading && trips.length === 0 && (
@@ -292,21 +330,14 @@ const DriverDashboard = () => {
             )}
 
             <div className="space-y-3">
-              {trips.map((trip) => (
-                <TripCard
-                  key={trip.id}
-                  trip={trip}
-                  selected={selectedTrip?.id === trip.id}
-                  onClick={() => setSelectedTrip(trip)}
-                />
+              {trips.map(trip => (
+                <TripCard key={trip.id} trip={trip} selected={selectedTrip?.id === trip.id} onClick={() => setSelectedTrip(trip)} />
               ))}
             </div>
           </div>
 
-          <div className="border-t border-slate-200 p-4 space-y-2">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 font-medium text-sm transition-colors">
+          <div className="border-t border-slate-200 p-4">
+            <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 font-medium text-sm">
               <LogOut size={18} />
               Logout
             </button>
@@ -317,19 +348,11 @@ const DriverDashboard = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         <div className="bg-white shadow-sm border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 hover:bg-slate-100 rounded-lg">
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 hover:bg-slate-100 rounded-lg">
             <Menu size={24} />
           </button>
-          <div className="flex-1 flex items-center justify-center lg:justify-start">
-            <h1 className="text-2xl font-bold" style={{ color: COLORS.navy }}>
-              Driver Dashboard
-            </h1>
-          </div>
-          <div className="text-sm text-slate-600">
-            {selectedTrip && `Trip #${selectedTrip.id}`}
-          </div>
+          <h1 className="text-2xl font-bold" style={{ color: COLORS.navy }}>Driver Dashboard</h1>
+          <div className="text-sm text-slate-600">{selectedTrip && `Trip #${selectedTrip.id}`}</div>
         </div>
 
         <div className="flex-1 overflow-hidden">
@@ -337,37 +360,29 @@ const DriverDashboard = () => {
         </div>
 
         {selectedTrip && (
-          <div
-            className="bg-white border-t border-slate-200 p-6 grid grid-cols-1 md:grid-cols-3 gap-6"
-            style={{ animation: 'slide-in-right 0.3s ease-out' }}>
+          <div className="bg-white border-t border-slate-200 p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div>
+              <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Status</p>
+              <p className="text-sm font-semibold text-slate-900 capitalize">{selectedTrip.status?.replace(/_/g, ' ')}</p>
+            </div>
             <div>
               <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Departure</p>
-              <p className="text-sm font-semibold text-slate-900">
-                {fmt(selectedTrip.chosen_departure_at || selectedTrip.created_at)}
-              </p>
+              <p className="text-sm font-semibold text-slate-900">{fmt(selectedTrip.chosen_departure_at || selectedTrip.created_at)}</p>
             </div>
             <div>
               <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Estimated Duration</p>
-              <p className="text-sm font-semibold text-slate-900">
-                {fmtDur(selectedTrip.estimated_duration_min)}
-              </p>
+              <p className="text-sm font-semibold text-slate-900">{fmtDur(selectedTrip.estimated_duration_min)}</p>
             </div>
             <div>
               <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Distance</p>
-              <p className="text-sm font-semibold text-slate-900">
-                {selectedTrip.distance_km ? `${selectedTrip.distance_km} km` : '—'}
-              </p>
+              <p className="text-sm font-semibold text-slate-900">{selectedTrip.distance_km ? `${selectedTrip.distance_km} km` : '—'}</p>
             </div>
           </div>
         )}
       </div>
 
       {sidebarOpen && (
-        <div
-          onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-black/50 lg:hidden z-30"
-          style={{ animation: 'fade-in 0.2s ease-out' }}
-        />
+        <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/50 lg:hidden z-30" />
       )}
     </div>
   );

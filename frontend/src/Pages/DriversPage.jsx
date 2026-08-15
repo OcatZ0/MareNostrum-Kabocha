@@ -1,430 +1,552 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Users, Plus, Search, RefreshCw, Edit2, Trash2,
-  ChevronLeft, ChevronRight, Phone, Shield, User,
-  X, Check, Loader2, AlertCircle, AlertTriangle, Eye, EyeOff,
-} from 'lucide-react';
-import DashboardSidebar from '../Componnent/dashboard/DashboardSidebar';
-import DashboardTopbar  from '../Componnent/dashboard/DashboardTopbar';
-import { COLORS }       from '../Componnent/dashboard/dashboardTheme';
-import { getUsers, createUser, updateUser, deleteUser } from '../api/usersApi';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import axios from 'axios';
+import { MapPin, Navigation, Truck, Calendar, Anchor, Clock, LogOut, Menu, X } from 'lucide-react';
+import { getTrips } from '../api/tripsApi';
+import { COLORS, STATUS_STYLES } from '../Componnent/dashboard/dashboardTheme';
 
-/* ── keyframes ───────────────────────────────────────────────── */
+/* ── Config ──────────────────────────────────────────────────── */
+const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY || '';
+const TOMTOM_BASE = 'https://api.tomtom.com';
+// Runtime log to help diagnose 401 / missing-key issues
+if (typeof window !== 'undefined') {
+  // eslint-disable-next-line no-console
+  console.info('Runtime TomTom API key:', import.meta.env.VITE_TOMTOM_API_KEY);
+}
+
+/* ── Styles ──────────────────────────────────────────────────── */
 const ANIM = `
-  @keyframes row-in     { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes modal-in   { from{opacity:0;transform:translateY(16px) scale(0.98)} to{opacity:1;transform:translateY(0) scale(1)} }
-  @keyframes highlight  { 0%{background:#E0F7F4} 100%{background:transparent} }
+  @keyframes fade-in { from{opacity:0} to{opacity:1} }
+  @keyframes slide-in-left { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
+  @keyframes slide-in-right { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:translateX(0)} }
+  @keyframes spin { to { transform: rotate(360deg); } }
 `;
 
-/* ── role badge ──────────────────────────────────────────────── */
-const RoleBadge = ({ role }) => (
-  <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize"
-    style={
-      role === 'admin'
-        ? { backgroundColor: `${COLORS.navy}14`, color: COLORS.navy }
-        : { backgroundColor: `${COLORS.teal}14`,  color: COLORS.teal }
-    }>
-    {role === 'admin' ? <Shield size={10} /> : <User size={10} />}
-    {role}
-  </span>
-);
+/* ── Helpers ─────────────────────────────────────────────────── */
+const statusStyle = (status) =>
+  STATUS_STYLES[status] ?? { label: status, bg: '#F1F5F9', color: '#64748B' };
 
-/* ── avatar ──────────────────────────────────────────────────── */
-const Avatar = ({ name, role }) => (
-  <span className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
-    style={{ backgroundColor: role === 'admin' ? COLORS.navy : COLORS.teal }}>
-    {name?.[0]?.toUpperCase() ?? '?'}
-  </span>
-);
+const fmt = (iso) => {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+};
 
-/* ═══════════════════════════════════════════════════════════════ */
-const DriversPage = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [users, setUsers]             = useState([]);
-  const [meta, setMeta]               = useState({ current_page: 1, total: 0 });
-  const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState(null);
-  const [page, setPage]               = useState(1);
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch]           = useState('');
-  const [roleFilter, setRoleFilter]   = useState('driver'); // default to drivers
+const fmtDur = (min) => {
+  if (!min) return '—';
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h ? `${h}h ${m}m` : `${m}m`;
+};
 
-  const [showCreate, setShowCreate]   = useState(false);
-  const [editTarget, setEditTarget]   = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [newId, setNewId]             = useState(null);
+const fmtDurSec = (sec) => (sec || sec === 0 ? fmtDur(Math.round(sec / 60)) : '—');
+const fmtKm = (meters) => (meters || meters === 0 ? `${(meters / 1000).toFixed(1)} km` : '—');
 
-  const fetch = useCallback(async () => {
-    setLoading(true); setError(null);
+/* ── Web Mercator projection helpers ────────────────────────────
+   TomTom's Static Image API uses EPSG:3857 (Web Mercator), same as
+   the projection below, so pixel positions line up with the image. */
+const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+
+function buildBBox(points, containerW, containerH) {
+  const lats = points.map((p) => p.lat);
+  const lons = points.map((p) => p.lon);
+  let minLat = Math.min(...lats);
+  let maxLat = Math.max(...lats);
+  let minLon = Math.min(...lons);
+  let maxLon = Math.max(...lons);
+
+  // Padding so markers aren't glued to the edge; floor to avoid a
+  // zero-size bbox when origin and destination are identical.
+  const latPad = Math.max((maxLat - minLat) * 0.25, 0.03);
+  const lonPad = Math.max((maxLon - minLon) * 0.25, 0.03);
+  minLat -= latPad; maxLat += latPad;
+  minLon -= lonPad; maxLon += lonPad;
+
+  // Expand the shorter axis so the bbox aspect ratio matches the
+  // container — otherwise the requested image would be stretched.
+  const containerAspect = containerW / containerH;
+  const lonSpan = maxLon - minLon;
+  const latSpan = maxLat - minLat;
+  const currentAspect = lonSpan / latSpan;
+  const midLat = (minLat + maxLat) / 2;
+  const midLon = (minLon + maxLon) / 2;
+
+  if (currentAspect < containerAspect) {
+    const newLonSpan = latSpan * containerAspect;
+    minLon = midLon - newLonSpan / 2;
+    maxLon = midLon + newLonSpan / 2;
+  } else {
+    const newLatSpan = lonSpan / containerAspect;
+    minLat = midLat - newLatSpan / 2;
+    maxLat = midLat + newLatSpan / 2;
+  }
+
+  return { minLon, minLat, maxLon, maxLat };
+}
+
+function project(lat, lon, bbox, containerW, containerH) {
+  const xFrac = (lon - bbox.minLon) / (bbox.maxLon - bbox.minLon);
+  const yFrac =
+    (mercY(bbox.maxLat) - mercY(lat)) / (mercY(bbox.maxLat) - mercY(bbox.minLat));
+  return { x: xFrac * containerW, y: yFrac * containerH };
+}
+
+/* ── Trip Card ───────────────────────────────────────────────– */
+const TripCard = ({ trip, selected, onClick }) => {
+  const s = statusStyle(trip.status);
+  const from = trip.origin?.name ?? trip.origin_company?.name ?? '—';
+  const to = trip.destination?.name ?? trip.destination_company?.name ?? '—';
+
+  return (
+    <div
+      onClick={onClick}
+      className={`p-4 rounded-lg cursor-pointer transition-all border-2 ${
+        selected ? 'border-opacity-100' : 'border-opacity-0'
+      }`}
+      style={{
+        backgroundColor: selected ? `${COLORS.teal}10` : '#f8f9fa',
+        borderColor: selected ? COLORS.teal : 'transparent',
+        animation: 'slide-in-left 0.3s ease-out',
+      }}>
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1">
+          <h3 className="font-semibold text-slate-900 text-sm">Trip #{trip.id}</h3>
+          <p className="text-xs text-slate-500">Status: {s.label}</p>
+        </div>
+        <span
+          className="text-xs font-bold px-2 py-1 rounded-full"
+          style={{ backgroundColor: s.bg, color: s.color }}>
+          {s.label}
+        </span>
+      </div>
+
+      <div className="space-y-2 text-xs">
+        <div className="flex items-center gap-2">
+          <MapPin size={14} style={{ color: COLORS.teal }} />
+          <span className="text-slate-600">
+            <strong>From:</strong> {from}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Navigation size={14} style={{ color: COLORS.teal }} />
+          <span className="text-slate-600">
+            <strong>To:</strong> {to}
+          </span>
+        </div>
+        {trip.truck && (
+          <div className="flex items-center gap-2">
+            <Truck size={14} style={{ color: COLORS.teal }} />
+            <span className="text-slate-600">
+              <strong>Truck:</strong> {trip.truck.license_plate}
+            </span>
+          </div>
+        )}
+        {trip.estimated_duration_min && (
+          <div className="flex items-center gap-2">
+            <Clock size={14} style={{ color: COLORS.teal }} />
+            <span className="text-slate-600">
+              <strong>Duration:</strong> {fmtDur(trip.estimated_duration_min)}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ── Map View (REST-only: Static Image API + Routing API) ─────── */
+const MapView = ({ trip, onRouteInfo }) => {
+  const containerRef = useRef(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const [imgUrl, setImgUrl] = useState(null);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [routePoints, setRoutePoints] = useState([]); // [{lat, lon}, ...]
+  const [bbox, setBbox] = useState(null);
+  const [markers, setMarkers] = useState(null); // {origin:{lat,lon,name}, dest:{...}}
+  const [mapError, setMapError] = useState(null);
+
+  // Track container size responsively
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const el = containerRef.current;
+    const observer = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      if (width > 0 && height > 0) {
+        setSize({ w: Math.round(width), h: Math.round(height) });
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const loadMap = useCallback(async () => {
+    if (!TOMTOM_API_KEY) {
+      setMapError('TomTom API key is missing. Set VITE_TOMTOM_API_KEY in your .env file.');
+      return;
+    }
+    if (!trip || size.w === 0 || size.h === 0) return;
+
+    const originLat = trip.origin?.latitude;
+    const originLng = trip.origin?.longitude;
+    const destLat = trip.destination?.latitude;
+    const destLng = trip.destination?.longitude;
+    const from = trip.origin?.name ?? 'Origin';
+    const to = trip.destination?.name ?? 'Destination';
+
+    if (!originLat || !originLng || !destLat || !destLng) {
+      setMapError('This trip is missing origin/destination coordinates.');
+      setImgUrl(null);
+      return;
+    }
+
+    setMapError(null);
+    setImgLoaded(false);
+    onRouteInfo?.(null);
+
+    const box = buildBBox(
+      [{ lat: originLat, lon: originLng }, { lat: destLat, lon: destLng }],
+      size.w,
+      size.h
+    );
+    setBbox(box);
+    setMarkers({
+      origin: { lat: originLat, lon: originLng, name: from },
+      dest: { lat: destLat, lon: destLng, name: to },
+    });
+
+    // 1) Static base map image — pure REST call, no SDK
+    const staticUrl =
+      `${TOMTOM_BASE}/map/1/staticimage?key=${TOMTOM_API_KEY}` +
+      `&layer=basic&style=main&format=png` +
+      `&bbox=${box.minLon},${box.minLat},${box.maxLon},${box.maxLat}` +
+      `&width=${Math.min(size.w, 8192)}&height=${Math.min(size.h, 8192)}`;
+    setImgUrl(staticUrl);
+
+    // 2) Real driving route — Routing API (POST)
     try {
-      const res = await getUsers({
-        page, per_page: 15,
-        ...(search             ? { search }          : {}),
-        ...(roleFilter !== 'all' ? { role: roleFilter } : {}),
-      });
-      setUsers(res.data?.data ?? []);
-      if (res.data?.meta) setMeta(res.data.meta);
-    } catch (e) {
-      setError(e?.response?.data?.message ?? 'Failed to load users.');
-    } finally { setLoading(false); }
-  }, [page, search, roleFilter]);
+      const res = await axios.post(
+        `https://api.tomtom.com/maps/orbis/routing/routes/calculate?key=${TOMTOM_API_KEY}`,
+        {
+          routePlanningLocations: {
+            origin: {
+              type: 'Point',
+              coordinates: [originLng, originLat],
+            },
+            destination: {
+              type: 'Point',
+              coordinates: [destLng, destLat],
+            },
+          },
+          routeType: 'efficient',
+          maxPathAlternativeRoutes: 1,
+        }
+      );
 
-  useEffect(() => { fetch(); }, [fetch]);
+      const route = res.data?.routes?.[0];
+      const points = route?.legs?.flatMap((leg) => leg.points) ?? [];
+      setRoutePoints(points.map((p) => ({ lat: p.latitude, lon: p.longitude })));
+
+      if (route?.summary) {
+        onRouteInfo?.({
+          distanceMeters: route.summary.lengthInMeters,
+          durationSeconds: route.summary.travelTimeInSeconds,
+          trafficDelaySeconds: route.summary.trafficDelayInSeconds ?? 0,
+        });
+      }
+    } catch (err) {
+      console.error('TomTom routing error:', err);
+      setRoutePoints([]);
+    }
+  }, [trip, size.w, size.h, onRouteInfo]);
 
   useEffect(() => {
-    const t = setTimeout(() => { setSearch(searchInput); setPage(1); }, 350);
-    return () => clearTimeout(t);
-  }, [searchInput]);
+    loadMap();
+  }, [loadMap]);
 
-  const totalPages = Math.ceil(meta.total / 15) || 1;
+  if (mapError) {
+    return (
+      <div ref={containerRef} className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center text-slate-400">
+        <div className="text-center px-6">
+          <MapPin size={48} className="mx-auto mb-3 opacity-30" />
+          <p className="text-sm text-red-500">{mapError}</p>
+        </div>
+      </div>
+    );
+  }
 
-  const ROLE_PILLS = [
-    { key: 'all',    label: 'All Users' },
-    { key: 'driver', label: 'Drivers' },
-    { key: 'admin',  label: 'Admins' },
-  ];
+  if (!trip) {
+    return (
+      <div ref={containerRef} className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center text-slate-400">
+        <div className="text-center">
+          <MapPin size={48} className="mx-auto mb-3 opacity-30" />
+          <p>Select a trip to view route</p>
+        </div>
+      </div>
+    );
+  }
+
+  const polylinePoints =
+    bbox && size.w && size.h
+      ? routePoints.map((p) => {
+          const { x, y } = project(p.lat, p.lon, bbox, size.w, size.h);
+          return `${x},${y}`;
+        }).join(' ')
+      : '';
+
+  const originPx = markers && bbox ? project(markers.origin.lat, markers.origin.lon, bbox, size.w, size.h) : null;
+  const destPx = markers && bbox ? project(markers.dest.lat, markers.dest.lon, bbox, size.w, size.h) : null;
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: COLORS.bg }}>
+    <div ref={containerRef} className="relative w-full h-full bg-slate-100 overflow-hidden">
+      {imgUrl && (
+        <img
+          src={imgUrl}
+          width={size.w}
+          height={size.h}
+          alt="Route map"
+          onLoad={() => setImgLoaded(true)}
+          onError={() => setMapError('Failed to load the map image. Check the API key and network access.')}
+          style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }}
+        />
+      )}
+
+      {!imgLoaded && (
+        <div className="absolute inset-0 bg-slate-50 flex items-center justify-center">
+          <div
+            className="w-8 h-8 border-2 rounded-full"
+            style={{ borderColor: `${COLORS.teal}30`, borderTopColor: COLORS.teal, animation: 'spin 0.8s linear infinite' }}
+          />
+        </div>
+      )}
+
+      {imgLoaded && size.w > 0 && size.h > 0 && (
+        <svg
+          className="absolute inset-0 pointer-events-none"
+          width={size.w}
+          height={size.h}
+          viewBox={`0 0 ${size.w} ${size.h}`}>
+          {polylinePoints && (
+            <>
+              <polyline points={polylinePoints} fill="none" stroke="#ffffff" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
+              <polyline points={polylinePoints} fill="none" stroke={COLORS.teal} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />
+            </>
+          )}
+        </svg>
+      )}
+
+      {imgLoaded && originPx && (
+        <div
+          className="absolute"
+          style={{ left: originPx.x, top: originPx.y, transform: 'translate(-50%, -50%)' }}
+          title={markers.origin.name}>
+          <div style={{ width: 16, height: 16, borderRadius: '50%', background: COLORS.teal, border: '3px solid white', boxShadow: '0 0 4px rgba(0,0,0,.3)' }} />
+        </div>
+      )}
+      {imgLoaded && destPx && (
+        <div
+          className="absolute"
+          style={{ left: destPx.x, top: destPx.y, transform: 'translate(-50%, -50%)' }}
+          title={markers.dest.name}>
+          <div style={{ width: 16, height: 16, borderRadius: '50%', background: COLORS.navy, border: '3px solid white', boxShadow: '0 0 4px rgba(0,0,0,.3)' }} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════════ */
+const DriverDashboard = () => {
+  const [trips, setTrips] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedTrip, setSelectedTrip] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [routeInfo, setRouteInfo] = useState(null);
+  const driverName = localStorage.getItem('user_name') || 'Driver';
+
+  useEffect(() => {
+    fetchDriverTrips();
+  }, []);
+
+  const fetchDriverTrips = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await getTrips({ per_page: 100 });
+      const driverTrips = res.data?.data || [];
+      setTrips(driverTrips);
+      if (driverTrips.length > 0) {
+        setSelectedTrip(driverTrips[0]);
+      }
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to load trips');
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    window.location.href = '/login';
+  };
+
+  const handleSelectTrip = (trip) => {
+    setRouteInfo(null);
+    setSelectedTrip(trip);
+  };
+
+  return (
+    <div className="flex h-screen bg-slate-50 font-sans">
       <style>{ANIM}</style>
-      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 min-w-0 flex flex-col">
-        <DashboardTopbar onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 px-4 sm:px-6 py-6 space-y-5">
 
-          {/* header */}
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-semibold" style={{ color: COLORS.navy }}>Drivers</h1>
-              <p className="text-sm text-slate-400 mt-0.5">{meta.total} user{meta.total !== 1 ? 's' : ''} registered</p>
+      {/* Sidebar */}
+      <div
+        className={`fixed inset-y-0 left-0 z-40 w-80 bg-white shadow-lg transform transition-transform duration-300 lg:relative lg:translate-x-0 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}>
+        <div className="h-full flex flex-col">
+          <div className="px-6 py-6 border-b border-slate-200">
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-2xl font-bold" style={{ color: COLORS.navy }}>
+                ⚓ MareNostrum
+              </h1>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="lg:hidden p-2 hover:bg-slate-100 rounded-lg">
+                <X size={20} />
+              </button>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button onClick={fetch} title="Refresh"
-                className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition">
-                <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-              </button>
-              <button onClick={() => setShowCreate(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
-                style={{ background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})` }}>
-                <Plus size={16} /><span className="hidden sm:inline">Add User</span><span className="sm:hidden">Add</span>
-              </button>
+            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+              <div
+                className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
+                style={{ backgroundColor: COLORS.teal }}>
+                {driverName[0]?.toUpperCase()}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-slate-900">{driverName}</p>
+                <p className="text-xs text-slate-500">Driver</p>
+              </div>
             </div>
           </div>
 
-          {/* filter bar */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white">
-              <Search size={15} className="text-slate-400 shrink-0" />
-              <input type="text" placeholder="Search name, username, phone…"
-                value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
-                className="flex-1 bg-transparent border-none outline-none text-sm text-slate-700 placeholder:text-slate-400" />
-            </div>
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 flex-nowrap">
-              {ROLE_PILLS.map(({ key, label }) => (
-                <button key={key} onClick={() => { setRoleFilter(key); setPage(1); }}
-                  className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition"
-                  style={roleFilter === key
-                    ? { backgroundColor: `${COLORS.navy}14`, color: COLORS.navy, borderColor: COLORS.navy }
-                    : { backgroundColor: 'white', color: '#64748B', borderColor: '#E2E8F0' }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <h2 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">
+              My Trips ({trips.length})
+            </h2>
 
-          {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
-
-          {/* table */}
-          <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100">
-                    {['ID', 'Name', 'Username', 'Role', 'Phone', ''].map((h) => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {loading && <tr><td colSpan={6} className="px-4 py-14 text-center text-slate-400"><RefreshCw size={18} className="animate-spin inline mr-2" />Loading…</td></tr>}
-                  {!loading && users.length === 0 && <tr><td colSpan={6} className="px-4 py-14 text-center text-slate-400 text-sm">No users found.</td></tr>}
-                  {!loading && users.map((u, i) => (
-                    <tr key={u.id} className="hover:bg-slate-50 transition-colors group"
-                      style={{
-                        animation: u.id === newId
-                          ? 'highlight 1.8s ease-out forwards'
-                          : `row-in 0.16s ease-out ${i * 25}ms both`,
-                      }}>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-400">#{u.id}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <Avatar name={u.name} role={u.role} />
-                          <span className="font-medium text-slate-800">{u.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-500">{u.username}</td>
-                      <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
-                      <td className="px-4 py-3 text-xs text-slate-500">
-                        {u.phone
-                          ? <span className="flex items-center gap-1"><Phone size={11} />{u.phone}</span>
-                          : <span className="text-slate-300">—</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => setEditTarget(u)} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition" title="Edit"><Edit2 size={13} /></button>
-                          <button onClick={() => setDeleteTarget(u)} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 transition" title="Delete"><Trash2 size={13} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* mobile */}
-            <div className="md:hidden divide-y divide-slate-100">
-              {loading && <div className="py-12 text-center text-slate-400"><RefreshCw size={18} className="animate-spin inline mr-2" />Loading…</div>}
-              {!loading && users.length === 0 && <div className="py-12 text-center text-slate-400 text-sm">No users found.</div>}
-              {!loading && users.map((u, i) => (
-                <div key={u.id} className="px-4 py-4"
-                  style={{
-                    animation: u.id === newId
-                      ? 'highlight 1.8s ease-out forwards'
-                      : `row-in 0.16s ease-out ${i * 25}ms both`,
-                  }}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar name={u.name} role={u.role} />
-                      <div className="min-w-0">
-                        <p className="font-medium text-slate-800 truncate">{u.name}</p>
-                        <p className="font-mono text-xs text-slate-400">@{u.username}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <RoleBadge role={u.role} />
-                          {u.phone && <span className="text-xs text-slate-400 flex items-center gap-1"><Phone size={10} />{u.phone}</span>}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button onClick={() => setEditTarget(u)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition"><Edit2 size={14} /></button>
-                      <button onClick={() => setDeleteTarget(u)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 transition"><Trash2 size={14} /></button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {!loading && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 text-sm text-slate-500">
-                <span>Page {meta.current_page} of {totalPages} · {meta.total} total</span>
-                <div className="flex gap-1">
-                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}
-                    className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center disabled:opacity-40 hover:bg-slate-50 transition"><ChevronLeft size={15} /></button>
-                  <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-                    className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center disabled:opacity-40 hover:bg-slate-50 transition"><ChevronRight size={15} /></button>
-                </div>
+            {loading && (
+              <div className="flex items-center justify-center py-8">
+                <div
+                  className="w-6 h-6 border-2 rounded-full animate-spin"
+                  style={{ borderColor: `${COLORS.teal}40`, borderTopColor: COLORS.teal }}></div>
               </div>
             )}
-          </div>
-        </main>
-      </div>
 
-      {showCreate   && <UserFormModal mode="create"              onClose={() => setShowCreate(false)}   onSaved={(u) => { setShowCreate(false); setUsers((prev) => [u, ...prev]); setMeta((m) => ({ ...m, total: m.total + 1 })); setNewId(u.id); }} />}
-      {editTarget   && <UserFormModal mode="edit" user={editTarget} onClose={() => setEditTarget(null)} onSaved={(u) => { setEditTarget(null);   setUsers((prev) => prev.map((x) => x.id === u.id ? u : x)); setNewId(u.id); }} />}
-      {deleteTarget && <UserDeleteModal user={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={() => { setDeleteTarget(null); setUsers((prev) => prev.filter((x) => x.id !== deleteTarget.id)); setMeta((m) => ({ ...m, total: Math.max(0, m.total - 1) })); }} />}
-    </div>
-  );
-};
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                {error}
+              </div>
+            )}
 
-/* ── UserFormModal ───────────────────────────────────────────── */
-const UserFormModal = ({ mode, user, onClose, onSaved }) => {
-  const isEdit = mode === 'edit';
-  const [form, setForm] = useState({
-    name:     user?.name     ?? '',
-    username: user?.username ?? '',
-    password: '',
-    role:     user?.role     ?? 'driver',
-    phone:    user?.phone    ?? '',
-  });
-  const [showPw, setShowPw]         = useState(false);
-  const [errors, setErrors]         = useState({});
-  const [submitting, setSubmitting] = useState(false);
-  const [apiError, setApiError]     = useState(null);
-  const [success, setSuccess]       = useState(false);
-  const [mounted, setMounted]       = useState(false);
-  useEffect(() => { requestAnimationFrame(() => setMounted(true)); }, []);
+            {!loading && trips.length === 0 && (
+              <div className="text-center py-8 text-slate-500">
+                <Navigation size={32} className="mx-auto mb-2 opacity-30" />
+                <p className="text-sm">No trips assigned</p>
+              </div>
+            )}
 
-  const set = (k, v) => { setForm((p) => ({ ...p, [k]: v })); setErrors((p) => { const n = { ...p }; delete n[k]; return n; }); setApiError(null); };
-
-  const validate = () => {
-    const e = {};
-    if (!form.name.trim())     e.name     = 'Name is required';
-    if (!form.username.trim()) e.username = 'Username is required';
-    if (!/^[a-zA-Z0-9_-]+$/.test(form.username)) e.username = 'Only letters, numbers, - and _ allowed';
-    if (!isEdit && !form.password) e.password = 'Password is required';
-    if (form.password && form.password.length < 6) e.password = 'Minimum 6 characters';
-    return e;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
-    setSubmitting(true); setApiError(null);
-    const payload = { name: form.name, username: form.username, role: form.role, phone: form.phone || undefined };
-    if (form.password) payload.password = form.password;
-    try {
-      let saved;
-      if (isEdit) { const r = await updateUser(user.id, payload); saved = r.data?.data; }
-      else        { const r = await createUser(payload);           saved = r.data?.data; }
-      setSuccess(true);
-      setTimeout(() => onSaved(saved ?? payload), 600);
-    } catch (err) {
-      const d = err?.response?.data;
-      if (d?.errors) { const m = {}; Object.entries(d.errors).forEach(([k, v]) => { m[k] = Array.isArray(v) ? v[0] : v; }); setErrors(m); }
-      else setApiError(d?.message ?? 'Something went wrong.');
-    } finally { setSubmitting(false); }
-  };
-
-  const inputCls = (k) => `w-full px-3.5 py-2.5 rounded-xl border text-sm text-slate-700 outline-none transition-all ${errors[k] ? 'border-red-300 ring-2 ring-red-100' : 'border-slate-200 hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-100'}`;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full sm:max-w-md bg-white sm:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col"
-        style={{ maxHeight: '92vh', animation: mounted ? 'modal-in 0.22s cubic-bezier(0.34,1.2,0.64,1)' : 'none' }}
-        onClick={(e) => e.stopPropagation()}>
-        {/* header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${COLORS.teal}14` }}>
-              <Users size={16} color={COLORS.teal} />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-slate-800">{isEdit ? 'Edit User' : 'Add User'}</h2>
-              <p className="text-xs text-slate-400 mt-0.5">{isEdit ? `Editing @${user.username}` : 'Create a new driver or admin account'}</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 transition"><X size={15} /></button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
-          {/* role */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Role *</label>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { key: 'driver', icon: User,   label: 'Driver' },
-                { key: 'admin',  icon: Shield, label: 'Admin' },
-              ].map(({ key, icon: Icon, label }) => (
-                <button key={key} type="button" onClick={() => set('role', key)}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all"
-                  style={form.role === key
-                    ? { borderColor: COLORS.teal, backgroundColor: `${COLORS.teal}0D`, color: COLORS.teal }
-                    : { borderColor: '#E2E8F0', color: '#64748B' }}>
-                  <Icon size={14} />{label}
-                  {form.role === key && <Check size={12} className="ml-auto" />}
-                </button>
+            <div className="space-y-3">
+              {trips.map((trip) => (
+                <TripCard
+                  key={trip.id}
+                  trip={trip}
+                  selected={selectedTrip?.id === trip.id}
+                  onClick={() => handleSelectTrip(trip)}
+                />
               ))}
             </div>
           </div>
 
-          {/* name */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Full Name *</label>
-            <input type="text" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Budi Santoso" className={inputCls('name')} />
-            {errors.name && <p className="mt-1 text-xs text-red-500"><AlertCircle size={11} className="inline mr-1" />{errors.name}</p>}
+          <div className="border-t border-slate-200 p-4 space-y-2">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 font-medium text-sm transition-colors">
+              <LogOut size={18} />
+              Logout
+            </button>
           </div>
-
-          {/* username */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Username *</label>
-            <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">@</span>
-              <input type="text" value={form.username} onChange={(e) => set('username', e.target.value)}
-                placeholder="driver_budi" className={`${inputCls('username')} pl-8`} />
-            </div>
-            {errors.username && <p className="mt-1 text-xs text-red-500"><AlertCircle size={11} className="inline mr-1" />{errors.username}</p>}
-          </div>
-
-          {/* password */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-              Password {isEdit && <span className="text-slate-400 font-normal normal-case">(leave blank to keep current)</span>}
-              {!isEdit && '*'}
-            </label>
-            <div className="relative">
-              <input type={showPw ? 'text' : 'password'} value={form.password}
-                onChange={(e) => set('password', e.target.value)}
-                placeholder={isEdit ? '••••••' : 'min. 6 characters'}
-                className={`${inputCls('password')} pr-10`} />
-              <button type="button" onClick={() => setShowPw((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
-            {errors.password && <p className="mt-1 text-xs text-red-500"><AlertCircle size={11} className="inline mr-1" />{errors.password}</p>}
-          </div>
-
-          {/* phone */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Phone (optional)</label>
-            <div className="relative">
-              <Phone size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)}
-                placeholder="+62 812 3456 7890" className={`${inputCls('phone')} pl-9`} />
-            </div>
-          </div>
-
-          {apiError && <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-red-200 bg-red-50 text-xs text-red-700"><AlertCircle size={13} />{apiError}</div>}
-        </form>
-
-        <div className="shrink-0 flex items-center justify-between gap-3 px-5 py-4 border-t border-slate-100">
-          <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-100 transition">Cancel</button>
-          <button type="submit" onClick={handleSubmit} disabled={submitting || success}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition disabled:opacity-60"
-            style={{ backgroundColor: success ? COLORS.green : COLORS.teal, boxShadow: `0 2px 8px ${COLORS.teal}30` }}>
-            {success ? <><Check size={15} />{isEdit ? 'Saved!' : 'Created!'}</> : submitting ? <><Loader2 size={15} className="animate-spin" />Saving…</> : isEdit ? 'Save Changes' : 'Add User'}
-          </button>
         </div>
       </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        <div className="bg-white shadow-sm border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden p-2 hover:bg-slate-100 rounded-lg">
+            <Menu size={24} />
+          </button>
+          <div className="flex-1 flex items-center justify-center lg:justify-start">
+            <h1 className="text-2xl font-bold" style={{ color: COLORS.navy }}>
+              Driver Dashboard
+            </h1>
+          </div>
+          <div className="text-sm text-slate-600">
+            {selectedTrip && `Trip #${selectedTrip.id}`}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-hidden">
+          <MapView trip={selectedTrip} onRouteInfo={setRouteInfo} />
+        </div>
+
+        {selectedTrip && (
+          <div
+            className="bg-white border-t border-slate-200 p-6 grid grid-cols-1 md:grid-cols-4 gap-6"
+            style={{ animation: 'slide-in-right 0.3s ease-out' }}>
+            <div>
+              <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Departure</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {fmt(selectedTrip.chosen_departure_at || selectedTrip.created_at)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase font-semibold mb-1">
+                Duration {routeInfo && <span className="normal-case font-normal text-teal-600">(live)</span>}
+              </p>
+              <p className="text-sm font-semibold text-slate-900">
+                {routeInfo ? fmtDurSec(routeInfo.durationSeconds) : fmtDur(selectedTrip.estimated_duration_min)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase font-semibold mb-1">
+                Distance {routeInfo && <span className="normal-case font-normal text-teal-600">(live)</span>}
+              </p>
+              <p className="text-sm font-semibold text-slate-900">
+                {routeInfo ? fmtKm(routeInfo.distanceMeters) : (selectedTrip.distance_km ? `${selectedTrip.distance_km} km` : '—')}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Traffic Delay</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {routeInfo ? (routeInfo.trafficDelaySeconds > 0 ? fmtDurSec(routeInfo.trafficDelaySeconds) : 'None') : '—'}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-black/50 lg:hidden z-30"
+          style={{ animation: 'fade-in 0.2s ease-out' }}
+        />
+      )}
     </div>
   );
 };
 
-/* ── UserDeleteModal ─────────────────────────────────────────── */
-const UserDeleteModal = ({ user, onClose, onDeleted }) => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState(null);
-
-  const handle = async () => {
-    setLoading(true); setError(null);
-    try { await deleteUser(user.id); onDeleted(); }
-    catch (e) { setError(e?.response?.data?.message ?? 'Cannot delete this user.'); setLoading(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden" style={{ animation: 'modal-in 0.18s ease-out' }} onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 transition"><X size={14} /></button>
-        <div className="p-6 pt-8">
-          <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4"><Trash2 size={22} color="#EF4444" /></div>
-          <h3 className="text-base font-semibold text-slate-800 text-center">Delete User</h3>
-          <p className="text-sm text-slate-500 text-center mt-2">Delete <strong className="text-slate-700">{user.name}</strong> (@{user.username})?</p>
-          <div className="flex items-start gap-2 mt-4 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-700">
-            <AlertTriangle size={13} className="shrink-0 mt-0.5" />Users linked to trips or your own account cannot be deleted.
-          </div>
-          {error && <div className="mt-3 px-3 py-2.5 rounded-xl border border-red-200 bg-red-50 text-xs text-red-700">{error}</div>}
-        </div>
-        <div className="flex gap-3 px-6 pb-6">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition">Cancel</button>
-          <button onClick={handle} disabled={loading} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: '#EF4444' }}>
-            {loading ? <><Loader2 size={14} className="animate-spin" />Deleting…</> : <><Trash2 size={14} />Delete</>}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default DriversPage;
+export default DriverDashboard;
