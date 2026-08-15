@@ -3,18 +3,30 @@ import {
   X, Route, MapPin, Truck, Calendar, Ship, Clock,
   CheckCircle2, AlertCircle, RefreshCw, Navigation,
   ChevronDown, ChevronUp, Edit2, Anchor, Zap, BarChart2,
-  Search, Check, Loader2, User,
+  Search, Check, Loader2, User, Radio, Activity, Compass,
 } from 'lucide-react';
 import { COLORS, STATUS_STYLES, CHECKPOINT_ICONS } from '../dashboard/dashboardTheme';
 import {
   getTrip, updateTrip, recommendTrip, assignTrip,
   simulateTrip, setShipRef, getCheckpoints, getPosition,
 } from '../../api/tripsApi';
+import { getVesselSchedules, checkVesselScheduleStatus } from '../../api/vesselSchedulesApi';
 import axiosClient from '../../axios';
 import { useRouteComboForm, CompanyDropdown, PortDropdown, DropdownPortal, LockIcon, PORTS } from './routeCombo';
 import { fetchRoutePath } from '../../utils/tomtomRoute';
 import { getUser } from '../../api/usersApi';
 import { getTruck } from '../../api/trucksApi';
+
+const VESSEL_STATUS_CONFIG = {
+  scheduled: { label: 'Terjadwal', bg: '#f1f5f9', color: '#475569' },
+  departed: { label: 'Sedang Berlayar', bg: '#eff6ff', color: '#2563eb' },
+  on_time: { label: 'Tepat Waktu', bg: '#ecfdf5', color: '#059669' },
+  delayed: { label: 'Terlambat', bg: '#fef2f2', color: '#dc2626' },
+  early: { label: 'Tiba Lebih Cepat', bg: '#fdf4ff', color: '#9333ea' },
+  berthing: { label: 'Sedang Sandar', bg: '#fffbeb', color: '#d97706' },
+  arrived: { label: 'Tiba di Pelabuhan', bg: '#f0fdf4', color: '#16a34a' },
+  cancelled: { label: 'Dibatalkan', bg: '#f8fafc', color: '#94a3b8' },
+};
 
 const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY || '';
 // Simulate (driver dashboard) is the only thing that currently moves a trip
@@ -267,24 +279,24 @@ const TripDetailModal = ({ trip: initialTrip, onClose, onRefresh, onTripUpdated 
         {/* ── tabs ── */}
         <div className="shrink-0 flex items-center gap-1 px-4 pb-2 border-b border-slate-100 overflow-x-auto">
           <TabBtn active={tab === 'info'}        onClick={() => setTab('info')}>Info</TabBtn>
-          {trip.status === 'draft' && <TabBtn active={tab === 'update'}    onClick={() => setTab('update')}>Edit Route</TabBtn>}
-          {trip.status === 'draft' && <TabBtn active={tab === 'recommend'} onClick={() => setTab('recommend')}>Recommend</TabBtn>}
-          {trip.status === 'draft' && <TabBtn active={tab === 'simulate'}  onClick={() => setTab('simulate')}>Simulate</TabBtn>}
-          {trip.status === 'draft' && <TabBtn active={tab === 'assign'}    onClick={() => setTab('assign')}>Assign</TabBtn>}
+          {trip.status === 'draft' && <TabBtn active={tab === 'update'} onClick={() => setTab('update')}>Edit Route</TabBtn>}
           {isCross && !['completed', 'cancelled'].includes(trip.status) && (
             <TabBtn active={tab === 'ship'} onClick={() => setTab('ship')}>Vessel</TabBtn>
           )}
+          {trip.status === 'draft' && <TabBtn active={tab === 'recommend'} onClick={() => setTab('recommend')}>Recommend</TabBtn>}
+          {trip.status === 'draft' && <TabBtn active={tab === 'simulate'}  onClick={() => setTab('simulate')}>Simulate</TabBtn>}
+          {trip.status === 'draft' && <TabBtn active={tab === 'assign'}    onClick={() => setTab('assign')}>Assign</TabBtn>}
           <TabBtn active={tab === 'checkpoints'} onClick={() => setTab('checkpoints')}>Checkpoints</TabBtn>
         </div>
 
         {/* ── tab body ── */}
         <div className="flex-1 overflow-y-auto p-5 tab-content">
           {tab === 'info'        && <InfoTab       trip={trip} />}
-          {tab === 'update'      && <UpdateTab     trip={trip} onUpdated={(t) => { setTrip(t); onTripUpdated?.(t); }} />}
+          {tab === 'update'      && <UpdateTab     trip={trip} onUpdated={(t) => { setTrip(t); onTripUpdated?.(t); if (t.ship_destination_port) setTab('ship'); else setTab('recommend'); }} />}
+          {tab === 'ship'        && <ShipTab       trip={trip} onUpdated={(t) => { setTrip(t); onTripUpdated?.(t); setTab('recommend'); }} />}
           {tab === 'recommend'   && <RecommendTab  trip={trip} onUpdated={(t) => { setTrip(t); onTripUpdated?.(t); setTab('assign'); }} />}
           {tab === 'simulate'    && <SimulateTab   trip={trip} />}
           {tab === 'assign'      && <AssignTab     trip={trip} onUpdated={(t) => { setTrip(t); onTripUpdated?.(t); setTab('info'); }} />}
-          {tab === 'ship'        && <ShipTab       trip={trip} onUpdated={(t) => { setTrip(t); onTripUpdated?.(t); }} />}
           {tab === 'checkpoints' && <CheckpointsTab trip={trip} />}
         </div>
 
@@ -439,32 +451,69 @@ const InfoTab = ({ trip }) => {
         <Row label="Truck"  value={trip.truck_id  ? (truckLabel ?? `ID ${trip.truck_id}`)  : null} />
       </Section>
 
-      {Array.isArray(trip.recommended_slots) && trip.recommended_slots.length > 0 && (
+      {trip.vessel_schedule && (
         <div className="sm:col-span-2">
-          <Section title="Recommended Slots" icon={Clock}>
-            <div className="space-y-2">
-              {trip.recommended_slots.map((slot, i) => (
-                <div
-                  key={i}
-                  className="px-3 py-3 rounded-lg border text-xs"
-                  style={{
-                    borderColor:       slot.is_recommended ? COLORS.aqua : '#E2E8F0',
-                    backgroundColor:   slot.is_recommended ? `${COLORS.aqua}0D` : 'white',
-                  }}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      {slot.is_recommended && <CheckCircle2 size={12} color={COLORS.green} />}
-                      <span className="font-medium text-slate-700">{slot.reason}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-slate-400 shrink-0">
-                      <span>Score: <strong className="text-slate-700">{slot.score}</strong></span>
-                      {slot.distance_km && <span>{slot.distance_km} km</span>}
-                    </div>
+          <Section title="Jadwal Pelayaran Kapal Terhubung" icon={Ship}>
+            <div className="p-4 rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50/60 to-slate-50 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-teal-100/80 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-lg bg-teal-600 text-white shadow-sm">
+                    <Ship size={18} />
                   </div>
-                  <ScoreBreakdown breakdown={slot.breakdown} />
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                      {trip.vessel_schedule.vessel_name}
+                      {trip.vessel_schedule.voyage_number && (
+                        <span className="text-xs font-mono font-normal px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-600">
+                          {trip.vessel_schedule.voyage_number}
+                        </span>
+                      )}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                      MMSI: {trip.vessel_schedule.ship_ref_id}
+                    </p>
+                  </div>
                 </div>
-              ))}
+
+                {(() => {
+                  const st = VESSEL_STATUS_CONFIG[trip.vessel_schedule.status] || { label: trip.vessel_schedule.status, bg: '#f1f5f9', color: '#475569' };
+                  return (
+                    <span
+                      className="px-2.5 py-1 rounded-full text-xs font-bold shadow-sm"
+                      style={{ backgroundColor: st.bg, color: st.color }}
+                    >
+                      {st.label}
+                    </span>
+                  );
+                })()}
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="bg-white/80 p-2.5 rounded-lg border border-slate-100">
+                  <span className="text-[10px] text-slate-400 block font-medium">Jadwal Berangkat (ETD)</span>
+                  <span className="font-semibold text-slate-700">{fmt(trip.vessel_schedule.scheduled_departure_at)}</span>
+                </div>
+                <div className="bg-white/80 p-2.5 rounded-lg border border-slate-100">
+                  <span className="text-[10px] text-slate-400 block font-medium">Estimasi Tiba (ETA)</span>
+                  <span className="font-semibold text-slate-700">{fmt(trip.vessel_schedule.scheduled_arrival_at)}</span>
+                </div>
+                <div className="bg-white/80 p-2.5 rounded-lg border border-slate-100">
+                  <span className="text-[10px] text-slate-400 block font-medium">Sisa Jarak Laut</span>
+                  <span className="font-semibold text-slate-700">
+                    {trip.vessel_schedule.distance_to_destination_km != null
+                      ? `${trip.vessel_schedule.distance_to_destination_km} km (${trip.vessel_schedule.distance_to_destination_nm} NM)`
+                      : '—'}
+                  </span>
+                </div>
+                <div className="bg-white/80 p-2.5 rounded-lg border border-slate-100">
+                  <span className="text-[10px] text-slate-400 block font-medium">Kecepatan Transponder</span>
+                  <span className="font-semibold text-slate-700">
+                    {trip.vessel_schedule.current_speed_knots != null
+                      ? `${trip.vessel_schedule.current_speed_knots} Knots`
+                      : '—'}
+                  </span>
+                </div>
+              </div>
             </div>
           </Section>
         </div>
@@ -628,51 +677,242 @@ const UpdateTab = ({ trip, onUpdated }) => {
 const todayStr = () => new Date().toISOString().split('T')[0];
 
 const RecommendTab = ({ trip, onUpdated }) => {
-  // Defaults to today so the field is never blank when the tab opens — the
-  // backend's own default (when no date is sent at all) is tomorrow, but this
-  // just pre-fills a starting value for the admin to see/adjust. Nothing is
-  // submitted until the button below is clicked, no auto-launch to the API.
-  const [date, setDate]           = useState(todayStr());
+  const hasVessel = !!trip.vessel_schedule?.scheduled_departure_at;
+
+  // If vessel schedule is present, generate options including Hari Ini and pre-vessel dates
+  const availableDates = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStrVal = today.toISOString().split('T')[0];
+
+    if (hasVessel) {
+      const vesselDate = new Date(trip.vessel_schedule.scheduled_departure_at);
+      vesselDate.setHours(0, 0, 0, 0);
+      const vesselDateStr = vesselDate.toISOString().split('T')[0];
+
+      const dateMap = new Map();
+
+      // 1. Hari Ini
+      dateMap.set(todayStrVal, {
+        dateStr: todayStrVal,
+        label: todayStrVal === vesselDateStr ? 'Hari Ini (Hari Kapal)' : 'Hari Ini',
+        formatted: today.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }),
+      });
+
+      // 2. Pre-vessel dates (H-2, H-1, or vessel date)
+      [-2, -1, 0].forEach((offset) => {
+        const d = new Date(vesselDate);
+        d.setDate(d.getDate() + offset);
+        if (d >= today && d <= vesselDate) {
+          const dStr = d.toISOString().split('T')[0];
+          const daysBefore = Math.abs(offset);
+          const lbl = offset === 0 ? 'Hari Keberangkatan Kapal' : `H-${daysBefore} (${daysBefore} Hari Sebelum Kapal)`;
+          if (!dateMap.has(dStr)) {
+            dateMap.set(dStr, {
+              dateStr: dStr,
+              label: lbl,
+              formatted: d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }),
+            });
+          }
+        }
+      });
+
+      // If still fewer than 3, add H-3
+      if (dateMap.size < 3) {
+        [-3].forEach((offset) => {
+          const d = new Date(vesselDate);
+          d.setDate(d.getDate() + offset);
+          if (d >= today) {
+            const dStr = d.toISOString().split('T')[0];
+            const daysBefore = Math.abs(offset);
+            if (!dateMap.has(dStr)) {
+              dateMap.set(dStr, {
+                dateStr: dStr,
+                label: `H-${daysBefore} (${daysBefore} Hari Sebelum Kapal)`,
+                formatted: d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }),
+              });
+            }
+          }
+        });
+      }
+
+      return Array.from(dateMap.values()).slice(0, 3);
+    }
+
+    // Default for domestic trips: Today, Tomorrow (+1), Day after (+2)
+    return [0, 1, 2].map((offset) => {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      const dateStr = d.toISOString().split('T')[0];
+      const label = offset === 0 ? 'Hari Ini' : `+${offset} Hari`;
+      const formatted = d.toLocaleDateString('id-ID', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+      });
+      return { dateStr, label, formatted, offset };
+    });
+  }, [hasVessel, trip.vessel_schedule?.scheduled_departure_at]);
+
+  // Default selected date to first available (or today)
+  const [selectedDate, setSelectedDate] = useState(() => availableDates[0]?.dateStr ?? todayStr());
   const [submitting, setSubmitting] = useState(false);
-  const [apiError, setApiError]   = useState(null);
+  const [apiError, setApiError] = useState(null);
+
+  // Sync selectedDate when availableDates change
+  useEffect(() => {
+    if (availableDates.length > 0 && !availableDates.some(d => d.dateStr === selectedDate)) {
+      setSelectedDate(availableDates[0].dateStr);
+    }
+  }, [availableDates, selectedDate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitting(true); setApiError(null);
+    setSubmitting(true);
+    setApiError(null);
     try {
-      const res = await recommendTrip(trip.id, date ? { date } : {});
+      const res = await recommendTrip(trip.id, { date: selectedDate });
       onUpdated(res.data?.data);
     } catch (err) {
-      setApiError(err?.response?.data?.message ?? 'Failed to fetch recommendations.');
-    } finally { setSubmitting(false); }
+      setApiError(err?.response?.data?.message ?? 'Gagal mendapatkan rekomendasi waktu keberangkatan.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="px-4 py-3 rounded-lg text-xs text-slate-600" style={{ backgroundColor: `${COLORS.navy}08` }}>
-        The system will call the <strong>TomTom API</strong> to find the 3 best departure slots
-        (06:00–12:00, 12:00–18:00, 18:00–05:00). This may take ~10–30 seconds.
+      <div className="px-4 py-3 rounded-xl text-xs text-slate-600 bg-slate-50 border border-slate-200">
+        <p className="font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
+          <Clock size={14} className="text-teal-600" />
+          Rekomendasi Waktu Keberangkatan Truk (AI & Traffic Engine)
+        </p>
+        {hasVessel ? (
+          <span>
+            Sesuai regulasi logistik ekspor Batam–Singapura, jadwal truk dibuka <strong>hingga 3 hari sebelum keberangkatan kapal</strong> untuk memastikan proses bea cukai, dokumen PEB/NPE, dan penumpukan kontainer di pelabuhan selesai tepat waktu sebelum kapal lepas jangkar.
+          </span>
+        ) : (
+          <span>
+            Pilih salah satu dari <strong>3 tanggal jadwal rute pengantaran</strong>. Rekomendasi memperhitungkan estimasi kedatangan truk dengan lalu lintas optimal.
+          </span>
+        )}
       </div>
-      <div>
-        <label className="block text-xs font-medium text-slate-600 mb-1">Date</label>
-        <input
-          type="date" value={date} onChange={(e) => setDate(e.target.value)}
-          min={todayStr()}
-          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none transition"
-          onFocus={(e) => (e.target.style.boxShadow = `0 0 0 2px ${COLORS.aqua}40`)}
-          onBlur={(e)  => (e.target.style.boxShadow = 'none')}
-        />
-      </div>
+
+      {trip.vessel_schedule && (
+        <div className="p-3.5 rounded-xl border border-teal-200 bg-teal-50/50 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-teal-600 text-white">
+              <Ship size={15} />
+            </div>
+            <div>
+              <span className="font-bold text-slate-800">{trip.vessel_schedule.vessel_name}</span>
+              <span className="text-slate-500 ml-1.5 font-mono">
+                ETD: {fmt(trip.vessel_schedule.scheduled_departure_at)}
+              </span>
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-200">
+            Jendela Pengantaran: H-3 s/d H-1
+          </span>
+        </div>
+      )}
+
+      {hasVessel ? (
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-2">
+            Pilih Tanggal Pengantaran Truk (Tersedia 3 Hari Sebelum Kapal Berangkat):
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {availableDates.map(({ dateStr, label, formatted }) => {
+              const isSelected = selectedDate === dateStr;
+              return (
+                <button
+                  key={dateStr}
+                  type="button"
+                  onClick={() => setSelectedDate(dateStr)}
+                  className={`p-3 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1.5 ${
+                    isSelected
+                      ? 'border-teal-500 bg-teal-50/60 ring-2 ring-teal-500/20 text-teal-900 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-slate-300 text-slate-600'
+                  }`}
+                >
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                    isSelected ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    {label}
+                  </span>
+                  <span className="text-xs font-bold">{formatted}</span>
+                  <span className="text-[10px] font-mono text-slate-400">{dateStr}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Pilih Tanggal Keberangkatan Truk:
+            </label>
+            <input
+              type="date"
+              value={selectedDate}
+              min={todayStr()}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none transition font-medium text-slate-800"
+              onFocus={(e) => (e.target.style.boxShadow = `0 0 0 2px ${COLORS.aqua}40`)}
+              onBlur={(e) => (e.target.style.boxShadow = 'none')}
+            />
+            <p className="text-[11px] text-slate-400 mt-1">
+              * Bebas memilih tanggal keberangkatan mulai dari hari ini ke depan.
+            </p>
+          </div>
+
+          <div>
+            <span className="text-[11px] font-medium text-slate-500 block mb-1.5">Pilihan Cepat:</span>
+            <div className="grid grid-cols-3 gap-2">
+              {availableDates.map(({ dateStr, label, formatted }) => {
+                const isSelected = selectedDate === dateStr;
+                return (
+                  <button
+                    key={dateStr}
+                    type="button"
+                    onClick={() => setSelectedDate(dateStr)}
+                    className={`py-2 px-3 rounded-lg border text-center text-xs transition ${
+                      isSelected
+                        ? 'border-teal-500 bg-teal-50 text-teal-800 font-bold'
+                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    <span className="block font-semibold">{label}</span>
+                    <span className="text-[10px] text-slate-400">{formatted}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       <ApiError msg={apiError} />
-      <div className="flex justify-end">
+
+      <div className="flex justify-end pt-1">
         <button
-          type="submit" disabled={submitting}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-70"
+          type="submit"
+          disabled={submitting}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold text-white disabled:opacity-70 shadow-md"
           style={{ background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})` }}
         >
-          {submitting
-            ? <><Spinner /> Processing (may take a while)…</>
-            : <><Zap size={14} /> Generate Recommendations</>}
+          {submitting ? (
+            <>
+              <Spinner /> Menganalisis Rute & Rekomendasi Waktu…
+            </>
+          ) : (
+            <>
+              <Zap size={14} />
+              <span>Hitung Rekomendasi Jam Truk</span>
+            </>
+          )}
         </button>
       </div>
     </form>
@@ -1086,6 +1326,24 @@ const AssignTab = ({ trip, onUpdated }) => {
     } finally { setSubmitting(false); }
   };
 
+  const vesselDepart = trip.vessel_schedule?.scheduled_departure_at
+    ? new Date(trip.vessel_schedule.scheduled_departure_at)
+    : null;
+
+  const isSlotCutoffDisallowed = (slot) => {
+    if (!vesselDepart) return false;
+    const slotDepart = new Date(slot.departure_at);
+    if (slotDepart >= vesselDepart) return true;
+
+    const estDurationMs = (trip.estimated_duration_min ?? 45) * 60 * 1000;
+    const slotArrival = slot.estimated_arrival_at
+      ? new Date(slot.estimated_arrival_at)
+      : new Date(slotDepart.getTime() + estDurationMs);
+
+    const diffMinutes = (vesselDepart.getTime() - slotArrival.getTime()) / (60 * 1000);
+    return diffMinutes < 60;
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {slots.length === 0 && (
@@ -1100,32 +1358,61 @@ const AssignTab = ({ trip, onUpdated }) => {
 
       {slots.length > 0 && (
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-2">Select Departure Time</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-medium text-slate-600">Select Departure Time</label>
+            {vesselDepart && (
+              <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md font-medium">
+                Wajib tiba minimal 1 jam sebelum ETD Kapal ({fmt(trip.vessel_schedule.scheduled_departure_at)})
+              </span>
+            )}
+          </div>
           <div className="space-y-2">
-            {slots.map((slot, i) => (
-              <label
-                key={i}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition"
-                style={{
-                  borderColor:     form.chosen_departure_at === slot.departure_at ? COLORS.aqua : '#E2E8F0',
-                  backgroundColor: form.chosen_departure_at === slot.departure_at ? `${COLORS.aqua}0D` : 'white',
-                }}
-              >
-                <input
-                  type="radio" name="chosen_departure_at" value={slot.departure_at}
-                  checked={form.chosen_departure_at === slot.departure_at}
-                  onChange={(e) => { setForm((p) => ({ ...p, chosen_departure_at: e.target.value })); setErrors((p) => ({ ...p, chosen_departure_at: null })); }}
-                  className="shrink-0" style={{ accentColor: COLORS.teal }}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    {slot.is_recommended && <CheckCircle2 size={11} color={COLORS.green} />}
-                    <span className="text-xs font-medium text-slate-700">{slot.reason}</span>
+            {slots.map((slot, i) => {
+              const disallowed = isSlotCutoffDisallowed(slot);
+              const isSelected = form.chosen_departure_at === slot.departure_at;
+
+              return (
+                <label
+                  key={i}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition ${
+                    disallowed
+                      ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
+                      : isSelected
+                      ? 'border-teal-500 bg-teal-50/50 ring-1 ring-teal-500/20 cursor-pointer'
+                      : 'border-slate-200 hover:border-slate-300 bg-white cursor-pointer'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="chosen_departure_at"
+                    value={slot.departure_at}
+                    disabled={disallowed}
+                    checked={isSelected}
+                    onChange={(e) => {
+                      if (disallowed) return;
+                      setForm((p) => ({ ...p, chosen_departure_at: e.target.value }));
+                      setErrors((p) => ({ ...p, chosen_departure_at: null }));
+                    }}
+                    className="shrink-0 disabled:opacity-30"
+                    style={{ accentColor: COLORS.teal }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {slot.is_recommended && !disallowed && <CheckCircle2 size={11} color={COLORS.green} />}
+                      <span className={`text-xs font-medium ${disallowed ? 'text-slate-500 line-through' : 'text-slate-700'}`}>
+                        {slot.reason}
+                      </span>
+                      {disallowed && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700 border border-red-200">
+                          Tidak Dapat Dipilih (Melewati Cut-Off 1 Jam Kapal)
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-slate-400">Score: {slot.score}</span>
                   </div>
-                  <span className="text-[11px] text-slate-400">Score: {slot.score}</span>
-                </div>
-              </label>
-            ))}
+                </label>
+              );
+            })}
           </div>
           {errors.chosen_departure_at && (
             <p className="mt-1 text-xs text-red-500">{errors.chosen_departure_at}</p>
@@ -1164,63 +1451,272 @@ const AssignTab = ({ trip, onUpdated }) => {
 
 /* ── VESSEL tab ───────────────────────────────────────────────── */
 const ShipTab = ({ trip, onUpdated }) => {
-  const [shipRefId, setShipRefId] = useState(trip.ship_ref_id ?? '');
-  const [error, setError]         = useState(null);
+  const [selectedScheduleId, setSelectedScheduleId] = useState(trip.vessel_schedule_id ? String(trip.vessel_schedule_id) : '');
+  const [availableSchedules, setAvailableSchedules] = useState([]);
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
+  const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [apiError, setApiError]   = useState(null);
-  const [success, setSuccess]     = useState(false);
+  const [apiError, setApiError] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const [checkingRadar, setCheckingRadar] = useState(false);
+  const [radarMessage, setRadarMessage] = useState(null);
+
+  // Load available vessel schedules matching this trip's ports
+  useEffect(() => {
+    let isSubscribed = true;
+    setLoadingSchedules(true);
+    const originPortId = trip.destination?.type === 'port' ? trip.destination?.id : null;
+    const destPortId = trip.ship_destination_port?.id;
+
+    getVesselSchedules({
+      per_page: 50,
+      ...(originPortId ? { origin_port_id: originPortId } : {}),
+      ...(destPortId ? { destination_port_id: destPortId } : {}),
+    })
+      .then((res) => {
+        if (isSubscribed) {
+          const list = res.data?.data ?? [];
+          setAvailableSchedules(list);
+          if (list.length > 0 && !selectedScheduleId && !trip.vessel_schedule_id) {
+            setSelectedScheduleId(String(list[0].id));
+          }
+        }
+      })
+      .catch(() => {
+        if (isSubscribed) setAvailableSchedules([]);
+      })
+      .finally(() => {
+        if (isSubscribed) setLoadingSchedules(false);
+      });
+
+    return () => { isSubscribed = false; };
+  }, [trip.destination?.id, trip.ship_destination_port?.id, trip.vessel_schedule_id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const trimmed = shipRefId.trim();
-    if (!trimmed) { setError('Vessel reference ID is required'); return; }
-    if (!/^(\d{9}|(IMO)?\d{7})$/i.test(trimmed)) {
-      setError('Must be MMSI (9 digits) or IMO (7 digits, optionally prefixed "IMO")');
+    setSubmitting(true);
+    setApiError(null);
+    setError(null);
+    setSuccess(false);
+
+    if (!selectedScheduleId) {
+      setError('Silakan pilih salah satu jadwal kapal yang tersedia');
+      setSubmitting(false);
       return;
     }
-    setSubmitting(true); setApiError(null); setError(null); setSuccess(false);
+
     try {
-      const res = await setShipRef(trip.id, { ship_ref_id: trimmed });
+      const res = await setShipRef(trip.id, { vessel_schedule_id: Number(selectedScheduleId) });
       onUpdated(res.data?.data);
       setSuccess(true);
     } catch (err) {
-      setApiError(err?.response?.data?.message ?? 'Failed to save vessel reference.');
-    } finally { setSubmitting(false); }
+      setApiError(err?.response?.data?.message ?? 'Gagal menghubungkan jadwal kapal ke trip ini.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCheckRadar = async () => {
+    const vesselId = trip.vessel_schedule?.id || (selectedScheduleId ? Number(selectedScheduleId) : null);
+    if (!vesselId) return;
+
+    setCheckingRadar(true);
+    setRadarMessage(null);
+    setApiError(null);
+
+    try {
+      const res = await checkVesselScheduleStatus(vesselId, { notify: true });
+      const data = res.data?.data;
+      setRadarMessage(
+        `Radar update: Status ${data?.status?.toUpperCase()} · Sisa Jarak ${data?.distance_to_destination_km} km (${data?.distance_to_destination_nm} NM) · Deviasi ${data?.variance_minutes ?? 0} mnt`
+      );
+
+      // Refresh trip to sync updated telemetry
+      const updatedTripRes = await getTrip(trip.id);
+      if (updatedTripRes.data?.data) {
+        onUpdated(updatedTripRes.data.data);
+      }
+    } catch (err) {
+      setApiError(err?.response?.data?.message ?? 'Gagal memperbarui radar kapal via transponder.');
+    } finally {
+      setCheckingRadar(false);
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="px-4 py-3 rounded-lg text-xs text-slate-600" style={{ backgroundColor: `${COLORS.navy}08` }}>
-        The <strong>vessel reference ID</strong> is the MMSI or IMO number of the ship used for the
-        sea crossing (Batam–Singapore). It can be updated at any time while the trip is not yet
-        completed or cancelled.
+      <div className="px-4 py-3 rounded-xl text-xs text-slate-600 bg-slate-50 border border-slate-200/80">
+        <p className="font-semibold text-slate-800 flex items-center gap-1.5 mb-1">
+          <Ship size={14} className="text-teal-600" />
+          Pilih Jadwal Kapal Rute Lintas Batas ({trip.destination?.name ?? 'Batam'} ➔ {trip.ship_destination_port?.name ?? 'Singapura'})
+        </p>
+        Pilih jadwal pelayaran kapal yang sesuai untuk menyinkronkan waktu cut-off kedatangan truk sebelum kapal berangkat.
       </div>
-      <div>
-        <label className="block text-xs font-medium text-slate-600 mb-1">MMSI / IMO Number</label>
-        <input
-          type="text" value={shipRefId}
-          onChange={(e) => { setShipRefId(e.target.value); setError(null); setSuccess(false); }}
-          placeholder="563123456 or IMO1234567"
-          className="w-full px-3 py-2 rounded-lg border text-sm font-mono outline-none transition"
-          style={{ borderColor: error ? '#EF4444' : '#E2E8F0' }}
-          onFocus={(e) => (e.target.style.boxShadow = `0 0 0 2px ${COLORS.aqua}40`)}
-          onBlur={(e)  => (e.target.style.boxShadow = 'none')}
-        />
-        {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+
+      <div className="space-y-2.5">
+        <label className="block text-xs font-medium text-slate-600">
+          Daftar Jadwal Kapal Aktif & Terverifikasi:
+        </label>
+
+        {loadingSchedules ? (
+          <div className="p-4 rounded-xl border border-slate-200 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+            <Loader2 size={16} className="animate-spin text-teal-600" />
+            <span>Memuat jadwal kapal tersedia...</span>
+          </div>
+        ) : availableSchedules.length === 0 ? (
+          <div className="p-4 rounded-xl border border-dashed border-slate-300 text-center space-y-2">
+            <p className="text-xs text-slate-500">
+              Belum ada jadwal pelayaran kapal yang cocok di rute ini pada sistem.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            {availableSchedules.map((sch) => {
+              const isSelected = String(selectedScheduleId) === String(sch.id);
+              const st = VESSEL_STATUS_CONFIG[sch.status] || { label: sch.status, bg: '#f1f5f9', color: '#475569' };
+
+              return (
+                <label
+                  key={sch.id}
+                  className={`block p-3 rounded-xl border cursor-pointer transition ${
+                    isSelected
+                      ? 'border-teal-500 bg-teal-50/40 ring-2 ring-teal-500/20 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2.5">
+                      <input
+                        type="radio"
+                        name="vessel_schedule_option"
+                        value={sch.id}
+                        checked={isSelected}
+                        onChange={(e) => {
+                          setSelectedScheduleId(e.target.value);
+                          setError(null);
+                        }}
+                        className="mt-1 shrink-0"
+                        style={{ accentColor: COLORS.teal }}
+                      />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-800">{sch.vessel_name}</span>
+                          {sch.voyage_number && (
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                              {sch.voyage_number}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          ETD: <b>{fmt(sch.scheduled_departure_at)}</b> · ETA: <b>{fmt(sch.scheduled_arrival_at)}</b>
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          MMSI: {sch.ship_ref_id} · Sisa Jarak: {sch.distance_to_destination_km != null ? `${sch.distance_to_destination_km} km (${sch.distance_to_destination_nm} NM)` : '—'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span
+                      className="px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0"
+                      style={{ backgroundColor: st.bg, color: st.color }}
+                    >
+                      {st.label}
+                    </span>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        )}
       </div>
-      {success && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-green-200 bg-green-50 text-xs text-green-700">
-          <CheckCircle2 size={12} /> Vessel reference saved successfully.
+
+      {error && <p className="text-xs text-red-500">{error}</p>}
+
+      {/* Live Radar & Telemetry Box */}
+      {trip.vessel_schedule && (
+        <div className="p-3.5 rounded-xl bg-slate-900 text-white space-y-2.5 shadow-md">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <p className="text-xs font-bold tracking-wide uppercase text-slate-200">
+                Live AIS Telemetry Radar
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={checkingRadar}
+              onClick={handleCheckRadar}
+              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-teal-500/20 text-teal-300 hover:bg-teal-500/30 transition flex items-center gap-1 border border-teal-500/30"
+            >
+              {checkingRadar ? (
+                <>
+                  <Loader2 size={12} className="animate-spin" />
+                  <span>Scanning...</span>
+                </>
+              ) : (
+                <>
+                  <Radio size={12} />
+                  <span>Ping Radar Kapal</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 text-[11px] text-slate-300">
+            <div className="bg-white/5 p-2 rounded-lg">
+              <span className="text-slate-400 block text-[10px]">Posisi Terkini</span>
+              <span className="font-mono font-medium">
+                {trip.vessel_schedule.current_latitude?.toFixed(4)}, {trip.vessel_schedule.current_longitude?.toFixed(4)}
+              </span>
+            </div>
+            <div className="bg-white/5 p-2 rounded-lg">
+              <span className="text-slate-400 block text-[10px]">Sisa Jarak</span>
+              <span className="font-medium text-emerald-300">
+                {trip.vessel_schedule.distance_to_destination_km != null ? `${trip.vessel_schedule.distance_to_destination_km} km` : '—'}
+              </span>
+            </div>
+            <div className="bg-white/5 p-2 rounded-lg">
+              <span className="text-slate-400 block text-[10px]">Kecepatan</span>
+              <span className="font-medium text-cyan-300">
+                {trip.vessel_schedule.current_speed_knots != null ? `${trip.vessel_schedule.current_speed_knots} Knots` : '—'}
+              </span>
+            </div>
+          </div>
+
+          {radarMessage && (
+            <p className="text-[11px] text-emerald-400 font-mono bg-emerald-950/60 p-2 rounded border border-emerald-800/60">
+              ✓ {radarMessage}
+            </p>
+          )}
         </div>
       )}
+
+      {success && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-green-200 bg-green-50 text-xs text-green-700">
+          <CheckCircle2 size={12} />
+          Jadwal kapal berhasil dipilih! Melanjutkan ke Rekomendasi Waktu…
+        </div>
+      )}
+
       <ApiError msg={apiError} />
-      <div className="flex justify-end">
+
+      <div className="flex justify-end pt-1">
         <button
-          type="submit" disabled={submitting}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-70"
+          type="submit"
+          disabled={submitting || availableSchedules.length === 0}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold text-white disabled:opacity-70 shadow-md"
           style={{ background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})` }}
         >
-          {submitting ? <><Spinner /> Saving…</> : <><Anchor size={14} /> Save Vessel Ref</>}
+          {submitting ? (
+            <>
+              <Spinner /> Menyimpan Pilihan Kapal…
+            </>
+          ) : (
+            <>
+              <Anchor size={14} />
+              <span>Simpan Kapal & Lanjut Rekomendasi</span>
+            </>
+          )}
         </button>
       </div>
     </form>

@@ -164,5 +164,18 @@ class VesselScheduleSeeder extends Seeder
                 'notes' => 'Successfully docked and cargo offloaded.',
             ]
         );
+
+        // Auto-link existing cross-border trips with matching vessel schedules
+        $crossBorderTrips = \App\Models\Trip::whereNotNull('ship_destination_port_id')->get();
+        foreach ($crossBorderTrips as $trip) {
+            $matchingSchedule = VesselSchedule::where('ship_ref_id', $trip->ship_ref_id)->first()
+                ?? VesselSchedule::where('destination_port_id', $trip->ship_destination_port_id)->first();
+            if ($matchingSchedule) {
+                $trip->update([
+                    'vessel_schedule_id' => $matchingSchedule->id,
+                    'ship_ref_id' => $matchingSchedule->ship_ref_id,
+                ]);
+            }
+        }
     }
 }

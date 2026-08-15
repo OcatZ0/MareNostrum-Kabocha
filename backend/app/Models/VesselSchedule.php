@@ -8,6 +8,7 @@ use App\Context\VesselScheduleStatus;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class VesselSchedule extends Model
 {
@@ -62,6 +63,11 @@ class VesselSchedule extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function trips(): HasMany
+    {
+        return $this->hasMany(Trip::class, 'vessel_schedule_id');
     }
 
     /**

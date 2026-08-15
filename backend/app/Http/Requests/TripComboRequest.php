@@ -46,6 +46,7 @@ abstract class TripComboRequest extends FormRequest
             'destination_company_id' => ['nullable', 'exists:companies,id'],
             'destination_port_id' => ['nullable', 'exists:ports,id'],
             'ship_destination_port_id' => ['nullable', 'exists:ports,id'],
+            'vessel_schedule_id' => ['nullable', 'exists:vessel_schedules,id'],
         ];
     }
 
