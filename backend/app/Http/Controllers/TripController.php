@@ -421,14 +421,36 @@ class TripController extends Controller
 
         // The 3 ranges are searched as 2 network "waves" total (all ranges' hourly
         // candidates fetched together, then all ranges' refinement candidates fetched
-        // together), not 3 ranges x 2 waves each = 6 sequential waves. Ranges searched
-        // independently one after another (each internally already concurrent) still
-        // added up past PHP's max_execution_time, since it's the number of sequential
-        // network round trips that matters, not how each one is fetched.
-        $ranges = collect($this->searchRanges)->map(fn (array $range) => [
-            'start' => $date->copy()->addDays($range['start_day_offset'])->setTime($range['start_hour'], 0),
-            'end' => $date->copy()->addDays($range['end_day_offset'])->setTime($range['end_hour'], 0),
-        ]);
+        // together). When searching on the vessel departure day, adapt the 3 ranges so
+        // they search before the vessel departure time.
+        if ($trip->vesselSchedule?->scheduled_departure_at && $date->isSameDay(Carbon::parse($trip->vesselSchedule->scheduled_departure_at, $timezone))) {
+            $vesselDepart = Carbon::parse($trip->vesselSchedule->scheduled_departure_at, $timezone);
+            $earliestHour = max(5, ($date->isToday() ? Carbon::now($timezone)->hour + 1 : 5));
+            $latestHour = max($earliestHour + 1, $vesselDepart->hour);
+
+            $spanHours = max(1, $latestHour - $earliestHour);
+            $step = $spanHours / 3;
+
+            $r1Start = $date->copy()->setTime($earliestHour, 0);
+            $r1End = $date->copy()->setTime((int) floor($earliestHour + $step), (int) round(($step - floor($step)) * 60));
+
+            $r2Start = $r1End->copy();
+            $r2End = $date->copy()->setTime((int) floor($earliestHour + 2 * $step), (int) round(((2 * $step) - floor(2 * $step)) * 60));
+
+            $r3Start = $r2End->copy();
+            $r3End = $vesselDepart->copy();
+
+            $ranges = collect([
+                ['start' => $r1Start, 'end' => $r1End->isAfter($r1Start) ? $r1End : $r1Start->copy()->addMinutes(30)],
+                ['start' => $r2Start, 'end' => $r2End->isAfter($r2Start) ? $r2End : $r2Start->copy()->addMinutes(30)],
+                ['start' => $r3Start, 'end' => $r3End->isAfter($r3Start) ? $r3End : $r3Start->copy()->addMinutes(30)],
+            ]);
+        } else {
+            $ranges = collect($this->searchRanges)->map(fn (array $range) => [
+                'start' => $date->copy()->addDays($range['start_day_offset'])->setTime($range['start_hour'], 0),
+                'end' => $date->copy()->addDays($range['end_day_offset'])->setTime($range['end_hour'], 0),
+            ]);
+        }
 
         // Fetched once and reused for every candidate below (historicalDelayPenalty()),
         // not re-queried per candidate, see historicalTripsForRoute()'s docblock.
@@ -1076,10 +1098,16 @@ class TripController extends Controller
     {
         $slots = collect();
         $cursor = $start->copy();
+        $diffMinutes = $start->diffInMinutes($end);
+        $stepMinutes = $diffMinutes <= 120 ? 15 : ($diffMinutes <= 240 ? 30 : 60);
 
         while ($cursor->lt($end)) {
             $slots->push($cursor->copy());
-            $cursor->addHour();
+            $cursor->addMinutes($stepMinutes);
+        }
+
+        if ($slots->isEmpty()) {
+            $slots->push($start->copy());
         }
 
         return $slots;

@@ -674,37 +674,46 @@ const UpdateTab = ({ trip, onUpdated }) => {
 };
 
 /* ── RECOMMEND tab ────────────────────────────────────────────── */
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const RecommendTab = ({ trip, onUpdated }) => {
-  const hasVessel = !!trip.vessel_schedule?.scheduled_departure_at;
+  const isCross = !!trip.ship_destination_port_id || !!trip.ship_destination_port || !!trip.vessel_schedule;
+  const hasVessel = isCross && !!trip.vessel_schedule?.scheduled_departure_at;
 
-  // If vessel schedule is present, generate options including Hari Ini and pre-vessel dates
+  // For cross-border trips: generate strictly 3 pre-vessel delivery dates based on vessel schedule
   const availableDates = React.useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayStrVal = today.toISOString().split('T')[0];
+    const todayStrVal = todayStr();
 
     if (hasVessel) {
       const vesselDate = new Date(trip.vessel_schedule.scheduled_departure_at);
       vesselDate.setHours(0, 0, 0, 0);
-      const vesselDateStr = vesselDate.toISOString().split('T')[0];
+      const vesselDateStr = `${vesselDate.getFullYear()}-${String(vesselDate.getMonth() + 1).padStart(2, '0')}-${String(vesselDate.getDate()).padStart(2, '0')}`;
 
       const dateMap = new Map();
 
-      // 1. Hari Ini
-      dateMap.set(todayStrVal, {
-        dateStr: todayStrVal,
-        label: todayStrVal === vesselDateStr ? 'Hari Ini (Hari Kapal)' : 'Hari Ini',
-        formatted: today.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }),
-      });
+      // 1. Hari Ini (jika <= tanggal kapal)
+      if (today <= vesselDate) {
+        dateMap.set(todayStrVal, {
+          dateStr: todayStrVal,
+          label: todayStrVal === vesselDateStr ? 'Hari Ini (Hari Kapal)' : 'Hari Ini',
+          formatted: today.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }),
+        });
+      }
 
-      // 2. Pre-vessel dates (H-2, H-1, or vessel date)
+      // 2. Pre-vessel dates (H-2, H-1, atau Hari Kapal)
       [-2, -1, 0].forEach((offset) => {
         const d = new Date(vesselDate);
         d.setDate(d.getDate() + offset);
         if (d >= today && d <= vesselDate) {
-          const dStr = d.toISOString().split('T')[0];
+          const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
           const daysBefore = Math.abs(offset);
           const lbl = offset === 0 ? 'Hari Keberangkatan Kapal' : `H-${daysBefore} (${daysBefore} Hari Sebelum Kapal)`;
           if (!dateMap.has(dStr)) {
@@ -717,13 +726,13 @@ const RecommendTab = ({ trip, onUpdated }) => {
         }
       });
 
-      // If still fewer than 3, add H-3
+      // 3. Jika masih kurang dari 3 opsi, tambahkan H-3
       if (dateMap.size < 3) {
         [-3].forEach((offset) => {
           const d = new Date(vesselDate);
           d.setDate(d.getDate() + offset);
           if (d >= today) {
-            const dStr = d.toISOString().split('T')[0];
+            const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             const daysBefore = Math.abs(offset);
             if (!dateMap.has(dStr)) {
               dateMap.set(dStr, {
@@ -739,32 +748,20 @@ const RecommendTab = ({ trip, onUpdated }) => {
       return Array.from(dateMap.values()).slice(0, 3);
     }
 
-    // Default for domestic trips: Today, Tomorrow (+1), Day after (+2)
-    return [0, 1, 2].map((offset) => {
-      const d = new Date();
-      d.setDate(d.getDate() + offset);
-      const dateStr = d.toISOString().split('T')[0];
-      const label = offset === 0 ? 'Hari Ini' : `+${offset} Hari`;
-      const formatted = d.toLocaleDateString('id-ID', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-      });
-      return { dateStr, label, formatted, offset };
-    });
+    return [];
   }, [hasVessel, trip.vessel_schedule?.scheduled_departure_at]);
 
-  // Default selected date to first available (or today)
-  const [selectedDate, setSelectedDate] = useState(() => availableDates[0]?.dateStr ?? todayStr());
+  // Default selected date
+  const [selectedDate, setSelectedDate] = useState(() => (hasVessel ? (availableDates[0]?.dateStr ?? todayStr()) : todayStr()));
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);
 
-  // Sync selectedDate when availableDates change
+  // Sync selectedDate when cross-border availableDates change
   useEffect(() => {
-    if (availableDates.length > 0 && !availableDates.some(d => d.dateStr === selectedDate)) {
+    if (hasVessel && availableDates.length > 0 && !availableDates.some(d => d.dateStr === selectedDate)) {
       setSelectedDate(availableDates[0].dateStr);
     }
-  }, [availableDates, selectedDate]);
+  }, [hasVessel, availableDates, selectedDate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -787,13 +784,13 @@ const RecommendTab = ({ trip, onUpdated }) => {
           <Clock size={14} className="text-teal-600" />
           Rekomendasi Waktu Keberangkatan Truk (AI & Traffic Engine)
         </p>
-        {hasVessel ? (
+        {isCross ? (
           <span>
-            Sesuai regulasi logistik ekspor Batam–Singapura, jadwal truk dibuka <strong>hingga 3 hari sebelum keberangkatan kapal</strong> untuk memastikan proses bea cukai, dokumen PEB/NPE, dan penumpukan kontainer di pelabuhan selesai tepat waktu sebelum kapal lepas jangkar.
+            Khusus rute lintas batas Batam–Singapura, jadwal truk dipilih dari <strong>3 tanggal jendela jadwal kapal</strong> untuk memastikan kepabeanan dan stuffing kontainer selesai sebelum kapal berangkat.
           </span>
         ) : (
           <span>
-            Pilih salah satu dari <strong>3 tanggal jadwal rute pengantaran</strong>. Rekomendasi memperhitungkan estimasi kedatangan truk dengan lalu lintas optimal.
+            Untuk rute domestik dan port-to-company, Anda bebas memilih tanggal keberangkatan kapan saja (mulai hari ini ke depan).
           </span>
         )}
       </div>
@@ -812,15 +809,15 @@ const RecommendTab = ({ trip, onUpdated }) => {
             </div>
           </div>
           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-200">
-            Jendela Pengantaran: H-3 s/d H-1
+            Jendela Pengantaran: 3 Tanggal Sesuai Kapal
           </span>
         </div>
       )}
 
-      {hasVessel ? (
+      {isCross ? (
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-2">
-            Pilih Tanggal Pengantaran Truk (Tersedia 3 Hari Sebelum Kapal Berangkat):
+            Pilih Tanggal Pengantaran Truk (Tersedia 3 Tanggal Sesuai Jadwal Kapal):
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {availableDates.map(({ dateStr, label, formatted }) => {
@@ -849,48 +846,22 @@ const RecommendTab = ({ trip, onUpdated }) => {
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Pilih Tanggal Keberangkatan Truk:
-            </label>
-            <input
-              type="date"
-              value={selectedDate}
-              min={todayStr()}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none transition font-medium text-slate-800"
-              onFocus={(e) => (e.target.style.boxShadow = `0 0 0 2px ${COLORS.aqua}40`)}
-              onBlur={(e) => (e.target.style.boxShadow = 'none')}
-            />
-            <p className="text-[11px] text-slate-400 mt-1">
-              * Bebas memilih tanggal keberangkatan mulai dari hari ini ke depan.
-            </p>
-          </div>
-
-          <div>
-            <span className="text-[11px] font-medium text-slate-500 block mb-1.5">Pilihan Cepat:</span>
-            <div className="grid grid-cols-3 gap-2">
-              {availableDates.map(({ dateStr, label, formatted }) => {
-                const isSelected = selectedDate === dateStr;
-                return (
-                  <button
-                    key={dateStr}
-                    type="button"
-                    onClick={() => setSelectedDate(dateStr)}
-                    className={`py-2 px-3 rounded-lg border text-center text-xs transition ${
-                      isSelected
-                        ? 'border-teal-500 bg-teal-50 text-teal-800 font-bold'
-                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                    }`}
-                  >
-                    <span className="block font-semibold">{label}</span>
-                    <span className="text-[10px] text-slate-400">{formatted}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-slate-700">
+            Pilih Tanggal Keberangkatan Truk:
+          </label>
+          <input
+            type="date"
+            value={selectedDate}
+            min={todayStr()}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm outline-none transition font-medium text-slate-800 bg-white shadow-sm"
+            onFocus={(e) => (e.target.style.boxShadow = `0 0 0 2px ${COLORS.aqua}40`)}
+            onBlur={(e) => (e.target.style.boxShadow = 'none')}
+          />
+          <p className="text-[11px] text-slate-500">
+            * Anda dapat memilih hari ini atau tanggal apa pun di masa mendatang.
+          </p>
         </div>
       )}
 
