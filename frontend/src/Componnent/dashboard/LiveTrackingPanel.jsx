@@ -23,9 +23,6 @@ const LiveTrackingPanel = ({ trip = DEFAULT_TRIP, history = DEFAULT_HISTORY }) =
           <h3 className="text-base font-semibold text-slate-800">Live Tracking</h3>
           <p className="text-sm text-slate-400 mt-0.5">{trip.id}</p>
         </div>
-        <button className="text-slate-300 hover:text-slate-500">
-          <MoreVertical size={18} />
-        </button>
       </div>
 
       {/* stylized route visual — replaces a generic map embed with the brand's own signature */}

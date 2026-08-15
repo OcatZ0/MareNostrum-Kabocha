@@ -14,9 +14,6 @@ const FleetStatus = ({ trucks = DEFAULT_TRUCKS }) => {
     <div className="bg-white rounded-xl border border-slate-100 p-5 sm:p-6">
       <div className="flex items-start justify-between mb-5">
         <h3 className="text-sm font-semibold text-slate-800">Fleet Status</h3>
-        <button className="text-slate-300 hover:text-slate-500">
-          <MoreVertical size={18} />
-        </button>
       </div>
 
       <ul className="divide-y divide-slate-100">

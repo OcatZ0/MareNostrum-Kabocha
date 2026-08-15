@@ -27,9 +27,6 @@ const EmissionOverview = ({
             <p className="text-xs text-slate-400">{subLabel}</p>
           </div>
         </div>
-        <button className="text-slate-300 hover:text-slate-500">
-          <MoreVertical size={18} />
-        </button>
       </div>
 
       <div className="flex items-end justify-between gap-6">
