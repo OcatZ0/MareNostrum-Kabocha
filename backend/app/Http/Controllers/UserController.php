@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Context\Role;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Resources\UserResource;
@@ -21,7 +22,7 @@ class UserController extends Controller
         security: [['sanctum' => []]],
         tags: ['Users'],
         parameters: [
-            new OA\Parameter(name: 'role', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['admin', 'driver'])),
+            new OA\Parameter(name: 'role', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: [Role::ADMIN, Role::DRIVER])),
             new OA\Parameter(name: 'search', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 15)),
         ],
@@ -67,7 +68,7 @@ class UserController extends Controller
                     new OA\Property(property: 'name', type: 'string', example: 'Budi Santoso'),
                     new OA\Property(property: 'username', type: 'string', example: 'driver_budi'),
                     new OA\Property(property: 'password', type: 'string', format: 'password', example: 'password123'),
-                    new OA\Property(property: 'role', type: 'string', enum: ['admin', 'driver'], example: 'driver'),
+                    new OA\Property(property: 'role', type: 'string', enum: [Role::ADMIN, Role::DRIVER], example: Role::DRIVER),
                     new OA\Property(property: 'phone', type: 'string', example: '+6281234567890'),
                 ]
             )
@@ -121,7 +122,7 @@ class UserController extends Controller
                     new OA\Property(property: 'name', type: 'string', example: 'Budi Santoso Updated'),
                     new OA\Property(property: 'username', type: 'string', example: 'driver_budi_updated'),
                     new OA\Property(property: 'password', type: 'string', format: 'password', nullable: true, example: 'newpassword123'),
-                    new OA\Property(property: 'role', type: 'string', enum: ['admin', 'driver']),
+                    new OA\Property(property: 'role', type: 'string', enum: [Role::ADMIN, Role::DRIVER]),
                     new OA\Property(property: 'phone', type: 'string', example: '+6281234567890'),
                 ]
             )

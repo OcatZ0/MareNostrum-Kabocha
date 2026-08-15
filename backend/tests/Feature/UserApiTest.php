@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Context\Role;
+use App\Context\StatusTrips;
 use App\Models\Trip;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,7 +25,7 @@ class UserApiTest extends TestCase
             'name' => 'Admin User',
             'username' => 'admin',
             'password' => Hash::make('password'),
-            'role' => 'admin',
+            'role' => Role::ADMIN,
             'phone' => '+62811111111',
         ]);
     }
@@ -34,7 +36,7 @@ class UserApiTest extends TestCase
             'name' => 'Driver Budi',
             'username' => 'driver_budi',
             'password' => Hash::make('secret123'),
-            'role' => 'driver',
+            'role' => Role::DRIVER,
             'phone' => '+62812345678',
         ]);
 
@@ -57,7 +59,7 @@ class UserApiTest extends TestCase
             'name' => 'Driver Budi',
             'username' => 'driver_budi',
             'password' => Hash::make('secret123'),
-            'role' => 'driver',
+            'role' => Role::DRIVER,
             'phone' => '+62812345678',
         ]);
 
@@ -65,15 +67,15 @@ class UserApiTest extends TestCase
             'name' => 'Admin Sarah',
             'username' => 'admin_sarah',
             'password' => Hash::make('secret123'),
-            'role' => 'admin',
+            'role' => Role::ADMIN,
             'phone' => '+62899999999',
         ]);
 
         // Filter by role
-        $responseRole = $this->getJson('/api/users?role=driver');
+        $responseRole = $this->getJson('/api/users?role='.Role::DRIVER);
         $responseRole->assertStatus(200);
         $this->assertCount(1, $responseRole->json('data'));
-        $this->assertEquals('driver', $responseRole->json('data.0.role'));
+        $this->assertEquals(Role::DRIVER, $responseRole->json('data.0.role'));
 
         // Search by username
         $responseSearch = $this->getJson('/api/users?search=sarah');
@@ -88,7 +90,7 @@ class UserApiTest extends TestCase
             'name' => 'Driver Joko',
             'username' => 'driver_joko',
             'password' => 'password123',
-            'role' => 'driver',
+            'role' => Role::DRIVER,
             'phone' => '+628123456789',
         ];
 
@@ -101,13 +103,13 @@ class UserApiTest extends TestCase
                 'data' => [
                     'name' => 'Driver Joko',
                     'username' => 'driver_joko',
-                    'role' => 'driver',
+                    'role' => Role::DRIVER,
                 ],
             ]);
 
         $this->assertDatabaseHas('users', [
             'username' => 'driver_joko',
-            'role' => 'driver',
+            'role' => Role::DRIVER,
         ]);
 
         // Ensure password is not plain text in DB
@@ -139,7 +141,7 @@ class UserApiTest extends TestCase
             'name' => 'Driver Andi',
             'username' => 'driver_andi',
             'password' => Hash::make('password123'),
-            'role' => 'driver',
+            'role' => Role::DRIVER,
             'phone' => '+628129999888',
         ]);
 
@@ -152,7 +154,7 @@ class UserApiTest extends TestCase
                     'id' => $user->id,
                     'name' => 'Driver Andi',
                     'username' => 'driver_andi',
-                    'role' => 'driver',
+                    'role' => Role::DRIVER,
                 ],
             ])
             ->assertJsonMissing(['password']);
@@ -164,7 +166,7 @@ class UserApiTest extends TestCase
             'name' => 'Driver Andi',
             'username' => 'driver_andi',
             'password' => Hash::make('initialpassword'),
-            'role' => 'driver',
+            'role' => Role::DRIVER,
             'phone' => '+628129999888',
         ]);
 
@@ -195,7 +197,7 @@ class UserApiTest extends TestCase
             'name' => 'Driver Andi',
             'username' => 'driver_andi',
             'password' => Hash::make('initialpassword'),
-            'role' => 'driver',
+            'role' => Role::DRIVER,
         ]);
 
         $payload = [
@@ -216,7 +218,7 @@ class UserApiTest extends TestCase
             'name' => 'Driver To Delete',
             'username' => 'driver_del',
             'password' => Hash::make('password123'),
-            'role' => 'driver',
+            'role' => Role::DRIVER,
         ]);
 
         $response = $this->deleteJson("/api/users/{$user->id}");
@@ -238,13 +240,13 @@ class UserApiTest extends TestCase
             'name' => 'Active Driver',
             'username' => 'driver_active',
             'password' => Hash::make('password123'),
-            'role' => 'driver',
+            'role' => Role::DRIVER,
         ]);
 
         // Create a trip assigned to this driver
         Trip::create([
             'driver_id' => $driver->id,
-            'status' => 'assigned',
+            'status' => StatusTrips::ASSIGNED,
             'created_by' => $this->admin->id,
         ]);
 

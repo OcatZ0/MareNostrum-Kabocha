@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Context\Role;
+use App\Context\Status;
+use App\Context\StatusTrips;
 use App\Models\Trip;
 use App\Models\Truck;
 use Carbon\Carbon;
@@ -17,7 +20,7 @@ class AssignTripRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->role === 'admin';
+        return $this->user()?->role === Role::ADMIN;
     }
 
     /**
@@ -27,7 +30,7 @@ class AssignTripRequest extends FormRequest
     {
         return [
             'truck_id' => ['required', 'exists:trucks,id'],
-            'driver_id' => ['required', Rule::exists('users', 'id')->where('role', 'driver')],
+            'driver_id' => ['required', Rule::exists('users', 'id')->where('role', Role::DRIVER)],
             'chosen_departure_at' => ['required', 'date', 'after:now'],
         ];
     }
@@ -49,7 +52,7 @@ class AssignTripRequest extends FormRequest
             if ($this->filled('truck_id') && ! $validator->errors()->has('truck_id')) {
                 $truck = Truck::find($this->input('truck_id'));
 
-                if ($truck && $truck->status !== 'active') {
+                if ($truck && $truck->status !== Status::ACTIVE) {
                     $validator->errors()->add('truck_id', 'Truk sedang maintenance, tidak bisa di-assign.');
                 }
 
@@ -79,7 +82,7 @@ class AssignTripRequest extends FormRequest
         return Trip::query()
             ->where($column, $id)
             ->where('id', '!=', $trip->id)
-            ->whereNotIn('status', ['draft', 'completed', 'cancelled'])
+            ->whereNotIn('status', [StatusTrips::DRAFT, StatusTrips::COMPLETED, StatusTrips::CANCELLED])
             ->exists();
     }
 

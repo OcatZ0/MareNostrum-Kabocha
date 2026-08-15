@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Context\CompanyType;
+use App\Context\Role;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -14,7 +16,7 @@ class UpdateCompanyRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->role === 'admin';
+        return $this->user()?->role === Role::ADMIN;
     }
 
     /**
@@ -26,7 +28,7 @@ class UpdateCompanyRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'type' => ['sometimes', 'required', 'string', Rule::in(['internal', 'partner'])],
+            'type' => ['sometimes', 'required', 'string', Rule::in([CompanyType::INTERNAL, CompanyType::PARTNER])],
             'city' => ['sometimes', 'required', 'string', 'max:255'],
             'address' => ['nullable', 'string'],
             'latitude' => ['sometimes', 'required', 'numeric', 'between:-90,90'],

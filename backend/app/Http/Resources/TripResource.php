@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Context\StatusTrips;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Attributes as OA;
@@ -33,8 +34,19 @@ use OpenApi\Attributes as OA;
         new OA\Property(
             property: 'status',
             type: 'string',
-            enum: ['draft', 'assigned', 'in_transit_origin', 'at_origin_port', 'on_ship', 'at_destination_port', 'in_transit_destination', 'arrived', 'completed', 'cancelled'],
-            example: 'draft'
+            enum: [
+                StatusTrips::DRAFT,
+                StatusTrips::ASSIGNED,
+                StatusTrips::IN_TRANSIT_ORIGIN,
+                StatusTrips::AT_ORIGIN_PORT,
+                StatusTrips::ON_SHIP,
+                StatusTrips::AT_DESTINATION_PORT,
+                StatusTrips::IN_TRANSIT_DESTINATION,
+                StatusTrips::ARRIVED,
+                StatusTrips::COMPLETED,
+                StatusTrips::CANCELLED,
+            ],
+            example: StatusTrips::DRAFT
         ),
         new OA\Property(property: 'distance_km', type: 'number', format: 'float', nullable: true),
         new OA\Property(property: 'estimated_co2_kg', type: 'number', format: 'float', nullable: true),

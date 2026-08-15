@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Context\CompanyType;
 use App\Models\Trip;
 
 trait ResolvesTripPoints
@@ -30,7 +31,7 @@ trait ResolvesTripPoints
      */
     protected function needsReturnLeg(Trip $trip): bool
     {
-        return $trip->originCompany?->type === 'internal' && $trip->destinationCompany?->type === 'partner';
+        return $trip->originCompany?->type === CompanyType::INTERNAL && $trip->destinationCompany?->type === CompanyType::PARTNER;
     }
 
     /**

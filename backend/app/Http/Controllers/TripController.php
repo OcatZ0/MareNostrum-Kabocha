@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Context\EventType;
+use App\Context\NotificationType;
+use App\Context\Role;
+use App\Context\Source;
+use App\Context\StatusTrips;
 use App\Http\Requests\AssignTripRequest;
 use App\Http\Requests\ShipTripRequest;
 use App\Http\Requests\SimulateTripRequest;
@@ -91,7 +96,7 @@ class TripController extends Controller
     {
         $query = Trip::query()->with($this->with)->latest();
 
-        if ($request->user()->role !== 'admin') {
+        if ($request->user()->role !== Role::ADMIN) {
             $query->where('driver_id', $request->user()->id);
         }
 
@@ -214,7 +219,7 @@ class TripController extends Controller
     )]
     public function show(Request $request, Trip $trip)
     {
-        if ($request->user()->role !== 'admin' && $trip->driver_id !== $request->user()->id) {
+        if ($request->user()->role !== Role::ADMIN && $trip->driver_id !== $request->user()->id) {
             abort(403, 'Trip ini bukan milik Anda.');
         }
 
@@ -271,7 +276,7 @@ class TripController extends Controller
     )]
     public function update(UpdateTripRequest $request, Trip $trip)
     {
-        if ($trip->status !== 'draft') {
+        if ($trip->status !== StatusTrips::DRAFT) {
             return $this->error('Trip hanya bisa diubah selagi masih berstatus draft.', 422);
         }
 
@@ -354,11 +359,11 @@ class TripController extends Controller
     )]
     public function recommend(Request $request, Trip $trip)
     {
-        if ($request->user()->role !== 'admin') {
+        if ($request->user()->role !== Role::ADMIN) {
             abort(403, 'Hanya admin yang bisa membuat rekomendasi trip.');
         }
 
-        if ($trip->status !== 'draft') {
+        if ($trip->status !== StatusTrips::DRAFT) {
             return $this->error('Rekomendasi hanya bisa dibuat selagi trip berstatus draft.', 422);
         }
 
@@ -492,7 +497,7 @@ class TripController extends Controller
     )]
     public function assign(AssignTripRequest $request, Trip $trip)
     {
-        if ($trip->status !== 'draft') {
+        if ($trip->status !== StatusTrips::DRAFT) {
             return $this->error('Trip hanya bisa di-assign selagi masih berstatus draft.', 422);
         }
 
@@ -507,13 +512,13 @@ class TripController extends Controller
             'driver_id' => $request->input('driver_id'),
             'chosen_departure_at' => $request->input('chosen_departure_at'),
             'estimated_co2_kg' => $estimatedCo2Kg,
-            'status' => 'assigned',
+            'status' => StatusTrips::ASSIGNED,
         ]);
 
         Notification::create([
             'user_id' => $trip->driver_id,
             'trip_id' => $trip->id,
-            'type' => 'trip_assigned',
+            'type' => NotificationType::TRIP_ASSIGNED,
             'message' => "Anda ditugaskan pada trip #{$trip->id}, keberangkatan ".Carbon::parse($trip->chosen_departure_at)->format('Y-m-d H:i'),
         ]);
 
@@ -681,7 +686,7 @@ class TripController extends Controller
             return $this->error('ship_ref_id hanya berlaku untuk trip lintas negara.', 422);
         }
 
-        if (in_array($trip->status, ['completed', 'cancelled'], true)) {
+        if (in_array($trip->status, [StatusTrips::COMPLETED, StatusTrips::CANCELLED], true)) {
             return $this->error('Trip sudah selesai atau dibatalkan, ship_ref_id tidak bisa diubah.', 422);
         }
 
@@ -720,7 +725,7 @@ class TripController extends Controller
                             new OA\Property(property: 'lat', type: 'number', format: 'float'),
                             new OA\Property(property: 'lng', type: 'number', format: 'float'),
                             new OA\Property(property: 'recorded_at', type: 'string', format: 'date-time'),
-                            new OA\Property(property: 'source', type: 'string', enum: ['gps', 'api'], description: 'gps = last trip_checkpoints GPS ping, api = live VesselAPI vessel position.'),
+                            new OA\Property(property: 'source', type: 'string', enum: [Source::GPS, Source::API], description: 'gps = last trip_checkpoints GPS ping, api = live VesselAPI vessel position.'),
                         ]),
                     ]
                 )
@@ -732,11 +737,11 @@ class TripController extends Controller
     )]
     public function position(Request $request, Trip $trip)
     {
-        if ($request->user()->role !== 'admin' && $trip->driver_id !== $request->user()->id) {
+        if ($request->user()->role !== Role::ADMIN && $trip->driver_id !== $request->user()->id) {
             abort(403, 'Trip ini bukan milik Anda.');
         }
 
-        if ($trip->status === 'on_ship' && $trip->ship_ref_id) {
+        if ($trip->status === StatusTrips::ON_SHIP && $trip->ship_ref_id) {
             $position = $this->fetchVesselPosition($trip->ship_ref_id);
 
             if ($position) {
@@ -757,8 +762,8 @@ class TripController extends Controller
         return $this->success([
             'lat' => (float) $checkpoint->latitude,
             'lng' => (float) $checkpoint->longitude,
-            'recorded_at' => $checkpoint->recorded_at->toIso8601String(),
-            'source' => 'gps',
+            'recorded_at' => $checkpoint->recorded_at->toISOString(),
+            'source' => Source::GPS,
         ]);
     }
 
@@ -795,22 +800,21 @@ class TripController extends Controller
             'lat' => (float) $position['latitude'],
             'lng' => (float) $position['longitude'],
             'recorded_at' => $position['timestamp'],
-            'source' => 'api',
+            'source' => Source::API,
         ];
     }
 
     #[OA\Get(
         path: '/trips/{id}/ship-status',
-        summary: 'Poll for the ship\'s arrival at the destination port',
-        description: 'Admin can view any trip. Driver can only view a trip assigned to them. Meaningful only '
-            .'while status=on_ship — polls VesselAPI Port Events (PRD Bagian 8.2) filtered by '
-            .'ship_destination_port_id\'s unlocode, checking for an arrival event matching ship_ref_id. On a '
-            .'match, updates the trip to at_destination_port, records a ship_arrived checkpoint, and notifies '
-            .'the driver — tracking ends there (Bagian 5.3: Company A does not track partner trucks on the '
-            .'other side of the border). If Port Events has no matching data, falls back to Haversine distance '
-            .'(Bagian 18) between the ship\'s last known live position and the destination port\'s coordinates, '
-            .'considered arrived within 500m. Intended to be polled every 15-30s like /position; any status '
-            .'other than on_ship is a no-op that just reports the trip\'s current status.',
+        summary: 'Poll VesselAPI for cross-border cargo arrival and auto-transition to at_destination_port',
+        description: 'Admin can poll any trip. Driver can only poll their own assigned trip. Intended to be '
+            .'polled periodically by the frontend once a cross-border trip has departed Batam (PRD Bagian 15 '
+            .'Dashboard Logistik: "Status kapal: realtime via VesselAPI"). No-ops unless status=on_ship, '
+            .'ship_ref_id is set, and ship_destination_port_id is set. Checks VesselAPI Port Events for an '
+            .'arrival event at the destination port (PRD Bagian 8.2), with Haversine proximity fallback to '
+            .'within 500m of the destination port (PRD Bagian 8.2/18). On first detected arrival: transitions '
+            .'status to at_destination_port, sets actual_arrival_at, records a ship_arrived checkpoint, fires '
+            .'a notification to the driver, and returns arrived=true with the detection source.',
         security: [['sanctum' => []]],
         tags: ['Trips'],
         parameters: [
@@ -825,8 +829,8 @@ class TripController extends Controller
                         new OA\Property(property: 'success', type: 'boolean', example: true),
                         new OA\Property(property: 'message', type: 'string', example: 'OK'),
                         new OA\Property(property: 'data', type: 'object', properties: [
-                            new OA\Property(property: 'status', type: 'string', example: 'on_ship'),
-                            new OA\Property(property: 'arrived', type: 'boolean', description: 'True only on the call that just detected arrival.'),
+                            new OA\Property(property: 'status', type: 'string', description: 'Current trip status (at_destination_port if arrived).'),
+                            new OA\Property(property: 'arrived', type: 'boolean', description: 'True if arrival was just detected or the trip has already arrived at the destination port.'),
                             new OA\Property(property: 'source', type: 'string', nullable: true, enum: ['port_events', 'haversine_fallback'], description: 'How arrival was detected; null if not arrived (yet).'),
                         ]),
                     ]
@@ -839,11 +843,11 @@ class TripController extends Controller
     )]
     public function shipStatus(Request $request, Trip $trip)
     {
-        if ($request->user()->role !== 'admin' && $trip->driver_id !== $request->user()->id) {
+        if ($request->user()->role !== Role::ADMIN && $trip->driver_id !== $request->user()->id) {
             abort(403, 'Trip ini bukan milik Anda.');
         }
 
-        if ($trip->status !== 'on_ship' || ! $trip->ship_ref_id || ! $trip->ship_destination_port_id) {
+        if ($trip->status !== StatusTrips::ON_SHIP || ! $trip->ship_ref_id || ! $trip->ship_destination_port_id) {
             return $this->success(['status' => $trip->status, 'arrived' => false, 'source' => null]);
         }
 
@@ -920,20 +924,20 @@ class TripController extends Controller
     protected function markShipArrived(Trip $trip, string $source): void
     {
         $trip->update([
-            'status' => 'at_destination_port',
+            'status' => StatusTrips::AT_DESTINATION_PORT,
             'actual_arrival_at' => now(),
         ]);
 
         $trip->checkpoints()->create([
-            'event_type' => 'ship_arrived',
-            'source' => 'api',
+            'event_type' => EventType::SHIP_ARRIVED,
+            'source' => Source::API,
             'recorded_at' => now(),
         ]);
 
         Notification::create([
             'user_id' => $trip->driver_id,
             'trip_id' => $trip->id,
-            'type' => 'ship_arrived',
+            'type' => NotificationType::SHIP_ARRIVED,
             'message' => "Kapal untuk trip #{$trip->id} telah tiba di pelabuhan tujuan (via {$source}).",
         ]);
     }

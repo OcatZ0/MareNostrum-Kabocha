@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Context\EventType;
+use App\Context\NotificationType;
+use App\Context\Role;
+use App\Context\Source;
+use App\Context\StatusTrips;
 use App\Http\Requests\StoreTripCheckpointRequest;
 use App\Http\Resources\TripCheckpointResource;
 use App\Models\Notification;
@@ -47,7 +52,7 @@ class TripCheckpointController extends Controller
             content: new OA\JsonContent(
                 required: ['event_type', 'latitude', 'longitude'],
                 properties: [
-                    new OA\Property(property: 'event_type', type: 'string', enum: ['departed', 'gps_ping', 'arrived_at_destination', 'arrived_at_port', 'arrived_final', 'truck_returned']),
+                    new OA\Property(property: 'event_type', type: 'string', enum: [EventType::DEPARTED, EventType::GPS_PING, EventType::ARRIVED_AT_DESTINATION, EventType::ARRIVED_AT_PORT, EventType::ARRIVED_FINAL, EventType::TRUCK_RETURNED]),
                     new OA\Property(property: 'latitude', type: 'number', format: 'float'),
                     new OA\Property(property: 'longitude', type: 'number', format: 'float'),
                 ]
@@ -88,8 +93,8 @@ class TripCheckpointController extends Controller
         $longitude = (float) $request->input('longitude');
 
         return match ($request->input('event_type')) {
-            'gps_ping' => $this->recordGpsPing($trip, $latitude, $longitude),
-            'departed' => $this->recordDeparture($trip, $latitude, $longitude),
+            EventType::GPS_PING => $this->recordGpsPing($trip, $latitude, $longitude),
+            EventType::DEPARTED => $this->recordDeparture($trip, $latitude, $longitude),
             default => $this->recordArrival($trip, $request->input('event_type'), $latitude, $longitude),
         };
     }
@@ -124,7 +129,7 @@ class TripCheckpointController extends Controller
     )]
     public function index(Request $request, Trip $trip)
     {
-        if ($request->user()->role !== 'admin' && $trip->driver_id !== $request->user()->id) {
+        if ($request->user()->role !== Role::ADMIN && $trip->driver_id !== $request->user()->id) {
             abort(403, 'Trip ini bukan milik Anda.');
         }
 
@@ -140,16 +145,16 @@ class TripCheckpointController extends Controller
      */
     protected function recordGpsPing(Trip $trip, float $latitude, float $longitude)
     {
-        if (! in_array($trip->status, ['in_transit_origin', 'in_transit_destination'], true)) {
+        if (! in_array($trip->status, [StatusTrips::IN_TRANSIT_ORIGIN, StatusTrips::IN_TRANSIT_DESTINATION], true)) {
             return $this->error('Trip tidak sedang dalam perjalanan.', 422);
         }
 
         TripCheckpoint::create([
             'trip_id' => $trip->id,
-            'event_type' => 'gps_ping',
+            'event_type' => EventType::GPS_PING,
             'latitude' => $latitude,
             'longitude' => $longitude,
-            'source' => 'gps',
+            'source' => Source::GPS,
             'recorded_at' => now(),
         ]);
 
@@ -160,14 +165,14 @@ class TripCheckpointController extends Controller
     {
         $trip->loadMissing(['originCompany', 'destinationCompany']);
 
-        if ($trip->status === 'assigned') {
+        if ($trip->status === StatusTrips::ASSIGNED) {
             // Only the very first departure sets actual_departure_at, the return leg's
             // departure below doesn't touch it, that column represents the whole trip's
             // start for historicalDelayPenalty() (TripController), not a per-leg value.
-            $trip->update(['status' => 'in_transit_origin', 'actual_departure_at' => now()]);
-        } elseif ($trip->status === 'arrived' && $this->needsReturnLeg($trip)) {
-            $trip->update(['status' => 'in_transit_destination']);
-        } elseif ($trip->status === 'at_origin_port') {
+            $trip->update(['status' => StatusTrips::IN_TRANSIT_ORIGIN, 'actual_departure_at' => now()]);
+        } elseif ($trip->status === StatusTrips::ARRIVED && $this->needsReturnLeg($trip)) {
+            $trip->update(['status' => StatusTrips::IN_TRANSIT_DESTINATION]);
+        } elseif ($trip->status === StatusTrips::AT_ORIGIN_PORT) {
             // Cross-border truck starting its return leg. Deliberately doesn't touch
             // `status`, that field tracks the ship/cargo (on_ship/at_destination_port/
             // completed via the future ship-status polling), not the truck, so it stays
@@ -178,10 +183,10 @@ class TripCheckpointController extends Controller
 
         $checkpoint = TripCheckpoint::create([
             'trip_id' => $trip->id,
-            'event_type' => 'departed',
+            'event_type' => EventType::DEPARTED,
             'latitude' => $latitude,
             'longitude' => $longitude,
-            'source' => 'gps',
+            'source' => Source::GPS,
             'recorded_at' => now(),
         ]);
 
@@ -200,27 +205,27 @@ class TripCheckpointController extends Controller
         // and whether it's cross-border (PRD Bagian 5.1: destination_port_id is the truck's
         // own-country port, never the ship's final one, so it's still the right target here).
         [$expectedEventType, $target, $onSuccess] = match (true) {
-            $trip->status === 'in_transit_origin' && $trip->ship_destination_port_id !== null => [
-                'arrived_at_port',
+            $trip->status === StatusTrips::IN_TRANSIT_ORIGIN && $trip->ship_destination_port_id !== null => [
+                EventType::ARRIVED_AT_PORT,
                 $this->resolvePoint($trip, 'destination'),
-                fn () => ['status' => 'at_origin_port'],
+                fn () => ['status' => StatusTrips::AT_ORIGIN_PORT],
             ],
-            $trip->status === 'in_transit_origin' => [
-                'arrived_at_destination',
+            $trip->status === StatusTrips::IN_TRANSIT_ORIGIN => [
+                EventType::ARRIVED_AT_DESTINATION,
                 $this->resolvePoint($trip, 'destination'),
                 fn () => $this->needsReturnLeg($trip)
-                    ? ['status' => 'arrived']
-                    : ['status' => 'completed', 'actual_arrival_at' => now()],
+                    ? ['status' => StatusTrips::ARRIVED]
+                    : ['status' => StatusTrips::COMPLETED, 'actual_arrival_at' => now()],
             ],
-            $trip->status === 'in_transit_destination' => [
-                'arrived_final',
+            $trip->status === StatusTrips::IN_TRANSIT_DESTINATION => [
+                EventType::ARRIVED_FINAL,
                 $this->resolvePoint($trip, 'origin'),
-                fn () => ['status' => 'completed', 'actual_arrival_at' => now()],
+                fn () => ['status' => StatusTrips::COMPLETED, 'actual_arrival_at' => now()],
             ],
             // Cross-border truck home again. Sets truck_returned_at only, not `status`
             // or actual_arrival_at, those belong to the ship's own eventual completion.
-            $trip->status === 'at_origin_port' => [
-                'truck_returned',
+            $trip->status === StatusTrips::AT_ORIGIN_PORT => [
+                EventType::TRUCK_RETURNED,
                 $this->resolvePoint($trip, 'origin'),
                 fn () => ['truck_returned_at' => now()],
             ],
@@ -241,7 +246,7 @@ class TripCheckpointController extends Controller
             Notification::create([
                 'user_id' => $trip->created_by,
                 'trip_id' => $trip->id,
-                'type' => 'location_validation_failed',
+                'type' => NotificationType::LOCATION_VALIDATION_FAILED,
                 'message' => "Trip #{$trip->id}: validasi lokasi gagal (jarak {$distanceMeters}m, radius maksimum ".self::ARRIVAL_RADIUS_METERS.'m).',
             ]);
 
@@ -256,22 +261,22 @@ class TripCheckpointController extends Controller
             'event_type' => $eventType,
             'latitude' => $latitude,
             'longitude' => $longitude,
-            'source' => 'gps',
+            'source' => Source::GPS,
             'recorded_at' => now(),
         ]);
 
         Notification::create([
             'user_id' => $trip->created_by,
             'trip_id' => $trip->id,
-            'type' => 'arrived_at_point',
+            'type' => NotificationType::ARRIVED_AT_POINT,
             'message' => "Trip #{$trip->id} tiba di titik {$eventType}.",
         ]);
 
-        if (($updates['status'] ?? null) === 'completed') {
+        if (($updates['status'] ?? null) === StatusTrips::COMPLETED) {
             Notification::create([
                 'user_id' => $trip->created_by,
                 'trip_id' => $trip->id,
-                'type' => 'trip_completed',
+                'type' => NotificationType::TRIP_COMPLETED,
                 'message' => "Trip #{$trip->id} telah selesai.",
             ]);
         }

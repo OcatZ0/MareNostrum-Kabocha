@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Context\FuelType;
+use App\Context\Status;
 use App\Http\Requests\StoreTruckRequest;
 use App\Http\Requests\UpdateTruckRequest;
 use App\Http\Resources\TruckResource;
@@ -22,8 +24,8 @@ class TruckController extends Controller
         summary: 'Get paginated list of trucks',
         tags: ['Trucks'],
         parameters: [
-            new OA\Parameter(name: 'status', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['active', 'maintenance'])),
-            new OA\Parameter(name: 'fuel_type', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['diesel', 'petrol', 'electric'])),
+            new OA\Parameter(name: 'status', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: [Status::ACTIVE, Status::MAINTENANCE])),
+            new OA\Parameter(name: 'fuel_type', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: [FuelType::DIESEL, FuelType::PETROL, FuelType::GASOLINE, FuelType::ELECTRIC])),
             new OA\Parameter(name: 'search', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 15)),
         ],
