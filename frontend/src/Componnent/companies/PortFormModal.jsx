@@ -94,10 +94,11 @@ const PortFormModal = ({ mode, port, onClose, onSaved }) => {
     };
 
     try {
-      if (isEdit) { await updatePort(port.id, payload); }
-      else        { await createPort(payload); }
+      let saved;
+      if (isEdit) { const r = await updatePort(port.id, payload); saved = r.data?.data; }
+      else        { const r = await createPort(payload);           saved = r.data?.data; }
       setSuccess(true);
-      setTimeout(() => onSaved(), 600);
+      setTimeout(() => onSaved(saved ?? payload), 600);
     } catch (err) {
       const d = err?.response?.data;
       if (d?.errors) {

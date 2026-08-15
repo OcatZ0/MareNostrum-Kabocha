@@ -265,10 +265,14 @@ const TripsPage = () => {
                         <td className="px-4 py-3">
                           <button
                             onClick={() => setSelectedTrip(trip)}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition hover:shadow-lg hover:scale-105 active:scale-95"
+                            style={{
+                              background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})`,
+                            }}
                             title="View details"
                           >
-                            <Eye size={15} />
+                            <Eye size={14} />
+                            <span>Details</span>
                           </button>
                         </td>
                       </tr>
@@ -293,13 +297,12 @@ const TripsPage = () => {
                 const s      = statusStyle(trip.status);
                 const isCross = !!trip.ship_destination_port;
                 return (
-                  <button
+                  <div
                     key={trip.id}
-                    onClick={() => setSelectedTrip(trip)}
-                    className="w-full text-left px-4 py-4 hover:bg-slate-50 transition"
+                    className="px-4 py-4 hover:bg-slate-50 transition"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 mb-1">
                           {isCross
                             ? <Ship  size={12} color={COLORS.teal} />
@@ -310,14 +313,27 @@ const TripsPage = () => {
                         <p className="text-xs text-slate-400 truncate mt-0.5">→ {to}</p>
                         <p className="text-xs text-slate-400 mt-1">{fmt(trip.chosen_departure_at)}</p>
                       </div>
-                      <span
-                        className="shrink-0 text-[11px] font-semibold px-2 py-1 rounded-full"
-                        style={{ backgroundColor: s.bg, color: s.color }}
-                      >
-                        {s.label}
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className="text-[11px] font-semibold px-2 py-1 rounded-full"
+                          style={{ backgroundColor: s.bg, color: s.color }}
+                        >
+                          {s.label}
+                        </span>
+                        <button
+                          onClick={() => setSelectedTrip(trip)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white transition hover:shadow-md hover:scale-105 active:scale-95 whitespace-nowrap"
+                          style={{
+                            background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})`,
+                          }}
+                          title="View details"
+                        >
+                          <Eye size={13} />
+                          <span>Details</span>
+                        </button>
+                      </div>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>

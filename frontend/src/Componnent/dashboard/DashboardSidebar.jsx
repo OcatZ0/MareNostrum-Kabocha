@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Route, Truck, Users,
-  Building2, Bell, Leaf, Settings, Anchor, X,
+  Building2, Bell, Settings, Anchor, X,
 } from 'lucide-react';
 import { COLORS } from './dashboardTheme';
 import { getNotifications } from '../../api/notificationsApi';
@@ -14,7 +14,6 @@ const NAV_ITEMS = [
   { label: 'Drivers',         icon: Users,           to: '/app/drivers' },
   { label: 'Companies & Ports', icon: Building2,     to: '/app/companies-ports' },
   { label: 'Notifications',   icon: Bell,            to: '/app/notifications', badgeKey: 'unread' },
-  { label: 'Emissions',       icon: Leaf,            to: '#' },
   { label: 'Settings',        icon: Settings,        to: '#' },
 ];
 
