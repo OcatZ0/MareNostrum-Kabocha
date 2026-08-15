@@ -3,6 +3,7 @@
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmissionFactorController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PortController;
@@ -18,6 +19,9 @@ use Illuminate\Support\Facades\Route;
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware(BypassAuthForTesting::class)->group(function () {
+    // Dedicated Dashboard Endpoint
+    Route::get('/dashboard', [DashboardController::class, 'index']);
+
     // Auth & User Profile
     Route::get('/user', function (Request $request) {
         return $request->user();
