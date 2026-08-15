@@ -105,7 +105,7 @@ const DashboardSidebar = ({ open = false, onClose = () => {} }) => {
           bg-white border-r border-slate-100
           flex flex-col
           transform transition-transform duration-200 ease-out
-          lg:static lg:translate-x-0
+          lg:translate-x-0
           ${open ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
