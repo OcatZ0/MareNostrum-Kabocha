@@ -20,9 +20,9 @@ class BypassAuthForTesting
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->bearerToken()
+        $user = $request->user() ?? ($request->bearerToken()
             ? auth('sanctum')->user()
-            : null;
+            : null);
 
         $request->setUserResolver(fn () => $user ?? User::where('username', 'admin')->first());
 
