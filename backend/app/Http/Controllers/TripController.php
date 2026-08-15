@@ -8,9 +8,11 @@ use App\Http\Requests\SimulateTripRequest;
 use App\Http\Requests\StoreTripRequest;
 use App\Http\Requests\UpdateTripRequest;
 use App\Http\Resources\TripResource;
+use App\Models\EmissionFactor;
 use App\Models\Notification;
 use App\Models\Port;
 use App\Models\Trip;
+use App\Models\Truck;
 use App\Traits\ApiResponse;
 use App\Traits\ResolvesTripPoints;
 use Carbon\Carbon;
@@ -494,10 +496,17 @@ class TripController extends Controller
             return $this->error('Trip hanya bisa di-assign selagi masih berstatus draft.', 422);
         }
 
+        $truck = Truck::find($request->input('truck_id'));
+        $estimatedCo2Kg = null;
+        if ($truck && $trip->distance_km) {
+            $estimatedCo2Kg = EmissionFactor::calculateCo2($truck, (float) $trip->distance_km);
+        }
+
         $trip->update([
             'truck_id' => $request->input('truck_id'),
             'driver_id' => $request->input('driver_id'),
             'chosen_departure_at' => $request->input('chosen_departure_at'),
+            'estimated_co2_kg' => $estimatedCo2Kg,
             'status' => 'assigned',
         ]);
 

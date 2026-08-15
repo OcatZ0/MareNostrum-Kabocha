@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreTruckRequest;
 use App\Http\Requests\UpdateTruckRequest;
 use App\Http\Resources\TruckResource;
+use App\Models\EmissionFactor;
 use App\Models\Trip;
 use App\Models\Truck;
 use App\Traits\ApiResponse;
@@ -165,5 +166,44 @@ class TruckController extends Controller
             null,
             'Truk berhasil dihapus.'
         );
+    }
+
+    #[OA\Get(
+        path: '/trucks/{id}/emissions',
+        summary: 'Get total CO2 emissions and trip breakdown for a truck',
+        tags: ['Trucks'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Truck emissions calculated successfully.'),
+            new OA\Response(response: 404, description: 'Truck not found.'),
+        ]
+    )]
+    public function emissions(Truck $truck): JsonResponse
+    {
+        $tripsQuery = Trip::where('truck_id', $truck->id);
+
+        $totalTrips = (clone $tripsQuery)->count();
+        $totalDistanceKm = (float) (clone $tripsQuery)->sum('distance_km');
+        $totalCo2Kg = (float) (clone $tripsQuery)->sum('estimated_co2_kg');
+        $emissionFactorKgPerKm = EmissionFactor::getFactorForTruck($truck);
+
+        $trips = (clone $tripsQuery)
+            ->latest('id')
+            ->select(['id', 'status', 'distance_km', 'estimated_co2_kg', 'chosen_departure_at', 'actual_departure_at', 'actual_arrival_at', 'created_at'])
+            ->get();
+
+        return $this->success([
+            'truck' => new TruckResource($truck),
+            'emission_factor_kg_per_km' => $emissionFactorKgPerKm,
+            'summary' => [
+                'total_trips' => $totalTrips,
+                'total_distance_km' => round($totalDistanceKm, 2),
+                'total_co2_kg' => round($totalCo2Kg, 2),
+                'average_co2_per_trip_kg' => $totalTrips > 0 ? round($totalCo2Kg / $totalTrips, 2) : 0,
+            ],
+            'trips' => $trips,
+        ], 'Data emisi CO2 truk berhasil diambil.');
     }
 }

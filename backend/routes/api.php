@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\EmissionFactorController;
 use App\Http\Controllers\PortController;
 use App\Http\Controllers\TripCheckpointController;
 use App\Http\Controllers\TripController;
@@ -25,7 +26,11 @@ Route::middleware(BypassAuthForTesting::class)->group(function () {
     Route::apiResource('ports', PortController::class);
 
     // Trucks
+    Route::get('/trucks/{truck}/emissions', [TruckController::class, 'emissions']);
     Route::apiResource('trucks', TruckController::class);
+
+    // Emission Factors
+    Route::apiResource('emission-factors', EmissionFactorController::class);
 
     // Trips
     Route::get('/trips', [TripController::class, 'index']);

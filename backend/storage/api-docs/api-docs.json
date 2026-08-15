@@ -241,6 +241,163 @@
                 }
             }
         },
+        "/emission-factors": {
+            "get": {
+                "tags": [
+                    "Emission Factors"
+                ],
+                "summary": "Get list of emission factors",
+                "operationId": "b69ad1c9c7bc89e4425455c10b494b66",
+                "parameters": [
+                    {
+                        "name": "truck_category",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of emission factors retrieved successfully."
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Emission Factors"
+                ],
+                "summary": "Create a new emission factor reference",
+                "operationId": "7308f7ae133aafc19c41ac4ffd5f6d0c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "truck_category",
+                                    "age_min_year",
+                                    "factor_kg_per_km"
+                                ],
+                                "properties": {
+                                    "truck_category": {
+                                        "type": "string",
+                                        "example": "medium"
+                                    },
+                                    "age_min_year": {
+                                        "type": "integer",
+                                        "example": 0
+                                    },
+                                    "age_max_year": {
+                                        "type": "integer",
+                                        "example": 5,
+                                        "nullable": true
+                                    },
+                                    "factor_kg_per_km": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 0.55
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Emission factor created successfully."
+                    },
+                    "422": {
+                        "description": "Validation error."
+                    }
+                }
+            }
+        },
+        "/emission-factors/{id}": {
+            "get": {
+                "tags": [
+                    "Emission Factors"
+                ],
+                "summary": "Get single emission factor details",
+                "operationId": "b4fcf64396dbbd86c49fe9dde20a63f0",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Emission factor details retrieved successfully."
+                    },
+                    "404": {
+                        "description": "Emission factor not found."
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Emission Factors"
+                ],
+                "summary": "Update existing emission factor details",
+                "operationId": "c60a8f4746f57d27ce011c048fc3381b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Emission factor updated successfully."
+                    },
+                    "422": {
+                        "description": "Validation error."
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Emission Factors"
+                ],
+                "summary": "Delete an emission factor",
+                "operationId": "ea29070041d0c89f124680ded47f1d00",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Emission factor deleted successfully."
+                    }
+                }
+            }
+        },
         "/ports": {
             "get": {
                 "tags": [
@@ -1743,6 +1900,33 @@
                     }
                 }
             }
+        },
+        "/trucks/{id}/emissions": {
+            "get": {
+                "tags": [
+                    "Trucks"
+                ],
+                "summary": "Get total CO2 emissions and trip breakdown for a truck",
+                "operationId": "2f4cc2623e39949d63ab4f59b4f98326",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Truck emissions calculated successfully."
+                    },
+                    "404": {
+                        "description": "Truck not found."
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -2043,6 +2227,10 @@
         {
             "name": "Trucks",
             "description": "Truck fleet management"
+        },
+        {
+            "name": "Emission Factors",
+            "description": "CO2 emission factors reference data"
         },
         {
             "name": "Trips",
