@@ -27,7 +27,7 @@ const CreateTruckModal = ({ onClose, onCreated }) => {
       await createTruck({ ...form, year: Number(form.year) });
       onCreated();
     } catch (err) {
-      setError(err?.response?.data?.message ?? 'Gagal menyimpan truk.');
+      setError(err?.response?.data?.message ?? 'Failed to save truck.');
     } finally {
       setSubmitting(false);
     }
@@ -37,7 +37,7 @@ const CreateTruckModal = ({ onClose, onCreated }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(11,32,56,0.45)' }} onClick={onClose}>
       <div className="bg-white rounded-xl w-full max-w-md max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h2 className="text-base font-semibold" style={{ color: COLORS.navy }}>Buat Truk</h2>
+          <h2 className="text-base font-semibold" style={{ color: COLORS.navy }}>Create Truck</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition">
             <X size={18} />
           </button>
@@ -49,7 +49,7 @@ const CreateTruckModal = ({ onClose, onCreated }) => {
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Plat Nomor</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Plate Number</label>
             <input
               required
               value={form.plate_number}
@@ -83,7 +83,7 @@ const CreateTruckModal = ({ onClose, onCreated }) => {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Tahun Pembuatan</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Manufacture Year</label>
               <input
                 required
                 type="number"
@@ -93,7 +93,7 @@ const CreateTruckModal = ({ onClose, onCreated }) => {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Bahan Bakar</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Fuel Type</label>
               <select
                 value={form.fuel_type}
                 onChange={set('fuel_type')}
@@ -113,7 +113,7 @@ const CreateTruckModal = ({ onClose, onCreated }) => {
               onChange={set('status')}
               className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400 transition bg-white"
             >
-              <option value="active">Aktif</option>
+              <option value="active">Active</option>
               <option value="maintenance">Maintenance</option>
             </select>
           </div>
@@ -124,7 +124,7 @@ const CreateTruckModal = ({ onClose, onCreated }) => {
               onClick={onClose}
               className="px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
             >
-              Batal
+              Cancel
             </button>
             <button
               type="submit"
@@ -132,7 +132,7 @@ const CreateTruckModal = ({ onClose, onCreated }) => {
               className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50"
               style={{ background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})` }}
             >
-              {submitting ? 'Menyimpan…' : 'Simpan Truk'}
+              {submitting ? 'Saving…' : 'Save Truck'}
             </button>
           </div>
         </form>

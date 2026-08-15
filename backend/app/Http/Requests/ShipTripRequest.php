@@ -30,7 +30,7 @@ class ShipTripRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'ship_ref_id.regex' => 'ship_ref_id harus berupa MMSI (9 digit) atau IMO (7 digit, boleh diawali "IMO").',
+            'ship_ref_id.regex' => 'ship_ref_id must be MMSI (9 digits) or IMO (7 digits, optionally prefixed with "IMO").',
         ];
     }
 }

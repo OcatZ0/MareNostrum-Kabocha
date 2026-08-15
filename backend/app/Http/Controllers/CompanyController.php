@@ -51,7 +51,7 @@ class CompanyController extends Controller
 
         return $this->success(
             CompanyResource::collection($companies),
-            'Daftar perusahaan berhasil diambil.'
+            'List of companies retrieved successfully.'
         );
     }
 
@@ -84,7 +84,7 @@ class CompanyController extends Controller
 
         return $this->success(
             new CompanyResource($company),
-            'Perusahaan berhasil ditambahkan.',
+            'Company created successfully.',
             201
         );
     }
@@ -105,7 +105,7 @@ class CompanyController extends Controller
     {
         return $this->success(
             new CompanyResource($company),
-            'Detail perusahaan berhasil diambil.'
+            'Company details retrieved successfully.'
         );
     }
 
@@ -140,7 +140,7 @@ class CompanyController extends Controller
 
         return $this->success(
             new CompanyResource($company),
-            'Data perusahaan berhasil diperbarui.'
+            'Company updated successfully.'
         );
     }
 
@@ -164,7 +164,7 @@ class CompanyController extends Controller
 
         if ($hasTrips) {
             return $this->error(
-                'Tidak dapat menghapus perusahaan yang masih terhubung dengan data trip.',
+                'Cannot delete company referenced in trips.',
                 422
             );
         }
@@ -173,7 +173,7 @@ class CompanyController extends Controller
 
         return $this->success(
             null,
-            'Perusahaan berhasil dihapus.'
+            'Company deleted successfully.'
         );
     }
 }

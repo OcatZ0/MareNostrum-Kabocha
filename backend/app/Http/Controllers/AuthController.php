@@ -36,7 +36,7 @@ class AuthController extends Controller
                 content: new OA\JsonContent(
                     properties: [
                         new OA\Property(property: 'success', type: 'boolean', example: true),
-                        new OA\Property(property: 'message', type: 'string', example: 'Login berhasil.'),
+                        new OA\Property(property: 'message', type: 'string', example: 'Login successful.'),
                         new OA\Property(
                             property: 'data',
                             properties: [
@@ -57,7 +57,7 @@ class AuthController extends Controller
         $user = User::where('username', $request->username)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
-            return $this->error('Kredensial login tidak valid. Silakan periksa kembali username dan password Anda.', 401);
+            return $this->error('Invalid login credentials. Please check your username and password.', 401);
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -65,7 +65,7 @@ class AuthController extends Controller
         return $this->success([
             'token' => $token,
             'user' => new UserResource($user),
-        ], 'Login berhasil.');
+        ], 'Login successful.');
     }
 
     #[OA\Post(
@@ -81,6 +81,6 @@ class AuthController extends Controller
     {
         $request->user()?->currentAccessToken()?->delete();
 
-        return $this->success(null, 'Logout berhasil.');
+        return $this->success(null, 'Logout successful.');
     }
 }

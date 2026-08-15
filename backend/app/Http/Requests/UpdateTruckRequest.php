@@ -32,10 +32,10 @@ class UpdateTruckRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'plate_number.unique' => 'Nomor plat ini sudah digunakan oleh truk lain.',
-            'fuel_type.in' => 'Tipe bahan bakar harus bernilai diesel, gasoline, atau electric.',
-            'status.in' => 'Status truk harus bernilai active atau maintenance.',
-            'year.min' => 'Tahun truk minimal 1990.',
+            'plate_number.unique' => 'This plate number is already used by another truck.',
+            'fuel_type.in' => 'Fuel type must be diesel, gasoline, or electric.',
+            'status.in' => 'Truck status must be active or maintenance.',
+            'year.min' => 'Truck year must be at least 1990.',
         ];
     }
 }

@@ -55,10 +55,10 @@ class StorePortRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'country.in' => 'Negara harus bernilai indonesia atau singapore.',
-            'unlocode.size' => 'UN/LOCODE harus persis 5 karakter (contoh: IDBTH, SGSIN).',
-            'latitude.between' => 'Koordinat latitude harus bernilai antara -90 dan 90.',
-            'longitude.between' => 'Koordinat longitude harus bernilai antara -180 dan 180.',
+            'country.in' => 'Country must be indonesia or singapore.',
+            'unlocode.size' => 'UN/LOCODE must be exactly 5 characters (e.g. IDBTH, SGSIN).',
+            'latitude.between' => 'Latitude coordinate must be between -90 and 90.',
+            'longitude.between' => 'Longitude coordinate must be between -180 and 180.',
         ];
     }
 }

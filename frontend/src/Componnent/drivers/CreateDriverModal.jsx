@@ -26,7 +26,7 @@ const CreateDriverModal = ({ onClose, onCreated }) => {
       await createUser(form);
       onCreated();
     } catch (err) {
-      setError(err?.response?.data?.message ?? 'Gagal menyimpan user.');
+      setError(err?.response?.data?.message ?? 'Failed to save user.');
     } finally {
       setSubmitting(false);
     }
@@ -36,7 +36,7 @@ const CreateDriverModal = ({ onClose, onCreated }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(11,32,56,0.45)' }} onClick={onClose}>
       <div className="bg-white rounded-xl w-full max-w-md max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h2 className="text-base font-semibold" style={{ color: COLORS.navy }}>Buat User</h2>
+          <h2 className="text-base font-semibold" style={{ color: COLORS.navy }}>Create User</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition">
             <X size={18} />
           </button>
@@ -48,12 +48,12 @@ const CreateDriverModal = ({ onClose, onCreated }) => {
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Lengkap</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Full Name</label>
             <input
               required
               value={form.name}
               onChange={set('name')}
-              placeholder="Budi Santoso"
+              placeholder="John Doe"
               className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400 transition"
             />
           </div>
@@ -64,17 +64,17 @@ const CreateDriverModal = ({ onClose, onCreated }) => {
               required
               value={form.username}
               onChange={set('username')}
-              placeholder="budi.santoso"
+              placeholder="john.doe"
               className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400 transition"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Telepon</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Phone</label>
             <input
               value={form.phone}
               onChange={set('phone')}
-              placeholder="0813-xxxx-xxxx"
+              placeholder="+62 812-xxxx-xxxx"
               className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-slate-400 transition"
             />
           </div>
@@ -110,7 +110,7 @@ const CreateDriverModal = ({ onClose, onCreated }) => {
               onClick={onClose}
               className="px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
             >
-              Batal
+              Cancel
             </button>
             <button
               type="submit"
@@ -118,7 +118,7 @@ const CreateDriverModal = ({ onClose, onCreated }) => {
               className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50"
               style={{ background: `linear-gradient(135deg, ${COLORS.teal}, ${COLORS.aqua})` }}
             >
-              {submitting ? 'Menyimpan…' : 'Simpan User'}
+              {submitting ? 'Saving…' : 'Save User'}
             </button>
           </div>
         </form>

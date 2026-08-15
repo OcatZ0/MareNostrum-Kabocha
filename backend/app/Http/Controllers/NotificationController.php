@@ -54,7 +54,7 @@ class NotificationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Daftar notifikasi berhasil diambil.',
+            'message' => 'List of notifications retrieved successfully.',
             'unread_count' => $unreadCount,
             'data' => NotificationResource::collection($notifications),
             'meta' => [
@@ -82,14 +82,14 @@ class NotificationController extends Controller
         $notification = Notification::find($id);
 
         if (!$notification) {
-            return $this->error('Notifikasi tidak ditemukan.', 404);
+            return $this->error('Notification not found.', 404);
         }
 
         $notification->update(['is_read' => true]);
 
         return $this->success(
             new NotificationResource($notification),
-            'Notifikasi berhasil ditandai sebagai dibaca.'
+            'Notification marked as read successfully.'
         );
     }
 
@@ -118,7 +118,7 @@ class NotificationController extends Controller
 
         return $this->success(
             ['updated_count' => $count],
-            "Sebanyak {$count} notifikasi berhasil ditandai sebagai dibaca."
+            "{$count} notifications marked as read successfully."
         );
     }
 }

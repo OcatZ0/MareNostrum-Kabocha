@@ -92,17 +92,49 @@ const DashboardSidebar = ({ open = false, onClose = () => {} }) => {
       <aside
         className={`
           fixed inset-y-0 left-0 z-50 w-64
-          bg-white border-r-2 border-slate-200
+          border-r-2 border-slate-200
           flex flex-col
           transform transition-transform duration-200 ease-out
           lg:translate-x-0
           ${open ? 'translate-x-0' : '-translate-x-full'}
         `}
+        style={{
+          backgroundColor: '#ffffff',
+          backgroundImage: `
+            radial-gradient(circle at top left, ${COLORS.aqua}1A, transparent 45%),
+            linear-gradient(180deg, ${COLORS.navy}08 0%, transparent 35%)
+          `,
+        }}
       >
+        {/* Decorative maritime wave pattern — purely visual, sits behind content */}
+        <svg
+          className="absolute inset-x-0 bottom-0 w-full pointer-events-none select-none"
+          style={{ height: '180px', zIndex: 0 }}
+          viewBox="0 0 256 180"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M0,90 C40,60 80,120 128,90 C176,60 216,120 256,90 L256,180 L0,180 Z"
+            fill={COLORS.aqua}
+            opacity="0.07"
+          />
+          <path
+            d="M0,120 C40,95 80,145 128,120 C176,95 216,145 256,120 L256,180 L0,180 Z"
+            fill={COLORS.teal}
+            opacity="0.09"
+          />
+          <path
+            d="M0,150 C40,130 80,165 128,150 C176,130 216,165 256,150 L256,180 L0,180 Z"
+            fill={COLORS.navy}
+            opacity="0.05"
+          />
+        </svg>
+
         {/* =====================================================
             BRAND / LOGO
         ====================================================== */}
-        <div className="flex items-center justify-between px-5 py-5">
+        <div className="relative z-10 flex items-center justify-between px-5 py-5">
           <div className="flex items-center gap-2.5">
             
             {/* Logo image */}
@@ -145,7 +177,7 @@ const DashboardSidebar = ({ open = false, onClose = () => {} }) => {
         {/* =====================================================
             NAVIGATION
         ====================================================== */}
-        <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
+        <nav className="relative z-10 flex-1 px-3 py-3 space-y-1 overflow-y-auto">
           
           {/* Menu title */}
           <p className="px-3 text-[11px] font-medium tracking-wide text-slate-400 uppercase mb-2">
@@ -230,7 +262,7 @@ const DashboardSidebar = ({ open = false, onClose = () => {} }) => {
         {/* =====================================================
             SIDEBAR FOOTER
         ====================================================== */}
-        <div className="px-5 py-4 border-t-2 border-slate-200">
+        <div className="relative z-10 px-5 py-4 border-t-2 border-slate-200">
           <p className="text-[11px] text-slate-400 leading-relaxed">
             Batam ↔ Singapore cross-border logistics visibility.
           </p>

@@ -22,9 +22,9 @@ const FleetStatus = ({ trucks = [], loading = false }) => {
       </div>
 
       {loading && displayTrucks.length === 0 ? (
-        <div className="py-8 text-center text-xs text-slate-400">Memuat data armada...</div>
+        <div className="py-8 text-center text-xs text-slate-400">Loading fleet data...</div>
       ) : displayTrucks.length === 0 ? (
-        <div className="py-8 text-center text-xs text-slate-400">Belum ada armada truk.</div>
+        <div className="py-8 text-center text-xs text-slate-400">No fleet data found.</div>
       ) : (
         <ul className="divide-y-2 divide-slate-100">
           {displayTrucks.map((t, idx) => {
