@@ -1,23 +1,32 @@
 <?php
 
+use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\EmissionFactorController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PortController;
 use App\Http\Controllers\TripCheckpointController;
 use App\Http\Controllers\TripController;
 use App\Http\Controllers\TruckController;
+use App\Http\Controllers\UserController;
 use App\Http\Middleware\BypassAuthForTesting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-// TEMPORARY: auth:sanctum swapped for BypassAuthForTesting until POST /api/login
-// exists (PRD Bagian 14, Backend 1). Revert to 'auth:sanctum' once it's built —
-// see app/Http/Middleware/BypassAuthForTesting.php for details.
-
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware(BypassAuthForTesting::class);
+// Authentication
+Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware(BypassAuthForTesting::class)->group(function () {
+    // Auth & User Profile
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+    Route::post('/logout', [AuthController::class, 'logout']);
+
+    // Users & Drivers Management
+    Route::apiResource('users', UserController::class);
+
     // Companies
     Route::apiResource('companies', CompanyController::class);
 
@@ -25,7 +34,20 @@ Route::middleware(BypassAuthForTesting::class)->group(function () {
     Route::apiResource('ports', PortController::class);
 
     // Trucks
+    Route::get('/trucks/{truck}/emissions', [TruckController::class, 'emissions']);
     Route::apiResource('trucks', TruckController::class);
+
+    // Emission Factors
+    Route::apiResource('emission-factors', EmissionFactorController::class)->only(['index', 'show']);
+
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+
+    // Analytics
+    Route::get('/analytics/dashboard', [AnalyticsController::class, 'dashboard']);
+    Route::get('/analytics/trips', [AnalyticsController::class, 'trips']);
 
     // Trips
     Route::get('/trips', [TripController::class, 'index']);
