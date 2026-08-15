@@ -91,13 +91,54 @@ const TripDetailModal = ({ trip: initialTrip, onClose, onRefresh, onTripUpdated 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
+    <>
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(48px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: scale(0.95) translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+        .modal-backdrop {
+          animation: fadeIn 0.3s ease-out;
+        }
+        .modal-content {
+          animation: slideUp 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        @media (min-width: 640px) {
+          .modal-content {
+            animation: slideDown 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+          }
+        }
+        .tab-content {
+          animation: fadeIn 0.2s ease-out;
+        }
+      `}</style>
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm modal-backdrop" onClick={onClose} />
 
-      <div
-        className="relative z-10 w-full sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] flex flex-col bg-white sm:rounded-2xl shadow-2xl overflow-hidden rounded-t-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+        <div
+          className="relative z-10 w-full sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] flex flex-col bg-white sm:rounded-2xl shadow-2xl overflow-hidden rounded-t-2xl modal-content"
+          onClick={(e) => e.stopPropagation()}
+        >
         {/* ── header ── */}
         <div
           className="flex items-start justify-between px-5 py-4 text-white shrink-0"
@@ -161,7 +202,7 @@ const TripDetailModal = ({ trip: initialTrip, onClose, onRefresh, onTripUpdated 
         </div>
 
         {/* ── tab body ── */}
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-5 tab-content">
           {tab === 'info'        && <InfoTab       trip={trip} />}
           {tab === 'update'      && <UpdateTab     trip={trip} onUpdated={(t) => { setTrip(t); onTripUpdated?.(t); }} />}
           {tab === 'recommend'   && <RecommendTab  trip={trip} onUpdated={(t) => { setTrip(t); onTripUpdated?.(t); setTab('assign'); }} />}
@@ -183,6 +224,7 @@ const TripDetailModal = ({ trip: initialTrip, onClose, onRefresh, onTripUpdated 
         </div>
       </div>
     </div>
+    </>
   );
 };
 

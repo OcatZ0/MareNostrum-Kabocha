@@ -2391,6 +2391,106 @@
                 },
                 "type": "object"
             },
+            "EmissionFactor": {
+                "description": "CO2 emission factor reference representation based on truck category and age bracket",
+                "properties": {
+                    "id": {
+                        "description": "Unique identifier of the emission factor entry",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "truck_category": {
+                        "description": "Truck category grouping (light, medium, heavy) based on truck brand & size",
+                        "type": "string",
+                        "example": "medium",
+                        "enum": [
+                            "light",
+                            "medium",
+                            "heavy"
+                        ]
+                    },
+                    "age_min_year": {
+                        "description": "Minimum age of truck in years for this factor tier",
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "age_max_year": {
+                        "description": "Maximum age of truck in years (null means no upper age limit)",
+                        "type": "integer",
+                        "example": 5,
+                        "nullable": true
+                    },
+                    "factor_kg_per_km": {
+                        "description": "CO2 emission factor in kg CO2 per km traveled",
+                        "type": "number",
+                        "format": "float",
+                        "example": 0.55
+                    },
+                    "created_at": {
+                        "description": "Timestamp when the record was created",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "description": "Timestamp when the record was last updated",
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "Notification": {
+                "description": "In-app notification resource representation for drivers and admins",
+                "properties": {
+                    "id": {
+                        "description": "Unique identifier of the notification",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "user_id": {
+                        "description": "ID of the target user receiving the notification",
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "trip_id": {
+                        "description": "Associated trip ID (null if general notification)",
+                        "type": "integer",
+                        "example": 5,
+                        "nullable": true
+                    },
+                    "type": {
+                        "description": "Notification trigger type category",
+                        "type": "string",
+                        "example": "trip_assigned",
+                        "enum": [
+                            "trip_assigned",
+                            "departure_reminder",
+                            "arrived_at_point",
+                            "ship_departed",
+                            "ship_arrived",
+                            "trip_completed",
+                            "delay_warning",
+                            "location_validation_failed"
+                        ]
+                    },
+                    "message": {
+                        "description": "Notification message content",
+                        "type": "string",
+                        "example": "Anda ditugaskan pada trip #5, keberangkatan 2026-08-15 08:00"
+                    },
+                    "is_read": {
+                        "description": "Read status flag (false = unread, true = read)",
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "created_at": {
+                        "description": "Timestamp when the notification was generated",
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
             "Port": {
                 "description": "Port record details.",
                 "properties": {
@@ -2439,16 +2539,22 @@
                 "type": "object"
             },
             "TripCheckpoint": {
+                "description": "GPS ping or status transition milestone recorded during a trip execution",
                 "properties": {
                     "id": {
+                        "description": "Unique identifier of the checkpoint record",
                         "type": "integer",
                         "example": 1
                     },
                     "trip_id": {
-                        "type": "integer"
+                        "description": "Associated trip ID",
+                        "type": "integer",
+                        "example": 5
                     },
                     "event_type": {
+                        "description": "Checkpoint event category: gps_ping (every 3s), departed (start leg), arrived_at_destination (confirmed arrival), truck_returned (cross-border truck return)",
                         "type": "string",
+                        "example": "gps_ping",
                         "enum": [
                             "departed",
                             "gps_ping",
@@ -2461,17 +2567,23 @@
                         ]
                     },
                     "latitude": {
+                        "description": "GPS latitude coordinate",
                         "type": "number",
                         "format": "float",
+                        "example": 1.1234567,
                         "nullable": true
                     },
                     "longitude": {
+                        "description": "GPS longitude coordinate",
                         "type": "number",
                         "format": "float",
+                        "example": 104.0123456,
                         "nullable": true
                     },
                     "source": {
+                        "description": "Data source: gps (browser Geolocation API), manual (user button press), api (VesselAPI/automated system)",
                         "type": "string",
+                        "example": "gps",
                         "enum": [
                             "gps",
                             "manual",
@@ -2479,6 +2591,7 @@
                         ]
                     },
                     "recorded_at": {
+                        "description": "Timestamp when the checkpoint event was recorded",
                         "type": "string",
                         "format": "date-time"
                     }
@@ -2486,36 +2599,47 @@
                 "type": "object"
             },
             "TripEndpoint": {
-                "description": "An origin or destination point — either a company or a port.",
+                "description": "An origin or destination location point — either a logistics company or a port terminal.",
                 "properties": {
                     "type": {
+                        "description": "Location type: company (industrial facility/warehouse) or port (maritime terminal)",
                         "type": "string",
+                        "example": "company",
                         "enum": [
                             "company",
                             "port"
                         ]
                     },
                     "id": {
-                        "type": "integer"
+                        "description": "Unique identifier of the company or port",
+                        "type": "integer",
+                        "example": 1
                     },
                     "name": {
-                        "type": "string"
+                        "description": "Human-readable location name",
+                        "type": "string",
+                        "example": "Company A Logistics"
                     },
                     "latitude": {
-                        "description": "Needed by the frontend to call TomTom RoutingModule itself, backend no longer stores/returns route geometry (Bagian 8.6).",
+                        "description": "Latitude coordinate. Used by frontend TomTom Maps SDK to render map route.",
                         "type": "number",
-                        "format": "float"
+                        "format": "float",
+                        "example": 1.1234567
                     },
                     "longitude": {
+                        "description": "Longitude coordinate. Used by frontend TomTom Maps SDK to render map route.",
                         "type": "number",
-                        "format": "float"
+                        "format": "float",
+                        "example": 104.0123456
                     }
                 },
                 "type": "object"
             },
             "Trip": {
+                "description": "Complete Trip resource model representing domestic or cross-border logistics shipments",
                 "properties": {
                     "id": {
+                        "description": "Unique identifier of the trip",
                         "type": "integer",
                         "example": 1
                     },
@@ -2531,30 +2655,81 @@
                                 "$ref": "#/components/schemas/TripEndpoint"
                             }
                         ],
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Cross-border only: Pelabuhan Singapura tujuan KAPAL (null for domestic trips)"
                     },
                     "truck_id": {
+                        "description": "Assigned truck ID (null in draft status)",
                         "type": "integer",
+                        "example": 1,
                         "nullable": true
                     },
                     "driver_id": {
+                        "description": "Assigned driver ID (null in draft status)",
                         "type": "integer",
+                        "example": 2,
                         "nullable": true
                     },
                     "ship_ref_id": {
+                        "description": "MMSI/IMO number of the vessel for cross-border tracking",
                         "type": "string",
+                        "example": "563012340",
                         "nullable": true
                     },
                     "recommended_slots": {
-                        "type": "object",
+                        "description": "3 recommended departure time slots with scores and penalty breakdown (generated by POST /trips/{id}/recommend)",
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "departure_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "example": "2026-08-15T06:00:00Z"
+                                },
+                                "score": {
+                                    "type": "number",
+                                    "format": "float",
+                                    "example": 92.5
+                                },
+                                "reason": {
+                                    "type": "string",
+                                    "example": "06:00 — lalu lintas lancar, estimasi tiba 06:45"
+                                },
+                                "travel_time_seconds": {
+                                    "type": "integer",
+                                    "example": 2700
+                                },
+                                "breakdown": {
+                                    "properties": {
+                                        "traffic_penalty": {
+                                            "type": "number",
+                                            "example": 0
+                                        },
+                                        "delay_penalty": {
+                                            "type": "number",
+                                            "example": 2.5
+                                        },
+                                        "night_penalty": {
+                                            "type": "number",
+                                            "example": 0
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            },
+                            "type": "object"
+                        },
                         "nullable": true
                     },
                     "chosen_departure_at": {
+                        "description": "Confirmed departure timestamp chosen by Admin",
                         "type": "string",
                         "format": "date-time",
+                        "example": "2026-08-15T06:00:00Z",
                         "nullable": true
                     },
                     "status": {
+                        "description": "Trip lifecycle state machine status: draft -> assigned -> in_transit_origin -> at_origin_port -> on_ship -> at_destination_port -> completed",
                         "type": "string",
                         "example": "draft",
                         "enum": [
@@ -2571,43 +2746,121 @@
                         ]
                     },
                     "distance_km": {
+                        "description": "Route distance in km computed by TomTom Traffic API",
                         "type": "number",
                         "format": "float",
+                        "example": 15.4,
                         "nullable": true
                     },
                     "estimated_co2_kg": {
+                        "description": "Estimated carbon emissions in kg (distance_km x emission_factor)",
                         "type": "number",
                         "format": "float",
+                        "example": 3.85,
                         "nullable": true
                     },
                     "estimated_duration_min": {
+                        "description": "Estimated travel time in minutes computed by TomTom Traffic API",
                         "type": "integer",
+                        "example": 25,
                         "nullable": true
                     },
                     "actual_departure_at": {
+                        "description": "Actual departure timestamp when driver starts journey",
                         "type": "string",
                         "format": "date-time",
                         "nullable": true
                     },
                     "actual_arrival_at": {
+                        "description": "Actual arrival timestamp when cargo reaches destination",
                         "type": "string",
                         "format": "date-time",
                         "nullable": true
                     },
                     "truck_returned_at": {
-                        "description": "Cross-border only: when the truck (not the ship) made it back to origin.",
+                        "description": "Cross-border only: timestamp when Company A truck returned back to origin base",
                         "type": "string",
                         "format": "date-time",
                         "nullable": true
                     },
                     "created_by": {
-                        "type": "integer"
+                        "description": "User ID of the Admin who created the trip",
+                        "type": "integer",
+                        "example": 1
                     },
                     "created_at": {
+                        "description": "Creation timestamp",
                         "type": "string",
                         "format": "date-time"
                     },
                     "updated_at": {
+                        "description": "Last update timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "Truck": {
+                "description": "Representation of a logistics fleet truck resource",
+                "properties": {
+                    "id": {
+                        "description": "Unique identifier of the truck",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "plate_number": {
+                        "description": "License plate number (unique)",
+                        "type": "string",
+                        "example": "BP 1001 XY"
+                    },
+                    "brand": {
+                        "description": "Brand/Manufacturer used for CO2 emission factor lookup",
+                        "type": "string",
+                        "example": "Hino"
+                    },
+                    "model": {
+                        "description": "Specific truck model",
+                        "type": "string",
+                        "example": "Dutro 110 SD",
+                        "nullable": true
+                    },
+                    "year": {
+                        "description": "Manufacturing year",
+                        "type": "integer",
+                        "example": 2023
+                    },
+                    "age_years": {
+                        "description": "Calculated truck age in years (current year - year)",
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "fuel_type": {
+                        "description": "Type of fuel consumed by the truck",
+                        "type": "string",
+                        "example": "diesel",
+                        "enum": [
+                            "diesel",
+                            "petrol",
+                            "electric"
+                        ]
+                    },
+                    "status": {
+                        "description": "Operational status: active = available for assignment, maintenance = under repair",
+                        "type": "string",
+                        "example": "active",
+                        "enum": [
+                            "active",
+                            "maintenance"
+                        ]
+                    },
+                    "created_at": {
+                        "description": "Timestamp when the record was created",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "description": "Timestamp when the record was last updated",
                         "type": "string",
                         "format": "date-time"
                     }
