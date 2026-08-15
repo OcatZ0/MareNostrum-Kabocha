@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\TripCheckpointController;
 use App\Http\Controllers\TripController;
 use App\Http\Middleware\BypassAuthForTesting;
@@ -27,4 +28,6 @@ Route::middleware(BypassAuthForTesting::class)->group(function () {
     Route::get('/trips/{trip}/checkpoints', [TripCheckpointController::class, 'index']);
     Route::get('/trips/{trip}/position', [TripController::class, 'position']);
     Route::get('/trips/{trip}/ship-status', [TripController::class, 'shipStatus']);
+
+    Route::get('/companies', [CompanyController::class, 'index']);
 });

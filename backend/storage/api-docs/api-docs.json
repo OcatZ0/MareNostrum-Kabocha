@@ -12,6 +12,52 @@
         }
     ],
     "paths": {
+        "/companies": {
+            "get": {
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "List all companies",
+                "description": "Master data — every company (internal and partner, both Batam and Singapore side). Small, bounded dataset (not paginated), meant for populating a dropdown/select when creating a trip (PRD Bagian 5.1) or plotting on a map.",
+                "operationId": "8af1177352a157e9228c00f023616d87",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "OK"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Company"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/trips/{id}/checkpoints": {
             "get": {
                 "tags": [
@@ -1095,6 +1141,45 @@
     },
     "components": {
         "schemas": {
+            "Company": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Batamindo Industrial Park"
+                    },
+                    "type": {
+                        "type": "string",
+                        "example": "internal",
+                        "enum": [
+                            "internal",
+                            "partner"
+                        ]
+                    },
+                    "city": {
+                        "type": "string",
+                        "example": "Batam"
+                    },
+                    "address": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 1.065171
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 104.028693
+                    }
+                },
+                "type": "object"
+            },
             "TripCheckpoint": {
                 "properties": {
                     "id": {
@@ -1285,6 +1370,10 @@
         {
             "name": "Trips",
             "description": "Trip planning, assignment and tracking"
+        },
+        {
+            "name": "Companies",
+            "description": "Company master data (internal + partner)"
         }
     ]
 }
