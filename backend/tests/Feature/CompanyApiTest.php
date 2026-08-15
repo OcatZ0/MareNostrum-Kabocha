@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Context\CompanyType;
+use App\Context\Role;
+use App\Context\StatusTrips;
 use App\Models\Company;
 use App\Models\Trip;
-
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -22,7 +24,7 @@ class CompanyApiTest extends TestCase
             'name' => 'Admin User',
             'username' => 'admin',
             'password' => bcrypt('password'),
-            'role' => 'admin',
+            'role' => Role::ADMIN,
         ]);
     }
 
@@ -30,7 +32,7 @@ class CompanyApiTest extends TestCase
     {
         Company::create([
             'name' => 'Company A Logistics',
-            'type' => 'internal',
+            'type' => CompanyType::INTERNAL,
             'city' => 'Batam',
             'address' => 'Batam Center',
             'latitude' => 1.1234567,
@@ -54,7 +56,7 @@ class CompanyApiTest extends TestCase
     {
         Company::create([
             'name' => 'Batam Central Depot',
-            'type' => 'internal',
+            'type' => CompanyType::INTERNAL,
             'city' => 'Batam',
             'latitude' => 1.123,
             'longitude' => 104.012,
@@ -62,17 +64,17 @@ class CompanyApiTest extends TestCase
 
         Company::create([
             'name' => 'Singapore Distribution Partner',
-            'type' => 'partner',
+            'type' => CompanyType::PARTNER,
             'city' => 'Singapore',
             'latitude' => 1.290,
             'longitude' => 103.851,
         ]);
 
         // Filter by type
-        $responseType = $this->getJson('/api/companies?type=internal');
+        $responseType = $this->getJson('/api/companies?type='.CompanyType::INTERNAL);
         $responseType->assertStatus(200);
         $this->assertCount(1, $responseType->json('data'));
-        $this->assertEquals('internal', $responseType->json('data.0.type'));
+        $this->assertEquals(CompanyType::INTERNAL, $responseType->json('data.0.type'));
 
         // Search by keyword
         $responseSearch = $this->getJson('/api/companies?search=Singapore');
@@ -85,7 +87,7 @@ class CompanyApiTest extends TestCase
     {
         $payload = [
             'name' => 'New Partner Warehouse',
-            'type' => 'partner',
+            'type' => CompanyType::PARTNER,
             'city' => 'Batam',
             'address' => 'Kawasan Industri Batu Ampar',
             'latitude' => 1.1567000,
@@ -100,14 +102,14 @@ class CompanyApiTest extends TestCase
                 'message' => 'Perusahaan berhasil ditambahkan.',
                 'data' => [
                     'name' => 'New Partner Warehouse',
-                    'type' => 'partner',
+                    'type' => CompanyType::PARTNER,
                     'city' => 'Batam',
                 ],
             ]);
 
         $this->assertDatabaseHas('companies', [
             'name' => 'New Partner Warehouse',
-            'type' => 'partner',
+            'type' => CompanyType::PARTNER,
         ]);
     }
 
@@ -190,7 +192,7 @@ class CompanyApiTest extends TestCase
     {
         $company = Company::create([
             'name' => 'Company To Delete',
-            'type' => 'partner',
+            'type' => CompanyType::PARTNER,
             'city' => 'Batam',
             'latitude' => 1.100,
             'longitude' => 104.000,
@@ -213,7 +215,7 @@ class CompanyApiTest extends TestCase
     {
         $company = Company::create([
             'name' => 'Active Business Partner',
-            'type' => 'partner',
+            'type' => CompanyType::PARTNER,
             'city' => 'Batam',
             'latitude' => 1.100,
             'longitude' => 104.000,
@@ -225,7 +227,7 @@ class CompanyApiTest extends TestCase
         Trip::create([
             'origin_company_id' => $company->id,
             'destination_company_id' => null,
-            'status' => 'draft',
+            'status' => StatusTrips::DRAFT,
             'created_by' => $admin->id,
         ]);
 

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Context\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -14,7 +15,7 @@ class UserSeeder extends Seeder
             [
                 'name' => 'Admin',
                 'password' => 'admin',
-                'role' => 'admin',
+                'role' => Role::ADMIN,
                 'phone' => null,
             ]
         );
@@ -24,7 +25,7 @@ class UserSeeder extends Seeder
             [
                 'name' => 'Driver',
                 'password' => 'driver',
-                'role' => 'driver',
+                'role' => Role::DRIVER,
                 'phone' => null,
             ]
         );

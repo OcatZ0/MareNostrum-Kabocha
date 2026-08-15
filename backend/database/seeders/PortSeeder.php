@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Context\Country;
 use App\Models\Port;
 use Illuminate\Database\Seeder;
 
@@ -13,7 +14,7 @@ class PortSeeder extends Seeder
         Port::updateOrCreate(
             ['name' => 'Batu Ampar Port'],
             [
-                'country' => 'indonesia',
+                'country' => Country::INDONESIA,
                 'unlocode' => 'IDBUR',
                 'latitude' => 1.16713,
                 'longitude' => 103.99680,
@@ -23,7 +24,7 @@ class PortSeeder extends Seeder
         Port::updateOrCreate(
             ['name' => 'Batam Centre Ferry Terminal'],
             [
-                'country' => 'indonesia',
+                'country' => Country::INDONESIA,
                 'unlocode' => 'IDBTH',
                 'latitude' => 1.130856,
                 'longitude' => 104.055225,
@@ -33,7 +34,7 @@ class PortSeeder extends Seeder
         Port::updateOrCreate(
             ['name' => 'Sekupang Port'],
             [
-                'country' => 'indonesia',
+                'country' => Country::INDONESIA,
                 'unlocode' => 'IDSKP',
                 'latitude' => 1.08,
                 'longitude' => 103.90,
@@ -44,7 +45,7 @@ class PortSeeder extends Seeder
         Port::updateOrCreate(
             ['name' => 'Port of Singapore (PSA)'],
             [
-                'country' => 'singapore',
+                'country' => Country::SINGAPORE,
                 'unlocode' => 'SGSIN',
                 'latitude' => 1.2650,
                 'longitude' => 103.8200,
@@ -54,7 +55,7 @@ class PortSeeder extends Seeder
         Port::updateOrCreate(
             ['name' => 'Jurong Port'],
             [
-                'country' => 'singapore',
+                'country' => Country::SINGAPORE,
                 'unlocode' => 'SGJUR',
                 'latitude' => 1.28,
                 'longitude' => 103.73,
@@ -64,7 +65,7 @@ class PortSeeder extends Seeder
         Port::updateOrCreate(
             ['name' => 'Tuas Port'],
             [
-                'country' => 'singapore',
+                'country' => Country::SINGAPORE,
                 'unlocode' => 'SGTUA',
                 'latitude' => 1.3167,
                 'longitude' => 103.65,
@@ -74,7 +75,7 @@ class PortSeeder extends Seeder
         Port::updateOrCreate(
             ['name' => 'Sembawang Wharves'],
             [
-                'country' => 'singapore',
+                'country' => Country::SINGAPORE,
                 'unlocode' => 'SGSEM',
                 'latitude' => 1.4625,
                 'longitude' => 103.83639,

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Context\Role;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -14,7 +15,7 @@ class UpdateUserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->role === 'admin';
+        return $this->user()?->role === Role::ADMIN;
     }
 
     /**
@@ -37,7 +38,7 @@ class UpdateUserRequest extends FormRequest
                 Rule::unique('users', 'username')->ignore($userId),
             ],
             'password' => ['nullable', 'string', 'min:6'],
-            'role' => ['sometimes', 'required', 'string', Rule::in(['admin', 'driver'])],
+            'role' => ['sometimes', 'required', 'string', Rule::in([Role::ADMIN, Role::DRIVER])],
             'phone' => ['nullable', 'string', 'max:20'],
         ];
     }

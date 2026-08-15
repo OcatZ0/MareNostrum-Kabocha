@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use App\Context\StatusTrips;
 
 return new class extends Migration
 {
@@ -27,18 +28,17 @@ return new class extends Migration
             $table->jsonb('recommended_slots')->nullable();
             $table->timestamp('chosen_departure_at')->nullable();
 
-            $table->enum('status', [
-                'draft',
-                'assigned',
-                'in_transit_origin',
-                'at_origin_port',
-                'on_ship',
-                'at_destination_port',
-                'in_transit_destination',
-                'arrived',
-                'completed',
-                'cancelled',
-            ])->default('draft');
+            $table->enum('status', [StatusTrips::DRAFT,
+                StatusTrips::ASSIGNED,
+                StatusTrips::IN_TRANSIT_ORIGIN,
+                StatusTrips::AT_ORIGIN_PORT,
+                StatusTrips::ON_SHIP,
+                StatusTrips::AT_DESTINATION_PORT,
+                StatusTrips::IN_TRANSIT_DESTINATION,
+                StatusTrips::ARRIVED,
+                StatusTrips::COMPLETED,
+                StatusTrips::CANCELLED,
+            ])->default(StatusTrips::DRAFT);
 
             $table->decimal('distance_km', 8, 2)->nullable();
             $table->decimal('estimated_co2_kg', 8, 2)->nullable();

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Context\StatusTrips;
 use App\Http\Resources\TripResource;
 use App\Models\EmissionFactor;
 use App\Models\Trip;
@@ -41,18 +42,24 @@ class AnalyticsController extends Controller
         }
 
         $totalTrips = (clone $query)->count();
-        $completedTrips = (clone $query)->whereIn('status', ['completed', 'arrived'])->count();
-        $inTransitTrips = (clone $query)->whereIn('status', ['in_transit_origin', 'at_origin_port', 'on_ship', 'at_destination_port', 'in_transit_destination'])->count();
-        $assignedTrips = (clone $query)->where('status', 'assigned')->count();
-        $draftTrips = (clone $query)->where('status', 'draft')->count();
-        $cancelledTrips = (clone $query)->where('status', 'cancelled')->count();
+        $completedTrips = (clone $query)->whereIn('status', [StatusTrips::COMPLETED, StatusTrips::ARRIVED])->count();
+        $inTransitTrips = (clone $query)->whereIn('status', [
+            StatusTrips::IN_TRANSIT_ORIGIN,
+            StatusTrips::AT_ORIGIN_PORT,
+            StatusTrips::ON_SHIP,
+            StatusTrips::AT_DESTINATION_PORT,
+            StatusTrips::IN_TRANSIT_DESTINATION,
+        ])->count();
+        $assignedTrips = (clone $query)->where('status', StatusTrips::ASSIGNED)->count();
+        $draftTrips = (clone $query)->where('status', StatusTrips::DRAFT)->count();
+        $cancelledTrips = (clone $query)->where('status', StatusTrips::CANCELLED)->count();
 
         $totalDistanceKm = (float) (clone $query)->sum('distance_km');
         $totalCo2Kg = (float) (clone $query)->sum('estimated_co2_kg');
 
         // Calculate average delay and recommendation accuracy for completed trips
         $completedQueryTrips = (clone $query)
-            ->whereIn('status', ['completed', 'arrived'])
+            ->whereIn('status', [StatusTrips::COMPLETED, StatusTrips::ARRIVED])
             ->whereNotNull('actual_departure_at')
             ->whereNotNull('actual_arrival_at')
             ->whereNotNull('estimated_duration_min')

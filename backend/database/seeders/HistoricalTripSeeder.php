@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Context\CompanyType;
+use App\Context\StatusTrips;
 use App\Models\Company;
 use App\Models\Trip;
 use App\Models\User;
@@ -31,8 +33,8 @@ class HistoricalTripSeeder extends Seeder
     {
         $admin = User::where('username', 'admin')->first();
         $driver = User::where('username', 'driver')->first();
-        $internal = Company::where('type', 'internal')->first();
-        $partner = Company::where('type', 'partner')->where('city', $internal?->city)->first();
+        $internal = Company::where('type', CompanyType::INTERNAL)->first();
+        $partner = Company::where('type', CompanyType::PARTNER)->where('city', $internal?->city)->first();
 
         if (! $admin || ! $driver || ! $internal || ! $partner) {
             return;
@@ -40,7 +42,7 @@ class HistoricalTripSeeder extends Seeder
 
         // Idempotent: skip if this seeder has already run, so repeated `db:seed`
         // calls don't keep piling up duplicate fake history.
-        if (Trip::where('status', 'completed')->where('origin_company_id', $internal->id)->where('destination_company_id', $partner->id)->exists()) {
+        if (Trip::where('status', StatusTrips::COMPLETED)->where('origin_company_id', $internal->id)->where('destination_company_id', $partner->id)->exists()) {
             return;
         }
 
@@ -53,7 +55,7 @@ class HistoricalTripSeeder extends Seeder
                     'origin_company_id' => $internal->id,
                     'destination_company_id' => $partner->id,
                     'driver_id' => $driver->id,
-                    'status' => 'completed',
+                    'status' => StatusTrips::COMPLETED,
                     'estimated_duration_min' => self::ESTIMATED_DURATION_MIN,
                     'actual_departure_at' => $departedAt,
                     'actual_arrival_at' => $arrivedAt,

@@ -1788,8 +1788,8 @@
                 "tags": [
                     "Trips"
                 ],
-                "summary": "Poll for the ship's arrival at the destination port",
-                "description": "Admin can view any trip. Driver can only view a trip assigned to them. Meaningful only while status=on_ship — polls VesselAPI Port Events (PRD Bagian 8.2) filtered by ship_destination_port_id's unlocode, checking for an arrival event matching ship_ref_id. On a match, updates the trip to at_destination_port, records a ship_arrived checkpoint, and notifies the driver — tracking ends there (Bagian 5.3: Company A does not track partner trucks on the other side of the border). If Port Events has no matching data, falls back to Haversine distance (Bagian 18) between the ship's last known live position and the destination port's coordinates, considered arrived within 500m. Intended to be polled every 15-30s like /position; any status other than on_ship is a no-op that just reports the trip's current status.",
+                "summary": "Poll VesselAPI for cross-border cargo arrival and auto-transition to at_destination_port",
+                "description": "Admin can poll any trip. Driver can only poll their own assigned trip. Intended to be polled periodically by the frontend once a cross-border trip has departed Batam (PRD Bagian 15 Dashboard Logistik: \"Status kapal: realtime via VesselAPI\"). No-ops unless status=on_ship, ship_ref_id is set, and ship_destination_port_id is set. Checks VesselAPI Port Events for an arrival event at the destination port (PRD Bagian 8.2), with Haversine proximity fallback to within 500m of the destination port (PRD Bagian 8.2/18). On first detected arrival: transitions status to at_destination_port, sets actual_arrival_at, records a ship_arrived checkpoint, fires a notification to the driver, and returns arrived=true with the detection source.",
                 "operationId": "1fe25cdbf3db3d3d55c5ef9c0c7bd8d8",
                 "parameters": [
                     {
@@ -1819,11 +1819,11 @@
                                         "data": {
                                             "properties": {
                                                 "status": {
-                                                    "type": "string",
-                                                    "example": "on_ship"
+                                                    "description": "Current trip status (at_destination_port if arrived).",
+                                                    "type": "string"
                                                 },
                                                 "arrived": {
-                                                    "description": "True only on the call that just detected arrival.",
+                                                    "description": "True if arrival was just detected or the trip has already arrived at the destination port.",
                                                     "type": "boolean"
                                                 },
                                                 "source": {
@@ -1890,6 +1890,7 @@
                             "enum": [
                                 "diesel",
                                 "petrol",
+                                "gasoline",
                                 "electric"
                             ]
                         }
@@ -2615,7 +2616,7 @@
                 "type": "object"
             },
             "User": {
-                "description": "User and driver account details.",
+                "description": "User details representation",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -2623,7 +2624,7 @@
                     },
                     "name": {
                         "type": "string",
-                        "example": "Budi Santoso"
+                        "example": "Driver Budi"
                     },
                     "username": {
                         "type": "string",

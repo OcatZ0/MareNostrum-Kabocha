@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Context\CompanyType;
 use App\Http\Requests\StoreCompanyRequest;
 use App\Http\Requests\UpdateCompanyRequest;
 use App\Http\Resources\CompanyResource;
@@ -21,7 +22,7 @@ class CompanyController extends Controller
         summary: 'Get paginated list of companies',
         tags: ['Companies'],
         parameters: [
-            new OA\Parameter(name: 'type', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['internal', 'partner'])),
+            new OA\Parameter(name: 'type', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: [CompanyType::INTERNAL, CompanyType::PARTNER])),
             new OA\Parameter(name: 'search', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 15)),
         ],
@@ -63,7 +64,7 @@ class CompanyController extends Controller
                 required: ['name', 'type', 'city', 'latitude', 'longitude'],
                 properties: [
                     new OA\Property(property: 'name', type: 'string', example: 'Company B Logistics'),
-                    new OA\Property(property: 'type', type: 'string', enum: ['internal', 'partner'], example: 'partner'),
+                    new OA\Property(property: 'type', type: 'string', enum: [CompanyType::INTERNAL, CompanyType::PARTNER], example: CompanyType::PARTNER),
                     new OA\Property(property: 'city', type: 'string', example: 'Batam'),
                     new OA\Property(property: 'address', type: 'string', example: 'Kawasan Industri Mukakuning'),
                     new OA\Property(property: 'latitude', type: 'number', format: 'float', example: 1.08234),
@@ -116,7 +117,7 @@ class CompanyController extends Controller
             content: new OA\JsonContent(
                 properties: [
                     new OA\Property(property: 'name', type: 'string', example: 'Company B Logistics Updated'),
-                    new OA\Property(property: 'type', type: 'string', enum: ['internal', 'partner']),
+                    new OA\Property(property: 'type', type: 'string', enum: [CompanyType::INTERNAL, CompanyType::PARTNER]),
                     new OA\Property(property: 'city', type: 'string'),
                     new OA\Property(property: 'address', type: 'string'),
                     new OA\Property(property: 'latitude', type: 'number', format: 'float'),

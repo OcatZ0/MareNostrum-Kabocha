@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Context\Country;
+use App\Context\Role;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -14,7 +16,7 @@ class StorePortRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->role === 'admin';
+        return $this->user()?->role === Role::ADMIN;
     }
 
     /**
@@ -26,7 +28,7 @@ class StorePortRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'country' => ['required', 'string', Rule::in(['indonesia', 'singapore'])],
+            'country' => ['required', 'string', Rule::in([Country::INDONESIA, Country::SINGAPORE])],
             'unlocode' => ['nullable', 'string', 'size:5', 'alpha_num'],
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],

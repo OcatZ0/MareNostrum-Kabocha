@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Context\Country;
 use App\Http\Requests\StorePortRequest;
 use App\Http\Requests\UpdatePortRequest;
 use App\Http\Resources\PortResource;
@@ -21,7 +22,7 @@ class PortController extends Controller
         summary: 'Get paginated list of ports',
         tags: ['Ports'],
         parameters: [
-            new OA\Parameter(name: 'country', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['indonesia', 'singapore'])),
+            new OA\Parameter(name: 'country', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: [Country::INDONESIA, Country::SINGAPORE])),
             new OA\Parameter(name: 'search', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 15)),
         ],
@@ -63,7 +64,7 @@ class PortController extends Controller
                 required: ['name', 'country', 'latitude', 'longitude'],
                 properties: [
                     new OA\Property(property: 'name', type: 'string', example: 'Batam Centre Ferry Terminal'),
-                    new OA\Property(property: 'country', type: 'string', enum: ['indonesia', 'singapore'], example: 'indonesia'),
+                    new OA\Property(property: 'country', type: 'string', enum: [Country::INDONESIA, Country::SINGAPORE], example: Country::INDONESIA),
                     new OA\Property(property: 'unlocode', type: 'string', example: 'IDBTH'),
                     new OA\Property(property: 'latitude', type: 'number', format: 'float', example: 1.1312345),
                     new OA\Property(property: 'longitude', type: 'number', format: 'float', example: 104.0532145),
@@ -115,7 +116,7 @@ class PortController extends Controller
             content: new OA\JsonContent(
                 properties: [
                     new OA\Property(property: 'name', type: 'string', example: 'Batam Centre Ferry Terminal Updated'),
-                    new OA\Property(property: 'country', type: 'string', enum: ['indonesia', 'singapore']),
+                    new OA\Property(property: 'country', type: 'string', enum: [Country::INDONESIA, Country::SINGAPORE]),
                     new OA\Property(property: 'unlocode', type: 'string', example: 'IDBTH'),
                     new OA\Property(property: 'latitude', type: 'number', format: 'float'),
                     new OA\Property(property: 'longitude', type: 'number', format: 'float'),
